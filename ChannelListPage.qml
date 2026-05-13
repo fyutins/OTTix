@@ -92,7 +92,7 @@ Rectangle {
         Rectangle {
             width: channelListView.width
             height: 56
-            color: mouseArea.containsMouse ? "#0f3460" : "#1a1a2e"
+            color: clickArea.containsMouse ? "#0f3460" : "#1a1a2e"
             radius: 6
 
             RowLayout {
@@ -100,39 +100,53 @@ Rectangle {
                 anchors.margins: 8
                 spacing: 12
 
-                // Logo
-                Rectangle {
-                    Layout.preferredWidth: 40
-                    Layout.preferredHeight: 40
-                    radius: 6
-                    color: "#16213e"
-
-                    Image {
-                        anchors.fill: parent
-                        fillMode: Image.PreserveAspectFit
-                        source: model.logo || ""
-                        asynchronous: true
-                    }
-                }
-
-                // Info
-                ColumnLayout {
+                // Logo + Info (clickable)
+                MouseArea {
+                    id: clickArea
                     Layout.fillWidth: true
-                    spacing: 2
+                    Layout.fillHeight: true
+                    hoverEnabled: true
+                    onClicked: root.channelSelected(model.name, model.url)
 
-                    Label {
-                        text: model.name
-                        color: "#e0e0e0"
-                        font.pixelSize: 14
-                        elide: Text.ElideRight
-                        Layout.fillWidth: true
-                    }
+                    RowLayout {
+                        anchors.fill: parent
+                        spacing: 12
 
-                    Label {
-                        text: model.groupName || ""
-                        color: "#808080"
-                        font.pixelSize: 11
-                        visible: text !== ""
+                        // Logo
+                        Rectangle {
+                            Layout.preferredWidth: 40
+                            Layout.preferredHeight: 40
+                            radius: 6
+                            color: "#16213e"
+
+                            Image {
+                                anchors.fill: parent
+                                fillMode: Image.PreserveAspectFit
+                                source: model.logo || ""
+                                asynchronous: true
+                            }
+                        }
+
+                        // Info
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 2
+
+                            Label {
+                                text: model.name
+                                color: "#e0e0e0"
+                                font.pixelSize: 14
+                                elide: Text.ElideRight
+                                Layout.fillWidth: true
+                            }
+
+                            Label {
+                                text: model.groupName || ""
+                                color: "#808080"
+                                font.pixelSize: 11
+                                visible: text !== ""
+                            }
+                        }
                     }
                 }
 
@@ -152,13 +166,6 @@ Rectangle {
                     text: "▶"
                     onClicked: root.channelSelected(model.name, model.url)
                 }
-            }
-
-            MouseArea {
-                id: mouseArea
-                anchors.fill: parent
-                hoverEnabled: true
-                onClicked: root.channelSelected(model.name, model.url)
             }
         }
     }

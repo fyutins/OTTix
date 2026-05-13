@@ -22,6 +22,7 @@ class MpvObject : public QQuickFramebufferObject
     Q_PROPERTY(int volume READ volume WRITE setVolume NOTIFY volumeChanged)
     Q_PROPERTY(bool muted READ isMuted WRITE setMuted NOTIFY mutedChanged)
     Q_PROPERTY(double playbackSpeed READ playbackSpeed WRITE setPlaybackSpeed NOTIFY playbackSpeedChanged)
+    Q_PROPERTY(bool loading READ isLoading NOTIFY loadingChanged)
 
 public:
     explicit MpvObject(QQuickItem *parent = nullptr);
@@ -33,6 +34,7 @@ public:
     void setSource(const QString &source);
 
     bool isPlaying() const { return m_playing; }
+    bool isLoading() const { return m_loading; }
     double position() const { return m_position; }
     double duration() const { return m_duration; }
     int volume() const { return m_volume; }
@@ -48,6 +50,7 @@ public:
     Q_INVOKABLE void setPlaybackSpeed(double speed);
     Q_INVOKABLE void loadFile(const QString &path);
     Q_INVOKABLE void loadUrl(const QString &url);
+    Q_INVOKABLE void clearVideo();
 
     void enqueueCommand(std::function<void(mpv_handle *)> cmd);
     bool dequeueCommand(std::function<void(mpv_handle *)> &cmd);
@@ -63,15 +66,18 @@ signals:
     void errorOccurred(const QString &error);
     void endReached();
     void ready();
+    void loadingChanged();
 
 private:
     QString m_source;
     bool m_playing = false;
+    bool m_loading = false;
     double m_position = 0.0;
     double m_duration = 0.0;
     int m_volume = 100;
     bool m_muted = false;
     double m_speed = 1.0;
+    bool m_clearFrame = false;
 
 #if HAS_MPV
     mpv_handle *m_mpv = nullptr;

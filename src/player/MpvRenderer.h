@@ -30,6 +30,7 @@ private:
     mpv_handle *m_mpv = nullptr;
     mpv_render_context *m_mpvGl = nullptr;
     bool m_initialized = false;
+    bool m_clearFrame = false;
     static void onUpdate(void *ctx);
 #endif
 };

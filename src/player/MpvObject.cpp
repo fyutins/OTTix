@@ -196,6 +196,12 @@ void MpvObject::loadUrl(const QString &url)
 #endif
 }
 
+void MpvObject::clearVideo()
+{
+    qDebug() << "[MPV] clearVideo - clearing frame buffer";
+    m_clearFrame = true;
+}
+
 void MpvObject::enqueueCommand(std::function<void(mpv_handle *)> cmd)
 {
 #if HAS_MPV
@@ -229,7 +235,6 @@ void MpvObject::onMpvWakeup(void *ctx)
 
 void MpvObject::handleMpvEvents()
 {
-    qDebug() << "[MPV] handleMpvEvents called";
     if (!m_mpv) {
         qDebug() << "[MPV] handleMpvEvents: m_mpv is null, returning";
         return;
@@ -240,12 +245,9 @@ void MpvObject::handleMpvEvents()
         mpv_event *event = mpv_wait_event(m_mpv, 0);
         if (event->event_id == MPV_EVENT_NONE)
             break;
-        qDebug() << "[MPV] event #" << count << ":" << mpvEventName(event->event_id)
-                 << "(id:" << event->event_id << ")";
         onMpvEvent(event);
         count++;
     }
-    qDebug() << "[MPV] handleMpvEvents done, processed" << count << "events";
 }
 
 void MpvObject::onMpvEvent(mpv_event *event)
@@ -254,15 +256,22 @@ void MpvObject::onMpvEvent(mpv_event *event)
     case MPV_EVENT_SHUTDOWN:
         qDebug() << "[MPV] SHUTDOWN received";
         break;
-    case MPV_EVENT_START_FILE:
+    case MPV_EVENT_START_FILE: {
         qDebug() << "[MPV] START_FILE - mpv started loading file";
+        m_loading = true;
+        emit loadingChanged();
         break;
-    case MPV_EVENT_FILE_LOADED:
-        qDebug() << "[MPV] FILE_LOADED - file loaded successfully, setting playing=true";
+    }
+    case MPV_EVENT_FILE_LOADED: {
+        qDebug() << "[MPV] FILE_LOADED - file loaded successfully";
+        m_loading = false;
         m_playing = true;
+        m_clearFrame = false;
+        emit loadingChanged();
         emit playingChanged();
         emit ready();
         break;
+    }
     case MPV_EVENT_PLAYBACK_RESTART:
         qDebug() << "[MPV] PLAYBACK_RESTART - playback started/resumed";
         m_playing = true;
@@ -276,7 +285,9 @@ void MpvObject::onMpvEvent(mpv_event *event)
         break;
     case MPV_EVENT_END_FILE: {
         m_playing = false;
+        m_loading = false;
         emit playingChanged();
+        emit loadingChanged();
         mpv_event_end_file *ef = (mpv_event_end_file *)event->data;
         qDebug() << "[MPV] END_FILE reason:" << ef->reason << "error:" << ef->error;
         if (ef->reason == MPV_END_FILE_REASON_ERROR)
@@ -300,7 +311,6 @@ void MpvObject::onMpvEvent(mpv_event *event)
         } else {
             val = "(null)";
         }
-        qDebug() << "[MPV] PROPERTY_CHANGE:" << prop->name << "=" << val;
 
         if (strcmp(prop->name, "time-pos") == 0 && prop->format == MPV_FORMAT_DOUBLE && prop->data) {
             m_position = *(double *)prop->data;

@@ -19,10 +19,13 @@ Window {
     property string currentChannelUrl: ""
 
     function playChannel(name, url) {
+        console.log("[QML] playChannel:", name, url)
         currentChannelName = name
-        currentChannelUrl = url
         showPlayer = true
-        console.log("Play channel ", url)
+        // Clear current frame and stop before loading new channel
+        mpvItem.clearVideo()
+        mpvItem.stop()
+        currentChannelUrl = url
     }
 
     function stopPlayback() {
@@ -103,6 +106,31 @@ Window {
                     errorLabel.text = "Error: " + error
                     errorLabel.visible = true
                     errorHideTimer.restart()
+                }
+            }
+
+            Rectangle {
+                id: loadingOverlay
+                anchors.fill: parent
+                color: "#1a1a2e"
+                visible: mpvItem.loading
+
+                BusyIndicator {
+                    anchors.centerIn: parent
+                    running: parent.visible
+                    palette {
+                        dark: "#e0e0e0"
+                        mid: "#4a90d9"
+                    }
+                }
+
+                Label {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.top: parent.verticalCenter
+                    anchors.topMargin: 40
+                    text: qsTr("Loading...")
+                    color: "#a0a0a0"
+                    font.pixelSize: 14
                 }
             }
 

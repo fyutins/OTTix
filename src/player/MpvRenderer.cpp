@@ -85,6 +85,8 @@ void MpvRenderer::synchronize(QQuickFramebufferObject *item)
     }
     if (cmdCount > 0)
         qDebug() << "[RENDERER] Executed" << cmdCount << "queued commands";
+
+    m_clearFrame = obj->m_clearFrame;
 #else
     Q_UNUSED(item)
 #endif
@@ -94,7 +96,6 @@ void MpvRenderer::render()
 {
 #if HAS_MPV
     if (!m_mpvGl || !m_initialized) {
-        // qDebug() every 60 calls (~1 sec) to avoid spam
         static int skip = 0;
         if (++skip % 60 == 0)
             qDebug() << "[RENDERER] render skipped: m_mpvGl=" << m_mpvGl << "m_initialized=" << m_initialized;
@@ -108,6 +109,13 @@ void MpvRenderer::render()
     }
 
     fbo->bind();
+
+    if (m_clearFrame) {
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        fbo->release();
+        return;
+    }
 
     qreal dpr = m_obj && m_obj->window() ? m_obj->window()->devicePixelRatio() : 1.0;
     QSize fboSize = fbo->size() / dpr;
@@ -140,10 +148,6 @@ void MpvRenderer::onUpdate(void *ctx)
 {
     MpvRenderer *renderer = static_cast<MpvRenderer *>(ctx);
     if (renderer && renderer->m_obj) {
-        static int frameCount = 0;
-        frameCount++;
-        if (frameCount % 30 == 0) // log every 30 frames
-            qDebug() << "[RENDERER] onUpdate: frame" << frameCount << "requesting update";
         QMetaObject::invokeMethod(renderer->m_obj, [renderer]() {
             renderer->m_obj->update();
         });
