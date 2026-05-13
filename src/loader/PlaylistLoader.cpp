@@ -67,7 +67,6 @@ void PlaylistLoader::cancel()
         m_currentReply = nullptr;
     }
     m_xtreamCategories.clear();
-    m_xtreamCategoryIndex = 0;
     m_xtreamChannels.clear();
     m_currentPlaylistId = -1;
 }
@@ -118,27 +117,24 @@ void PlaylistLoader::onXtreamAuthResult(bool success, const QString &message, co
         return;
     }
 
-    m_xtreamCategoryIndex = 0;
+    qDebug() << "XTREAM auth success, loading live categories...";
     m_xtreamChannels.clear();
     m_xtreamApi->getLiveCategories();
 }
 
 void PlaylistLoader::onXtreamCategoriesLoaded(const QList<XtreamCategory> &categories)
 {
+    qDebug() << "Loaded" << categories.size() << "live categories";
     m_xtreamCategories = categories;
 
-    if (categories.isEmpty()) {
-        // No categories - fetch all streams directly
-        m_xtreamApi->getLiveStreams();
-        return;
-    }
-
-    m_xtreamCategoryIndex = 0;
-    fetchAllXtreamStreams(m_currentPlaylistId, 0);
+    // Fetch all live streams in a single request (server may ignore category_id)
+    m_xtreamApi->getLiveStreams();
 }
 
 void PlaylistLoader::onXtreamStreamsLoaded(const QList<XtreamChannel> &channels)
 {
+    qDebug() << "Received" << channels.size() << "live streams (all categories)";
+
     for (const auto &ch : channels) {
         ChannelInfo ci;
         ci.name = ch.name;
@@ -150,33 +146,28 @@ void PlaylistLoader::onXtreamStreamsLoaded(const QList<XtreamChannel> &channels)
         m_xtreamChannels.append(ci);
     }
 
-    m_xtreamCategoryIndex++;
-    if (m_xtreamCategoryIndex < m_xtreamCategories.size()) {
-        emit loadProgress(m_currentPlaylistId, m_xtreamCategoryIndex, m_xtreamCategories.size());
-        fetchAllXtreamStreams(m_currentPlaylistId, m_xtreamCategoryIndex);
-    } else {
-        emit loadProgress(m_currentPlaylistId, m_xtreamCategories.size(), m_xtreamCategories.size());
-        storeChannels(m_currentPlaylistId, m_xtreamChannels);
-    }
-}
-
-void PlaylistLoader::fetchAllXtreamStreams(int playlistId, int categoryIndex)
-{
-    Q_UNUSED(playlistId)
-    QString catId = m_xtreamCategories[categoryIndex].categoryId;
-    m_xtreamApi->getLiveStreams(catId);
+    emit loadProgress(m_currentPlaylistId, 1, 1);
+    storeChannels(m_currentPlaylistId, m_xtreamChannels);
 }
 
 void PlaylistLoader::storeChannels(int playlistId, const QList<ChannelInfo> &channels)
 {
-    // Assign playlist ID
-    QList<ChannelInfo> finalChannels = channels;
-    for (auto &ch : finalChannels)
+    // Assign playlist ID and filter out channels with empty names
+    QList<ChannelInfo> finalChannels;
+    for (auto ch : channels) {
         ch.playlistId = playlistId;
+        if (ch.name.isEmpty()) {
+            qWarning() << "Skipping channel with empty name, url:" << ch.url;
+            continue;
+        }
+        finalChannels.append(ch);
+    }
 
-    // Remove old channels for this playlist and add new ones
-    DatabaseManager::instance().removeChannelsByPlaylist(playlistId);
-    bool ok = DatabaseManager::instance().addChannels(finalChannels);
+    qDebug() << "Storing" << finalChannels.size() << "channels for playlist" << playlistId
+             << "(filtered from" << channels.size() << ")";
+
+    // Atomically replace channels (delete old + insert new in one transaction)
+    bool ok = DatabaseManager::instance().replaceChannels(playlistId, finalChannels);
 
     if (!ok) {
         emit loadError(playlistId, "Failed to store channels in database");
@@ -184,5 +175,6 @@ void PlaylistLoader::storeChannels(int playlistId, const QList<ChannelInfo> &cha
     }
 
     int count = DatabaseManager::instance().channelCount(playlistId);
+    qDebug() << "Playlist" << playlistId << "loaded with" << count << "channels";
     emit loadComplete(playlistId, count);
 }

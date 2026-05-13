@@ -473,8 +473,12 @@ Window {
 
         if (PlaylistModel.count > 0) {
             var first = PlaylistModel.get(0)
-            if (first)
-                loader.loadM3U(first.id, first.url)
+            if (first) {
+                if (first.type === "xtream")
+                    loader.loadXtream(first.id, first.url, first.username, first.password)
+                else
+                    loader.loadM3U(first.id, first.url)
+            }
         }
     }
 }

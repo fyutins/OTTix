@@ -33,7 +33,6 @@ private slots:
 
 private:
     void storeChannels(int playlistId, const QList<ChannelInfo> &channels);
-    void fetchAllXtreamStreams(int playlistId, int categoryIndex);
 
     QNetworkAccessManager *m_nam;
     M3UParser *m_m3uParser;
@@ -45,6 +44,5 @@ private:
 
     // XTREAM state
     QList<XtreamCategory> m_xtreamCategories;
-    int m_xtreamCategoryIndex = 0;
     QList<ChannelInfo> m_xtreamChannels;
 };

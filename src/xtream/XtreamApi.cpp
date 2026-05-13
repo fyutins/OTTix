@@ -88,7 +88,15 @@ void XtreamApi::authenticate()
         QJsonObject obj = doc.object();
 
         if (obj.contains("user_info")) {
-            emit authResult(true, "Authenticated", obj["user_info"].toObject());
+            QJsonValue userInfoVal = obj["user_info"];
+            if (userInfoVal.isObject()) {
+                QJsonObject userInfo = userInfoVal.toObject();
+                if (userInfo.contains("auth") && !userInfo["auth"].toVariant().toBool()) {
+                    emit authResult(false, "Invalid credentials", {});
+                    return;
+                }
+            }
+            emit authResult(true, "Authenticated", userInfoVal.toObject());
         } else if (obj.contains("auth") && !obj["auth"].toBool()) {
             emit authResult(false, "Invalid credentials", {});
         } else {
@@ -116,13 +124,21 @@ void XtreamApi::getLiveCategories()
         }
 
         QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        QJsonArray arr;
 
-        if (!doc.isArray()) {
-            emit apiError("Invalid categories response");
-            return;
+        if (doc.isArray()) {
+            arr = doc.array();
+        } else if (doc.isObject()) {
+            QJsonObject obj = doc.object();
+            for (const auto &key : obj.keys()) {
+                if (obj[key].isArray()) {
+                    arr = obj[key].toArray();
+                    break;
+                }
+            }
         }
 
-        emit liveCategoriesLoaded(parseCategories(doc.array()));
+        emit liveCategoriesLoaded(parseCategories(arr));
     });
 }
 
@@ -144,13 +160,21 @@ void XtreamApi::getLiveStreams(const QString &categoryId)
         }
 
         QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        QJsonArray arr;
 
-        if (!doc.isArray()) {
-            emit apiError("Invalid live streams response");
-            return;
+        if (doc.isArray()) {
+            arr = doc.array();
+        } else if (doc.isObject()) {
+            QJsonObject obj = doc.object();
+            for (const auto &key : obj.keys()) {
+                if (obj[key].isArray()) {
+                    arr = obj[key].toArray();
+                    break;
+                }
+            }
         }
 
-        emit liveStreamsLoaded(parseLiveStreams(doc.array()));
+        emit liveStreamsLoaded(parseLiveStreams(arr));
     });
 }
 
@@ -168,13 +192,21 @@ void XtreamApi::getVodCategories()
         }
 
         QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        QJsonArray arr;
 
-        if (!doc.isArray()) {
-            emit apiError("Invalid VOD categories response");
-            return;
+        if (doc.isArray()) {
+            arr = doc.array();
+        } else if (doc.isObject()) {
+            QJsonObject obj = doc.object();
+            for (const auto &key : obj.keys()) {
+                if (obj[key].isArray()) {
+                    arr = obj[key].toArray();
+                    break;
+                }
+            }
         }
 
-        emit vodCategoriesLoaded(parseCategories(doc.array()));
+        emit vodCategoriesLoaded(parseCategories(arr));
     });
 }
 
@@ -196,28 +228,41 @@ void XtreamApi::getVodStreams(const QString &categoryId)
         }
 
         QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        QJsonArray arr;
 
-        if (!doc.isArray()) {
-            emit apiError("Invalid VOD streams response");
-            return;
+        if (doc.isArray()) {
+            arr = doc.array();
+        } else if (doc.isObject()) {
+            QJsonObject obj = doc.object();
+            for (const auto &key : obj.keys()) {
+                if (obj[key].isArray()) {
+                    arr = obj[key].toArray();
+                    break;
+                }
+            }
         }
-
-        QJsonArray arr = doc.array();
         QList<XtreamChannel> channels;
 
         for (const auto &val : arr) {
             QJsonObject s = val.toObject();
             XtreamChannel ch;
             ch.id = QString::number(s["stream_id"].toInt());
-            ch.name = s["name"].toString();
+            ch.name = s["name"].toString().trimmed();
             ch.streamType = "vod";
             ch.streamUrl = parseStreamUrl(ch.id, s["container_extension"].toString());
             ch.logo = s["stream_icon"].toString();
             ch.group = s["category_name"].toString();
             ch.epgChannelId = s["epg_channel_id"].toString();
+
+            if (ch.name.isEmpty()) {
+                qWarning() << "Skipping VOD stream with empty name, id:" << ch.id;
+                continue;
+            }
+
             channels.append(ch);
         }
 
+        qDebug() << "Parsed" << channels.size() << "VOD streams";
         emit vodStreamsLoaded(channels);
     });
 }
@@ -236,13 +281,21 @@ void XtreamApi::getSeriesCategories()
         }
 
         QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        QJsonArray arr;
 
-        if (!doc.isArray()) {
-            emit apiError("Invalid series categories response");
-            return;
+        if (doc.isArray()) {
+            arr = doc.array();
+        } else if (doc.isObject()) {
+            QJsonObject obj = doc.object();
+            for (const auto &key : obj.keys()) {
+                if (obj[key].isArray()) {
+                    arr = obj[key].toArray();
+                    break;
+                }
+            }
         }
 
-        emit liveCategoriesLoaded(parseCategories(doc.array()));
+        emit liveCategoriesLoaded(parseCategories(arr));
     });
 }
 
@@ -263,7 +316,22 @@ void XtreamApi::getSeriesStreams(const QString &categoryId)
             return;
         }
 
-        emit liveStreamsLoaded(parseLiveStreams(QJsonDocument::fromJson(reply->readAll()).array()));
+        QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        QJsonArray arr;
+
+        if (doc.isArray()) {
+            arr = doc.array();
+        } else if (doc.isObject()) {
+            QJsonObject obj = doc.object();
+            for (const auto &key : obj.keys()) {
+                if (obj[key].isArray()) {
+                    arr = obj[key].toArray();
+                    break;
+                }
+            }
+        }
+
+        emit liveStreamsLoaded(parseLiveStreams(arr));
     });
 }
 
@@ -391,14 +459,21 @@ QList<XtreamChannel> XtreamApi::parseLiveStreams(const QJsonArray &data)
         QJsonObject s = val.toObject();
         XtreamChannel ch;
         ch.id = QString::number(s["stream_id"].toInt());
-        ch.name = s["name"].toString();
+        ch.name = s["name"].toString().trimmed();
         ch.streamType = "live";
         ch.streamUrl = parseStreamUrl(ch.id);
         ch.logo = s["stream_icon"].toString();
         ch.group = s["category_name"].toString();
         ch.epgChannelId = s["epg_channel_id"].toString();
+
+        if (ch.name.isEmpty()) {
+            qWarning() << "Skipping live stream with empty name, id:" << ch.id;
+            continue;
+        }
+
         channels.append(ch);
     }
+    qDebug() << "Parsed" << channels.size() << "live streams from" << data.size() << "entries";
     return channels;
 }
 

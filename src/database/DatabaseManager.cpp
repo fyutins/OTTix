@@ -231,6 +231,49 @@ bool DatabaseManager::removeChannelsByPlaylist(int playlistId)
     return q.exec();
 }
 
+bool DatabaseManager::replaceChannels(int playlistId, const QList<ChannelInfo> &channels)
+{
+    m_db.transaction();
+    QSqlQuery q(m_db);
+
+    // Remove favorites first to avoid FK constraint issues
+    q.prepare("DELETE FROM favorites WHERE channel_id IN (SELECT id FROM channels WHERE playlist_id = :id)");
+    q.bindValue(":id", playlistId);
+    if (!q.exec()) {
+        qWarning() << "Failed to remove favorites:" << q.lastError().text();
+        m_db.rollback();
+        return false;
+    }
+
+    q.prepare("DELETE FROM channels WHERE playlist_id = :id");
+    q.bindValue(":id", playlistId);
+    if (!q.exec()) {
+        qWarning() << "Failed to remove old channels:" << q.lastError().text();
+        m_db.rollback();
+        return false;
+    }
+
+    q.prepare(R"(INSERT INTO channels (playlist_id, name, url, logo, group_name, channel_id, stream_type)
+                  VALUES (:playlist_id, :name, :url, :logo, :group_name, :channel_id, :stream_type))");
+
+    for (const auto &ch : channels) {
+        q.bindValue(":playlist_id", ch.playlistId);
+        q.bindValue(":name", ch.name);
+        q.bindValue(":url", ch.url);
+        q.bindValue(":logo", ch.logo);
+        q.bindValue(":group_name", ch.group);
+        q.bindValue(":channel_id", ch.channelId);
+        q.bindValue(":stream_type", ch.streamType);
+        if (!q.exec()) {
+            qWarning() << "Failed to add channel:" << q.lastError().text();
+            m_db.rollback();
+            return false;
+        }
+    }
+
+    return m_db.commit();
+}
+
 QList<ChannelInfo> DatabaseManager::getChannels(int playlistId)
 {
     QList<ChannelInfo> result;

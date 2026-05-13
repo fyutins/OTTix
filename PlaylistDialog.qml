@@ -8,7 +8,7 @@ Dialog {
     standardButtons: Dialog.Ok | Dialog.Cancel
     modal: true
     width: 480
-    height: 400
+    height: playlistType === "xtream" ? 520 : 400
     x: (parent.width - width) / 2
     y: (parent.height - height) / 2
 

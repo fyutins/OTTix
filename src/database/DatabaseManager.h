@@ -105,6 +105,7 @@ public:
     int addChannel(const ChannelInfo &channel);
     bool addChannels(const QList<ChannelInfo> &channels);
     bool removeChannelsByPlaylist(int playlistId);
+    bool replaceChannels(int playlistId, const QList<ChannelInfo> &channels);
     QList<ChannelInfo> getChannels(int playlistId);
     QList<ChannelInfo> searchChannels(const QString &query);
     ChannelInfo getChannel(int id);
