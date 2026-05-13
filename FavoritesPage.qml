@@ -26,7 +26,17 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
             model: listModel
-            delegate: favoriteDelegate
+            delegate: ChannelDelegate {
+                width: favoritesList.width
+                channelName: model.name
+                channelUrl: model.url
+                channelLogo: model.logo
+                channelGroup: model.group
+                channelDbId: model.id
+                isFavorite: true
+                onPlayRequested: (name, url) => root.channelSelected(name, url)
+                onFavoriteToggled: (id) => DatabaseManager.removeFavorite(id)
+            }
             clip: true
             spacing: 2
 
@@ -44,77 +54,6 @@ Rectangle {
 
     ListModel { id: listModel }
 
-    Component {
-        id: favoriteDelegate
-
-        Rectangle {
-            width: favoritesList.width
-            height: 56
-            color: "#16213e"
-            radius: 6
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.margins: 8
-                spacing: 12
-
-                Rectangle {
-                    Layout.preferredWidth: 40
-                    Layout.preferredHeight: 40
-                    radius: 6
-                    color: "#0f3460"
-
-                    Image {
-                        anchors.fill: parent
-                        fillMode: Image.PreserveAspectFit
-                        source: model.logo || ""
-                        asynchronous: true
-                    }
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 2
-
-                    Label {
-                        text: model.name
-                        color: "#e0e0e0"
-                        font.pixelSize: 14
-                        elide: Text.ElideRight
-                        Layout.fillWidth: true
-                    }
-
-                    Label {
-                        text: model.group || ""
-                        color: "#808080"
-                        font.pixelSize: 11
-                        visible: text !== ""
-                    }
-                }
-
-                Button {
-                    text: "\u2605"
-                    font.pixelSize: 18
-                    flat: true
-                    onClicked: {
-                        DatabaseManager.removeFavorite(model.id)
-                        refresh()
-                    }
-                }
-
-                Button {
-                    text: "\u25B6"
-                    onClicked: root.channelSelected(model.name, model.url)
-                }
-            }
-
-            MouseArea {
-                anchors.fill: parent
-                onClicked: root.channelSelected(model.name, model.url)
-            }
-        }
-    }
-
     function refresh() {
         listModel.clear()
         var favs = DatabaseManager.getFavoritesVariant()
@@ -122,5 +61,8 @@ Rectangle {
             listModel.append(favs[i])
     }
 
-    Component.onCompleted: refresh()
+    Component.onCompleted: {
+        refresh()
+        DatabaseManager.favoritesChanged.connect(refresh)
+    }
 }

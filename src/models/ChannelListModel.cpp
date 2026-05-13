@@ -108,6 +108,42 @@ void ChannelListModel::setFavorites()
     setChannels(favorites);
 }
 
+void ChannelListModel::toggleFavorite(int channelDbId)
+{
+    auto &db = DatabaseManager::instance();
+
+    // Find in filtered list
+    int row = -1;
+    for (int i = 0; i < m_filtered.size(); ++i) {
+        if (m_filtered[i].id == channelDbId) {
+            row = i;
+            break;
+        }
+    }
+    if (row < 0)
+        return;
+
+    ChannelInfo &ch = m_filtered[row];
+    if (ch.isFavorite) {
+        db.removeFavorite(channelDbId);
+        ch.isFavorite = false;
+    } else {
+        db.addFavorite(channelDbId);
+        ch.isFavorite = true;
+    }
+
+    // Sync with m_channels
+    for (auto &c : m_channels) {
+        if (c.id == channelDbId) {
+            c.isFavorite = ch.isFavorite;
+            break;
+        }
+    }
+
+    QModelIndex idx = index(row, 0);
+    emit dataChanged(idx, idx, {IsFavoriteRole});
+}
+
 void ChannelListModel::setFilterGroup(const QString &group)
 {
     if (m_filterGroup == group)

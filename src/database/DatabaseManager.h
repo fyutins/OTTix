@@ -111,13 +111,17 @@ public:
     int channelCount(int playlistId);
 
     // Favorites
-    bool addFavorite(int channelId);
-    bool removeFavorite(int channelId);
+    Q_INVOKABLE bool addFavorite(int channelId);
+    Q_INVOKABLE bool removeFavorite(int channelId);
     bool isFavorite(int channelId);
     QList<ChannelInfo> getFavorites();
     QList<int> getFavoriteIds();
     Q_INVOKABLE QVariantList getFavoritesVariant();
 
+signals:
+    void favoritesChanged();
+
+public:
     // Cache
     void setCache(const QString &key, const QString &data);
     QString getCache(const QString &key);

@@ -25,6 +25,8 @@ Window {
         // Clear current frame and stop before loading new channel
         mpvItem.clearVideo()
         mpvItem.stop()
+        // Force reset to trigger binding even if same URL
+        currentChannelUrl = ""
         currentChannelUrl = url
     }
 

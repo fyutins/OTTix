@@ -33,6 +33,7 @@ public:
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void setChannels(int playlistId);
     Q_INVOKABLE void setFavorites();
+    Q_INVOKABLE void toggleFavorite(int channelDbId);
 
     QStringList groups() const { return m_groups; }
     QString filterGroup() const { return m_filterGroup; }

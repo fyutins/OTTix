@@ -81,6 +81,7 @@ qt_add_qml_module(appIptvPlayer
     VERSION 1.0
     QML_FILES
         Main.qml
+        ChannelDelegate.qml
         ChannelListPage.qml
         FavoritesPage.qml
         PlayerPage.qml

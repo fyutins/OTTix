@@ -13,7 +13,6 @@ Rectangle {
         anchors.fill: parent
         spacing: 0
 
-        // Search bar
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: 48
@@ -68,13 +67,22 @@ Rectangle {
 
         Item { Layout.preferredHeight: 8 }
 
-        // Channel list
         ListView {
             id: channelListView
             Layout.fillWidth: true
             Layout.fillHeight: true
             model: ChannelListModel
-            delegate: channelDelegate
+            delegate: ChannelDelegate {
+                width: channelListView.width
+                channelName: model.name
+                channelUrl: model.url
+                channelLogo: model.logo
+                channelGroup: model.groupName
+                channelDbId: model.channelId
+                isFavorite: model.isFavorite
+                onPlayRequested: (name, url) => root.channelSelected(name, url)
+                onFavoriteToggled: (id) => ChannelListModel.toggleFavorite(id)
+            }
             clip: true
             spacing: 2
 
@@ -82,90 +90,6 @@ Rectangle {
 
             Behavior on contentY {
                 NumberAnimation { duration: 150 }
-            }
-        }
-    }
-
-    Component {
-        id: channelDelegate
-
-        Rectangle {
-            width: channelListView.width
-            height: 56
-            color: clickArea.containsMouse ? "#0f3460" : "#1a1a2e"
-            radius: 6
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.margins: 8
-                spacing: 12
-
-                // Logo + Info (clickable)
-                MouseArea {
-                    id: clickArea
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    hoverEnabled: true
-                    onClicked: root.channelSelected(model.name, model.url)
-
-                    RowLayout {
-                        anchors.fill: parent
-                        spacing: 12
-
-                        // Logo
-                        Rectangle {
-                            Layout.preferredWidth: 40
-                            Layout.preferredHeight: 40
-                            radius: 6
-                            color: "#16213e"
-
-                            Image {
-                                anchors.fill: parent
-                                fillMode: Image.PreserveAspectFit
-                                source: model.logo || ""
-                                asynchronous: true
-                            }
-                        }
-
-                        // Info
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 2
-
-                            Label {
-                                text: model.name
-                                color: "#e0e0e0"
-                                font.pixelSize: 14
-                                elide: Text.ElideRight
-                                Layout.fillWidth: true
-                            }
-
-                            Label {
-                                text: model.groupName || ""
-                                color: "#808080"
-                                font.pixelSize: 11
-                                visible: text !== ""
-                            }
-                        }
-                    }
-                }
-
-                // Favorite button
-                ToolButton {
-                    text: model.isFavorite ? "★" : "☆"
-                    font.pixelSize: 18
-                    onClicked: {
-                        // Toggle favorite via C++ would be better
-                        // For now we just update the model
-                        model.isFavorite = !model.isFavorite
-                    }
-                }
-
-                // Play button
-                Button {
-                    text: "▶"
-                    onClicked: root.channelSelected(model.name, model.url)
-                }
             }
         }
     }

@@ -336,7 +336,10 @@ bool DatabaseManager::addFavorite(int channelId)
     QSqlQuery q(m_db);
     q.prepare("INSERT OR IGNORE INTO favorites (channel_id) VALUES (:id)");
     q.bindValue(":id", channelId);
-    return q.exec();
+    bool ok = q.exec();
+    if (ok)
+        emit favoritesChanged();
+    return ok;
 }
 
 bool DatabaseManager::removeFavorite(int channelId)
@@ -344,7 +347,10 @@ bool DatabaseManager::removeFavorite(int channelId)
     QSqlQuery q(m_db);
     q.prepare("DELETE FROM favorites WHERE channel_id = :id");
     q.bindValue(":id", channelId);
-    return q.exec();
+    bool ok = q.exec();
+    if (ok)
+        emit favoritesChanged();
+    return ok;
 }
 
 bool DatabaseManager::isFavorite(int channelId)
