@@ -53,6 +53,7 @@ MpvObject::MpvObject(QQuickItem *parent)
     qDebug() << "[MPV] mpv initialized successfully";
 
     mpv_set_wakeup_callback(m_mpv, onMpvWakeup, this);
+    updateProperties();
 #else
     Q_UNUSED(parent)
 #endif
@@ -151,7 +152,8 @@ void MpvObject::setMuted(bool muted)
     m_muted = muted;
     emit mutedChanged(muted);
 #if HAS_MPV
-    mpv_set_property(m_mpv, "mute", MPV_FORMAT_FLAG, &muted);
+    int flag = muted ? 1 : 0;
+    mpv_set_property(m_mpv, "mute", MPV_FORMAT_FLAG, &flag);
 #endif
 }
 
@@ -331,6 +333,8 @@ void MpvObject::onMpvEvent(mpv_event *event)
         } else if (strcmp(prop->name, "speed") == 0 && prop->format == MPV_FORMAT_DOUBLE && prop->data) {
             m_speed = *(double *)prop->data;
             emit playbackSpeedChanged(m_speed);
+        } else if (strcmp(prop->name, "track-list") == 0 && prop->format == MPV_FORMAT_NODE) {
+            updateTrackList();
         }
         break;
     }
@@ -349,11 +353,101 @@ void MpvObject::updateProperties()
     mpv_observe_property(m_mpv, 0, "mute", MPV_FORMAT_FLAG);
     mpv_observe_property(m_mpv, 0, "pause", MPV_FORMAT_FLAG);
     mpv_observe_property(m_mpv, 0, "speed", MPV_FORMAT_DOUBLE);
+    mpv_observe_property(m_mpv, 0, "track-list", MPV_FORMAT_NODE);
 
     double vol = 100;
     mpv_get_property(m_mpv, "volume", MPV_FORMAT_DOUBLE, &vol);
     m_volume = static_cast<int>(vol);
     emit volumeChanged(m_volume);
     qDebug() << "[MPV] Initial volume:" << m_volume;
+}
+
+void MpvObject::updateTrackList()
+{
+    mpv_node node;
+    if (mpv_get_property(m_mpv, "track-list", MPV_FORMAT_NODE, &node) < 0)
+        return;
+
+    m_audioTracks.clear();
+    m_subtitleTracks.clear();
+    m_videoTracks.clear();
+
+    if (node.format != MPV_FORMAT_NODE_ARRAY) {
+        mpv_free_node_contents(&node);
+        return;
+    }
+
+    for (int i = 0; i < node.u.list->num; i++) {
+        mpv_node *entry = &node.u.list->values[i];
+        if (entry->format != MPV_FORMAT_NODE_MAP)
+            continue;
+
+        QVariantMap track;
+        QString type;
+        int id = -1;
+
+        for (int j = 0; j < entry->u.list->num; j++) {
+            QString key = entry->u.list->keys[j];
+            mpv_node *val = &entry->u.list->values[j];
+
+            if (key == "type" && val->format == MPV_FORMAT_STRING)
+                type = val->u.string;
+            else if (key == "id" && val->format == MPV_FORMAT_INT64)
+                id = val->u.int64;
+            else if (key == "selected" && val->format == MPV_FORMAT_FLAG)
+                track["selected"] = val->u.flag;
+            else if (key == "lang" && val->format == MPV_FORMAT_STRING)
+                track["lang"] = QString(val->u.string);
+            else if (key == "title" && val->format == MPV_FORMAT_STRING)
+                track["title"] = QString(val->u.string);
+            else if (key == "default" && val->format == MPV_FORMAT_FLAG)
+                track["default"] = val->u.flag;
+        }
+
+        track["id"] = id;
+        QString label = track.value("title").toString();
+        if (label.isEmpty())
+            label = track.value("lang").toString();
+        if (label.isEmpty())
+            label = type + " #" + QString::number(id);
+        track["label"] = label;
+
+        if (type == "audio")
+            m_audioTracks.append(track);
+        else if (type == "sub")
+            m_subtitleTracks.append(track);
+        else if (type == "video")
+            m_videoTracks.append(track);
+    }
+
+    mpv_free_node_contents(&node);
+    emit tracksChanged();
+}
+
+void MpvObject::setAudioTrack(int trackId)
+{
+    qDebug() << "[MPV] setAudioTrack:" << trackId;
+    enqueueCommand([trackId](mpv_handle *mpv) {
+        int64_t id = trackId;
+        mpv_set_property(mpv, "audio", MPV_FORMAT_INT64, &id);
+    });
+}
+
+void MpvObject::setSubtitleTrack(int trackId)
+{
+    qDebug() << "[MPV] setSubtitleTrack:" << trackId;
+    enqueueCommand([trackId](mpv_handle *mpv) {
+        int64_t id = trackId;
+        mpv_set_property(mpv, "sub", MPV_FORMAT_INT64, &id);
+    });
+}
+
+void MpvObject::setVideoTrack(int trackId)
+{
+    qDebug() << "[MPV] setVideoTrack:" << trackId;
+    enqueueCommand([trackId](mpv_handle *mpv) {
+        int64_t id = trackId;
+        mpv_set_property(mpv, "video", MPV_FORMAT_INT64, &id);
+    });
 }
 #endif

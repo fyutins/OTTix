@@ -15,7 +15,7 @@ Rectangle {
     property int channelDbId: -1
     property bool isFavorite: false
 
-    signal playRequested(string name, string url)
+    signal playRequested(string name, string url, string logo, string group)
     signal favoriteToggled(int channelDbId)
 
     RowLayout {
@@ -28,7 +28,9 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
             hoverEnabled: true
-            onClicked: delegateRoot.playRequested(delegateRoot.channelName, delegateRoot.channelUrl)
+            onClicked: delegateRoot.playRequested(
+                delegateRoot.channelName, delegateRoot.channelUrl,
+                delegateRoot.channelLogo, delegateRoot.channelGroup)
 
             RowLayout {
                 anchors.fill: parent
@@ -78,7 +80,9 @@ Rectangle {
 
         Button {
             text: "\u25B6"
-            onClicked: delegateRoot.playRequested(delegateRoot.channelName, delegateRoot.channelUrl)
+            onClicked: delegateRoot.playRequested(
+                delegateRoot.channelName, delegateRoot.channelUrl,
+                delegateRoot.channelLogo, delegateRoot.channelGroup)
         }
     }
 }

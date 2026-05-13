@@ -17,15 +17,17 @@ Window {
     property bool showPlayer: false
     property string currentChannelName: ""
     property string currentChannelUrl: ""
+    property string currentChannelLogo: ""
+    property string currentChannelGroup: ""
 
-    function playChannel(name, url) {
+    function playChannel(name, url, logo, group) {
         console.log("[QML] playChannel:", name, url)
         currentChannelName = name
+        currentChannelLogo = logo || ""
+        currentChannelGroup = group || ""
         showPlayer = true
-        // Clear current frame and stop before loading new channel
         mpvItem.clearVideo()
         mpvItem.stop()
-        // Force reset to trigger binding even if same URL
         currentChannelUrl = ""
         currentChannelUrl = url
     }
@@ -150,13 +152,24 @@ Window {
                 onTriggered: errorLabel.visible = false
             }
 
+            MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                onPositionChanged: controlsTimer.restart()
+                onDoubleClicked: {
+                    window.visibility = window.visibility === Window.FullScreen
+                        ? Window.Windowed
+                        : Window.FullScreen
+                }
+            }
+
             Rectangle {
                 id: controlsOverlay
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                height: 50
-                color: Qt.rgba(0, 0, 0, 0.6)
+                height: 80
+                color: Qt.rgba(0, 0, 0, 0.65)
                 opacity: controlsTimer.running ? 1.0 : 0.0
                 visible: showPlayer
 
@@ -176,79 +189,142 @@ Window {
                     propagateComposedEvents: true
                 }
 
-                RowLayout {
+                ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 8
-                    spacing: 8
+                    anchors.margins: 6
+                    spacing: 4
 
-                    Label {
-                        text: currentChannelName
-                        color: "white"
-                        font.pixelSize: 14
-                        elide: Text.ElideRight
+                    RowLayout {
                         Layout.fillWidth: true
-                    }
+                        spacing: 8
 
-                    Slider {
-                        id: positionSlider
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 300
-                        from: 0
-                        to: mpvItem.duration > 0 ? mpvItem.duration : 1
-                        value: mpvItem.position
-                        enabled: mpvItem.duration > 0
-                        onMoved: mpvItem.seek(value)
-                    }
+                        Image {
+                            Layout.preferredWidth: 36
+                            Layout.preferredHeight: 36
+                            source: currentChannelLogo || ""
+                            asynchronous: true
+                            fillMode: Image.PreserveAspectFit
+                            visible: currentChannelLogo !== ""
+                        }
 
-                    Label {
-                        text: formatTime(mpvItem.position) + " / " + formatTime(mpvItem.duration)
-                        color: "white"
-                        font.pixelSize: 12
-                    }
+                        ColumnLayout {
+                            spacing: 0
+                            Label {
+                                text: currentChannelName
+                                color: "white"
+                                font.pixelSize: 13
+                                font.bold: true
+                                elide: Text.ElideRight
+                                Layout.fillWidth: true
+                            }
+                            Label {
+                                text: currentChannelGroup
+                                color: "#a0a0a0"
+                                font.pixelSize: 11
+                                visible: currentChannelGroup !== ""
+                                elide: Text.ElideRight
+                                Layout.fillWidth: true
+                            }
+                        }
 
-                    ToolButton {
-                        text: mpvItem.isPlaying ? "\u23F8" : "\u25B6"
-                        onClicked: {
-                            if (mpvItem.isPlaying)
-                                mpvItem.pause()
-                            else
-                                mpvItem.play()
+                        Item { Layout.fillWidth: true }
+
+                        ComboBox {
+                            id: audioTrackCombo
+                            model: mpvItem.audioTracks
+                            textRole: "label"
+                            visible: mpvItem.audioTracks.length > 1
+                            Layout.preferredWidth: 100
+                            delegate: ItemDelegate {
+                                text: modelData.label + (modelData.selected ? "  *" : "")
+                                width: parent.width
+                            }
+                            onActivated: mpvItem.setAudioTrack(mpvItem.audioTracks[index].id)
+                        }
+
+                        ComboBox {
+                            id: subTrackCombo
+                            model: mpvItem.subtitleTracks
+                            textRole: "label"
+                            visible: mpvItem.subtitleTracks.length > 0
+                            Layout.preferredWidth: 100
+                            delegate: ItemDelegate {
+                                text: modelData.label + (modelData.selected ? "  *" : "")
+                                width: parent.width
+                            }
+                            onActivated: mpvItem.setSubtitleTrack(mpvItem.subtitleTracks[index].id)
+                        }
+
+                        ComboBox {
+                            id: videoTrackCombo
+                            model: mpvItem.videoTracks
+                            textRole: "label"
+                            visible: mpvItem.videoTracks.length > 1
+                            Layout.preferredWidth: 100
+                            delegate: ItemDelegate {
+                                text: modelData.label + (modelData.selected ? "  *" : "")
+                                width: parent.width
+                            }
+                            onActivated: mpvItem.setVideoTrack(mpvItem.videoTracks[index].id)
                         }
                     }
 
-                    ToolButton {
-                        text: "\u23F9"
-                        onClicked: stopPlayback()
-                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
 
-                    Item { width: 16 }
+                        Slider {
+                            id: positionSlider
+                            Layout.fillWidth: true
+                            from: 0
+                            to: mpvItem.duration > 0 ? mpvItem.duration : 1
+                            value: mpvItem.position
+                            enabled: mpvItem.duration > 0
+                            onMoved: mpvItem.seek(value)
+                        }
 
-                    ToolButton {
-                        text: mpvItem.isMuted ? "\uD83D\uDD07" : "\uD83D\uDD0A"
-                        onClicked: mpvItem.setMuted(!mpvItem.isMuted)
-                    }
+                        Label {
+                            text: formatTime(mpvItem.position) + " / " + formatTime(mpvItem.duration)
+                            color: "white"
+                            font.pixelSize: 11
+                            Layout.preferredWidth: 100
+                        }
 
-                    Slider {
-                        id: volumeSlider
-                        Layout.preferredWidth: 100
-                        from: 0
-                        to: 100
-                        value: 100
-                        onMoved: mpvItem.setVolume(value)
+                        ToolButton {
+                            text: mpvItem.isPlaying ? "\u23F8" : "\u25B6"
+                            font.pixelSize: 16
+                            onClicked: {
+                                if (mpvItem.isPlaying)
+                                    mpvItem.pause()
+                                else
+                                    mpvItem.play()
+                            }
+                        }
+
+                        ToolButton {
+                            text: "\u23F9"
+                            font.pixelSize: 16
+                            onClicked: stopPlayback()
+                        }
+
+                        ToolButton {
+                            text: mpvItem.muted ? "\uD83D\uDD07" : "\uD83D\uDD0A"
+                            font.pixelSize: 14
+                            onClicked: mpvItem.setMuted(!mpvItem.muted)
+                        }
+
+                        Slider {
+                            id: volumeSlider
+                            Layout.preferredWidth: 80
+                            from: 0
+                            to: 100
+                            value: 100
+                            onMoved: mpvItem.setVolume(value)
+                        }
                     }
                 }
             }
 
-            MouseArea {
-                anchors.fill: parent
-                hoverEnabled: true
-                onPositionChanged: controlsTimer.restart()
-                onDoubleClicked: {
-                    window.visibility = window.visibility === Window.FullScreen
-                        ? Window.Windowed
-                        : Window.FullScreen
-                }
-            }
         }
 
         Rectangle {
@@ -276,11 +352,11 @@ Window {
                     currentIndex: tabBar.currentIndex
 
                     ChannelListPage {
-                        onChannelSelected: (name, url) => playChannel(name, url)
+                        onChannelSelected: (name, url, logo, group) => playChannel(name, url, logo, group)
                     }
 
                     FavoritesPage {
-                        onChannelSelected: (name, url) => playChannel(name, url)
+                        onChannelSelected: (name, url, logo, group) => playChannel(name, url, logo, group)
                     }
 
                     Item {

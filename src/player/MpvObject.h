@@ -23,6 +23,9 @@ class MpvObject : public QQuickFramebufferObject
     Q_PROPERTY(bool muted READ isMuted WRITE setMuted NOTIFY mutedChanged)
     Q_PROPERTY(double playbackSpeed READ playbackSpeed WRITE setPlaybackSpeed NOTIFY playbackSpeedChanged)
     Q_PROPERTY(bool loading READ isLoading NOTIFY loadingChanged)
+    Q_PROPERTY(QVariantList audioTracks READ audioTracks NOTIFY tracksChanged)
+    Q_PROPERTY(QVariantList subtitleTracks READ subtitleTracks NOTIFY tracksChanged)
+    Q_PROPERTY(QVariantList videoTracks READ videoTracks NOTIFY tracksChanged)
 
 public:
     explicit MpvObject(QQuickItem *parent = nullptr);
@@ -35,6 +38,9 @@ public:
 
     bool isPlaying() const { return m_playing; }
     bool isLoading() const { return m_loading; }
+    QVariantList audioTracks() const { return m_audioTracks; }
+    QVariantList subtitleTracks() const { return m_subtitleTracks; }
+    QVariantList videoTracks() const { return m_videoTracks; }
     double position() const { return m_position; }
     double duration() const { return m_duration; }
     int volume() const { return m_volume; }
@@ -51,6 +57,9 @@ public:
     Q_INVOKABLE void loadFile(const QString &path);
     Q_INVOKABLE void loadUrl(const QString &url);
     Q_INVOKABLE void clearVideo();
+    Q_INVOKABLE void setAudioTrack(int trackId);
+    Q_INVOKABLE void setSubtitleTrack(int trackId);
+    Q_INVOKABLE void setVideoTrack(int trackId);
 
     void enqueueCommand(std::function<void(mpv_handle *)> cmd);
     bool dequeueCommand(std::function<void(mpv_handle *)> &cmd);
@@ -67,6 +76,7 @@ signals:
     void endReached();
     void ready();
     void loadingChanged();
+    void tracksChanged();
 
 private:
     QString m_source;
@@ -78,6 +88,9 @@ private:
     bool m_muted = false;
     double m_speed = 1.0;
     bool m_clearFrame = false;
+    QVariantList m_audioTracks;
+    QVariantList m_subtitleTracks;
+    QVariantList m_videoTracks;
 
 #if HAS_MPV
     mpv_handle *m_mpv = nullptr;
@@ -88,6 +101,7 @@ private:
     void onMpvEvent(mpv_event *event);
     Q_INVOKABLE void handleMpvEvents();
     void updateProperties();
+    void updateTrackList();
     friend class MpvRenderer;
 #endif
 };

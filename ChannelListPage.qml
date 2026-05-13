@@ -7,7 +7,7 @@ Rectangle {
     id: root
     color: "transparent"
 
-    signal channelSelected(string name, string url)
+    signal channelSelected(string name, string url, string logo, string group)
 
     ColumnLayout {
         anchors.fill: parent
@@ -80,7 +80,7 @@ Rectangle {
                 channelGroup: model.groupName
                 channelDbId: model.channelId
                 isFavorite: model.isFavorite
-                onPlayRequested: (name, url) => root.channelSelected(name, url)
+                onPlayRequested: (name, url, logo, group) => root.channelSelected(name, url, logo, group)
                 onFavoriteToggled: (id) => ChannelListModel.toggleFavorite(id)
             }
             clip: true
