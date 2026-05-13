@@ -22,6 +22,7 @@ struct XtreamChannel {
     QString streamUrl;
     QString logo;
     QString group;
+    QString categoryId;
     QString epgChannelId;
 };
 

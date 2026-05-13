@@ -125,26 +125,41 @@ void PlaylistLoader::onXtreamAuthResult(bool success, const QString &message, co
 void PlaylistLoader::onXtreamCategoriesLoaded(const QList<XtreamCategory> &categories)
 {
     qDebug() << "Loaded" << categories.size() << "live categories";
+    for (int i = 0; i < qMin(5, categories.size()); i++)
+        qDebug() << "  Category" << i << "| id:" << categories[i].categoryId << "| name:" << categories[i].name;
     m_xtreamCategories = categories;
-
-    // Fetch all live streams in a single request (server may ignore category_id)
     m_xtreamApi->getLiveStreams();
 }
 
 void PlaylistLoader::onXtreamStreamsLoaded(const QList<XtreamChannel> &channels)
 {
-    qDebug() << "Received" << channels.size() << "live streams (all categories)";
+    qDebug() << "Received" << channels.size() << "live streams";
 
     for (const auto &ch : channels) {
         ChannelInfo ci;
         ci.name = ch.name;
         ci.url = ch.streamUrl;
         ci.logo = ch.logo;
+
+        // Map category_id to category name from cached categories
         ci.group = ch.group;
+        if (ci.group.isEmpty() && !ch.categoryId.isEmpty()) {
+            for (const auto &cat : m_xtreamCategories) {
+                if (cat.categoryId == ch.categoryId) {
+                    ci.group = cat.name;
+                    break;
+                }
+            }
+        }
+
         ci.channelId = ch.id;
         ci.streamType = "live";
         m_xtreamChannels.append(ci);
     }
+
+    qDebug() << "Total channels with group:"
+             << std::count_if(m_xtreamChannels.begin(), m_xtreamChannels.end(),
+                              [](const ChannelInfo &c) { return !c.group.isEmpty(); });
 
     emit loadProgress(m_currentPlaylistId, 1, 1);
     storeChannels(m_currentPlaylistId, m_xtreamChannels);

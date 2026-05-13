@@ -246,12 +246,13 @@ void XtreamApi::getVodStreams(const QString &categoryId)
         for (const auto &val : arr) {
             QJsonObject s = val.toObject();
             XtreamChannel ch;
-            ch.id = QString::number(s["stream_id"].toInt());
+            ch.id = s["stream_id"].toVariant().toString();
             ch.name = s["name"].toString().trimmed();
             ch.streamType = "vod";
             ch.streamUrl = parseStreamUrl(ch.id, s["container_extension"].toString());
             ch.logo = s["stream_icon"].toString();
             ch.group = s["category_name"].toString();
+            ch.categoryId = s["category_id"].toVariant().toString();
             ch.epgChannelId = s["epg_channel_id"].toString();
 
             if (ch.name.isEmpty()) {
@@ -427,7 +428,7 @@ QList<ChannelInfo> XtreamApi::vodStreamsToChannels(const QJsonArray &streams)
         ChannelInfo ci;
         ci.name = s["name"].toString();
         ci.streamType = "vod";
-        ci.channelId = QString::number(s["stream_id"].toInt());
+        ci.channelId = s["stream_id"].toVariant().toString();
         ci.url = parseStreamUrl(ci.channelId, s["container_extension"].toString());
         ci.logo = s["stream_icon"].toString();
         ci.group = s["category_name"].toString();
@@ -444,7 +445,7 @@ QList<XtreamCategory> XtreamApi::parseCategories(const QJsonArray &data)
     for (const auto &val : data) {
         QJsonObject obj = val.toObject();
         XtreamCategory cat;
-        cat.categoryId = QString::number(obj["category_id"].toInt());
+        cat.categoryId = obj["category_id"].toVariant().toString();
         cat.name = obj["category_name"].toString();
         cat.parentId = obj["parent_id"].toInt();
         categories.append(cat);
@@ -455,16 +456,25 @@ QList<XtreamCategory> XtreamApi::parseCategories(const QJsonArray &data)
 QList<XtreamChannel> XtreamApi::parseLiveStreams(const QJsonArray &data)
 {
     QList<XtreamChannel> channels;
-    for (const auto &val : data) {
-        QJsonObject s = val.toObject();
+    for (int i = 0; i < data.size(); i++) {
+        QJsonObject s = data[i].toObject();
         XtreamChannel ch;
-        ch.id = QString::number(s["stream_id"].toInt());
+        ch.id = s["stream_id"].toVariant().toString();
         ch.name = s["name"].toString().trimmed();
         ch.streamType = "live";
         ch.streamUrl = parseStreamUrl(ch.id);
         ch.logo = s["stream_icon"].toString();
         ch.group = s["category_name"].toString();
+        ch.categoryId = s["category_id"].toVariant().toString();
         ch.epgChannelId = s["epg_channel_id"].toString();
+
+        if (i < 5) {
+            qDebug() << "Stream" << i
+                     << "| name:" << ch.name
+                     << "| category_name:" << ch.group
+                     << "| category_id:" << ch.categoryId
+                     << "| raw category_id type:" << s["category_id"].type();
+        }
 
         if (ch.name.isEmpty()) {
             qWarning() << "Skipping live stream with empty name, id:" << ch.id;
