@@ -27,14 +27,17 @@ Window {
         currentChannelGroup = group || ""
         showPlayer = true
         mpvItem.clearVideo()
-        mpvItem.stop()
-        currentChannelUrl = ""
         currentChannelUrl = url
     }
 
     function stopPlayback() {
         showPlayer = false
         mpvItem.stop()
+    }
+
+    onShowPlayerChanged: {
+        if (showPlayer)
+            controlsTimer.start()
     }
 
     PlaylistLoader {
@@ -62,8 +65,6 @@ Window {
         onActivated: {
             if (window.visibility === Window.FullScreen)
                 window.visibility = Window.Windowed
-            if (showPlayer)
-                stopPlayback()
         }
     }
 
@@ -71,7 +72,7 @@ Window {
         sequence: "Space"
         onActivated: {
             if (showPlayer) {
-                if (mpvItem.isPlaying)
+                if (mpvItem.playing)
                     mpvItem.pause()
                 else
                     mpvItem.play()
@@ -291,20 +292,14 @@ Window {
                         }
 
                         ToolButton {
-                            text: mpvItem.isPlaying ? "\u23F8" : "\u25B6"
+                            text: mpvItem.playing ? "\u23F8" : "\u25B6"
                             font.pixelSize: 16
                             onClicked: {
-                                if (mpvItem.isPlaying)
+                                if (mpvItem.playing)
                                     mpvItem.pause()
                                 else
                                     mpvItem.play()
                             }
-                        }
-
-                        ToolButton {
-                            text: "\u23F9"
-                            font.pixelSize: 16
-                            onClicked: stopPlayback()
                         }
 
                         ToolButton {
