@@ -278,14 +278,14 @@ Window {
                             id: positionSlider
                             Layout.fillWidth: true
                             from: 0
-                            to: mpvItem.duration > 0 ? mpvItem.duration : 1
-                            value: mpvItem.position
-                            enabled: mpvItem.duration > 0
+                            to: mpvItem.sessionDuration > 0 ? mpvItem.sessionDuration : 1
+                            value: mpvItem.sessionPosition
+                            enabled: mpvItem.sessionDuration > 0
                             onMoved: mpvItem.seek(value)
                         }
 
                         Label {
-                            text: formatTime(mpvItem.position) + " / " + formatTime(mpvItem.duration)
+                            text: formatTime(mpvItem.sessionPosition) + " / " + formatTime(mpvItem.sessionDuration)
                             color: "white"
                             font.pixelSize: 11
                             Layout.preferredWidth: 100

@@ -19,6 +19,8 @@ class MpvObject : public QQuickFramebufferObject
     Q_PROPERTY(bool playing READ isPlaying NOTIFY playingChanged)
     Q_PROPERTY(double position READ position NOTIFY positionChanged)
     Q_PROPERTY(double duration READ duration NOTIFY durationChanged)
+    Q_PROPERTY(double sessionPosition READ sessionPosition NOTIFY sessionPositionChanged)
+    Q_PROPERTY(double sessionDuration READ sessionDuration NOTIFY sessionDurationChanged)
     Q_PROPERTY(int volume READ volume WRITE setVolume NOTIFY volumeChanged)
     Q_PROPERTY(bool muted READ isMuted WRITE setMuted NOTIFY mutedChanged)
     Q_PROPERTY(double playbackSpeed READ playbackSpeed WRITE setPlaybackSpeed NOTIFY playbackSpeedChanged)
@@ -43,6 +45,8 @@ public:
     QVariantList videoTracks() const { return m_videoTracks; }
     double position() const { return m_position; }
     double duration() const { return m_duration; }
+    double sessionPosition() const { return m_sessionPosition; }
+    double sessionDuration() const { return m_sessionDuration; }
     int volume() const { return m_volume; }
     bool isMuted() const { return m_muted; }
     double playbackSpeed() const { return m_speed; }
@@ -69,6 +73,8 @@ signals:
     void playingChanged();
     void positionChanged(double position);
     void durationChanged(double duration);
+    void sessionPositionChanged(double position);
+    void sessionDurationChanged(double duration);
     void volumeChanged(int volume);
     void mutedChanged(bool muted);
     void playbackSpeedChanged(double speed);
@@ -84,6 +90,11 @@ private:
     bool m_loading = false;
     double m_position = 0.0;
     double m_duration = 0.0;
+    double m_sessionPosition = 0.0;
+    double m_sessionDuration = 0.0;
+    qint64 m_sessionStartTime = 0;
+    qint64 m_lastTickTime = 0;
+    int m_sessionTimerId = 0;
     int m_volume = 100;
     bool m_muted = false;
     double m_speed = 1.0;
@@ -102,6 +113,7 @@ private:
     Q_INVOKABLE void handleMpvEvents();
     void updateProperties();
     void updateTrackList();
+    void timerEvent(QTimerEvent *event) override;
     friend class MpvRenderer;
 #endif
 };

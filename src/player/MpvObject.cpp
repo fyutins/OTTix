@@ -2,6 +2,8 @@
 #include "MpvRenderer.h"
 
 #include <QDebug>
+#include <QDateTime>
+#include <QTimerEvent>
 
 static const char *mpvEventName(mpv_event_id id)
 {
@@ -54,6 +56,8 @@ MpvObject::MpvObject(QQuickItem *parent)
 
     mpv_set_wakeup_callback(m_mpv, onMpvWakeup, this);
     updateProperties();
+
+    m_sessionTimerId = startTimer(250);
 #else
     Q_UNUSED(parent)
 #endif
@@ -96,6 +100,7 @@ void MpvObject::setSource(const QString &source)
 void MpvObject::play()
 {
     qDebug() << "[MPV] play()";
+    m_lastTickTime = QDateTime::currentMSecsSinceEpoch();
 #if HAS_MPV
     int flag = 0;
     int r = mpv_set_property(m_mpv, "pause", MPV_FORMAT_FLAG, &flag);
@@ -127,11 +132,24 @@ void MpvObject::stop()
 
 void MpvObject::seek(double position)
 {
+    qDebug() << "[MPV] seek() called with position =" << position
+             << "| sessionDuration =" << m_sessionDuration
+             << "| sessionPosition (current) =" << m_sessionPosition
+             << "| m_position (mpv time-pos) =" << m_position;
+    double sessionTarget = qBound(0.0, position, m_sessionDuration);
+    double delta = sessionTarget - m_sessionPosition;
+    m_sessionPosition = sessionTarget;
+    m_lastTickTime = QDateTime::currentMSecsSinceEpoch();
+    emit sessionPositionChanged(sessionTarget);
 #if HAS_MPV
-    QString cmd = QString::number(position);
+    qDebug() << "[MPV] seek -> sessionTarget =" << sessionTarget
+             << "| delta (relative) =" << delta;
+    QString cmd = QString::number(delta);
     QByteArray ba = cmd.toUtf8();
-    const char *args[] = {"seek", ba.constData(), "absolute", nullptr};
-    mpv_command(m_mpv, args);
+    const char *args[] = {"seek", ba.constData(), "relative", nullptr};
+    int r = mpv_command(m_mpv, args);
+    qDebug() << "[MPV] seek mpv_command returned:" << r
+             << (r < 0 ? mpv_error_string(r) : "");
 #else
     Q_UNUSED(position)
 #endif
@@ -269,13 +287,22 @@ void MpvObject::onMpvEvent(mpv_event *event)
         m_loading = false;
         m_playing = true;
         m_clearFrame = false;
+        m_sessionStartTime = QDateTime::currentMSecsSinceEpoch();
+        m_sessionPosition = 0.0;
+        m_sessionDuration = 0.0;
+        m_lastTickTime = m_sessionStartTime;
+        emit sessionPositionChanged(0.0);
+        emit sessionDurationChanged(0.0);
         emit loadingChanged();
         emit playingChanged();
         emit ready();
         break;
     }
+
     case MPV_EVENT_PLAYBACK_RESTART:
-        qDebug() << "[MPV] PLAYBACK_RESTART - playback started/resumed";
+        qDebug() << "[MPV] PLAYBACK_RESTART - playback started/resumed"
+                 << "| m_position =" << m_position
+                 << "| sessionPosition =" << m_sessionPosition;
         m_playing = true;
         emit playingChanged();
         break;
@@ -449,5 +476,30 @@ void MpvObject::setVideoTrack(int trackId)
         int64_t id = trackId;
         mpv_set_property(mpv, "video", MPV_FORMAT_INT64, &id);
     });
+}
+
+void MpvObject::timerEvent(QTimerEvent *event)
+{
+    if (event->timerId() != m_sessionTimerId || m_sessionStartTime == 0) {
+        QQuickFramebufferObject::timerEvent(event);
+        return;
+    }
+
+    qint64 now = QDateTime::currentMSecsSinceEpoch();
+
+    double newDuration = (now - m_sessionStartTime) / 1000.0;
+    if (qAbs(newDuration - m_sessionDuration) > 0.01) {
+        m_sessionDuration = newDuration;
+        emit sessionDurationChanged(m_sessionDuration);
+    }
+
+    if (m_playing) {
+        m_sessionPosition += (now - m_lastTickTime) / 1000.0;
+        if (m_sessionPosition > m_sessionDuration)
+            m_sessionPosition = m_sessionDuration;
+        emit sessionPositionChanged(m_sessionPosition);
+    }
+
+    m_lastTickTime = now;
 }
 #endif
