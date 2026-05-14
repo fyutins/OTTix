@@ -3,6 +3,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QDebug>
+#include <QSet>
 
 DatabaseManager &DatabaseManager::instance()
 {
@@ -236,13 +237,12 @@ bool DatabaseManager::replaceChannels(int playlistId, const QList<ChannelInfo> &
     m_db.transaction();
     QSqlQuery q(m_db);
 
-    // Remove favorites first to avoid FK constraint issues
-    q.prepare("DELETE FROM favorites WHERE channel_id IN (SELECT id FROM channels WHERE playlist_id = :id)");
+    QSet<QString> favChannelIds;
+    q.prepare("SELECT c.channel_id FROM channels c INNER JOIN favorites f ON c.id = f.channel_id WHERE c.playlist_id = :id");
     q.bindValue(":id", playlistId);
-    if (!q.exec()) {
-        qWarning() << "Failed to remove favorites:" << q.lastError().text();
-        m_db.rollback();
-        return false;
+    if (q.exec()) {
+        while (q.next())
+            favChannelIds.insert(q.value(0).toString());
     }
 
     q.prepare("DELETE FROM channels WHERE playlist_id = :id");
@@ -255,6 +255,9 @@ bool DatabaseManager::replaceChannels(int playlistId, const QList<ChannelInfo> &
 
     q.prepare(R"(INSERT INTO channels (playlist_id, name, url, logo, group_name, channel_id, stream_type)
                   VALUES (:playlist_id, :name, :url, :logo, :group_name, :channel_id, :stream_type))");
+
+    QList<int> newIds;
+    newIds.reserve(channels.size());
 
     for (const auto &ch : channels) {
         q.bindValue(":playlist_id", ch.playlistId);
@@ -269,6 +272,19 @@ bool DatabaseManager::replaceChannels(int playlistId, const QList<ChannelInfo> &
             m_db.rollback();
             return false;
         }
+        newIds.append(q.lastInsertId().toInt());
+    }
+
+    q.prepare("INSERT OR IGNORE INTO favorites (channel_id) VALUES (:id)");
+    for (int i = 0; i < channels.size(); ++i) {
+        if (favChannelIds.contains(channels[i].channelId)) {
+            q.bindValue(":id", newIds[i]);
+            if (!q.exec()) {
+                qWarning() << "Failed to restore favorite:" << q.lastError().text();
+                m_db.rollback();
+                return false;
+            }
+        }
     }
 
     return m_db.commit();
@@ -280,7 +296,7 @@ QList<ChannelInfo> DatabaseManager::getChannels(int playlistId)
     QSqlQuery q(m_db);
     q.prepare("SELECT c.*, CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END AS is_fav "
               "FROM channels c LEFT JOIN favorites f ON c.id = f.channel_id "
-              "WHERE c.playlist_id = :id ORDER BY c.group_name, c.name");
+               "WHERE c.playlist_id = :id ORDER BY c.name");
     q.bindValue(":id", playlistId);
 
     if (!q.exec()) {
@@ -313,7 +329,7 @@ QList<ChannelInfo> DatabaseManager::searchChannels(const QString &query)
     QSqlQuery q(m_db);
     q.prepare("SELECT c.*, CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END AS is_fav "
               "FROM channels c LEFT JOIN favorites f ON c.id = f.channel_id "
-              "WHERE c.name LIKE :q ORDER BY c.group_name, c.name");
+               "WHERE c.name LIKE :q ORDER BY c.name");
     q.bindValue(":q", "%" + query + "%");
 
     if (!q.exec()) {

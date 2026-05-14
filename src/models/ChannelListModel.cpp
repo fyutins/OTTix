@@ -93,8 +93,13 @@ void ChannelListModel::setChannels(const QList<ChannelInfo> &channels)
     m_filtered.clear();
     for (const auto &ch : m_channels) {
         bool matchGroup = m_filterGroup.isEmpty() || ch.group == m_filterGroup;
-        bool matchText = m_filterText.isEmpty() ||
-                         ch.name.contains(m_filterText, Qt::CaseInsensitive);
+        bool matchText = m_filterText.isEmpty();
+        if (!matchText) {
+            const QStringList tokens = m_filterText.split(' ', Qt::SkipEmptyParts);
+            matchText = true;
+            for (const auto &token : tokens)
+                matchText &= ch.name.contains(token, Qt::CaseInsensitive);
+        }
         if (matchGroup && matchText)
             m_filtered.append(ch);
     }
@@ -169,8 +174,13 @@ void ChannelListModel::applyFilter()
 
     for (const auto &ch : m_channels) {
         bool matchGroup = m_filterGroup.isEmpty() || ch.group == m_filterGroup;
-        bool matchText = m_filterText.isEmpty() ||
-                         ch.name.contains(m_filterText, Qt::CaseInsensitive);
+        bool matchText = m_filterText.isEmpty();
+        if (!matchText) {
+            const QStringList tokens = m_filterText.split(' ', Qt::SkipEmptyParts);
+            matchText = true;
+            for (const auto &token : tokens)
+                matchText &= ch.name.contains(token, Qt::CaseInsensitive);
+        }
 
         if (matchGroup && matchText)
             m_filtered.append(ch);

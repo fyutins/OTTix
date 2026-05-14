@@ -8,6 +8,7 @@ class ChannelListModel : public QAbstractListModel
 {
     Q_OBJECT
     Q_PROPERTY(int count READ rowCount NOTIFY countChanged)
+    Q_PROPERTY(QStringList groups READ groups NOTIFY groupsChanged)
     Q_PROPERTY(QString filterGroup READ filterGroup WRITE setFilterGroup NOTIFY filterChanged)
     Q_PROPERTY(QString filterText READ filterText WRITE setFilterText NOTIFY filterChanged)
 
