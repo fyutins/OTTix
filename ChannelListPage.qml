@@ -67,13 +67,14 @@ Rectangle {
 
         Item { Layout.preferredHeight: 8 }
 
-        ListView {
-            id: channelListView
+        GridView {
+            id: channelGridView
             Layout.fillWidth: true
             Layout.fillHeight: true
             model: ChannelListModel
+            cellWidth: 158
+            cellHeight: 118
             delegate: ChannelDelegate {
-                width: channelListView.width
                 channelName: model.name
                 channelUrl: model.url
                 channelLogo: model.logo
@@ -84,13 +85,8 @@ Rectangle {
                 onFavoriteToggled: (id) => ChannelListModel.toggleFavorite(id)
             }
             clip: true
-            spacing: 2
-
             ScrollBar.vertical: ScrollBar {}
-
-            Behavior on contentY {
-                NumberAnimation { duration: 150 }
-            }
+            boundsBehavior: Flickable.StopAtBounds
         }
     }
 

@@ -72,6 +72,8 @@ qt_add_executable(appIptvPlayer
     src/models/PlaylistModel.cpp
     src/loader/PlaylistLoader.h
     src/loader/PlaylistLoader.cpp
+    src/utils/ClipboardHelper.h
+    src/utils/ClipboardHelper.cpp
 )
 
 target_include_directories(appIptvPlayer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)

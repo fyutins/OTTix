@@ -14,6 +14,7 @@
 #include "models/ChannelListModel.h"
 #include "loader/PlaylistLoader.h"
 #include "player/MpvObject.h"
+#include "utils/ClipboardHelper.h"
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -222,6 +223,11 @@ int main(int argc, char *argv[])
     qmlRegisterSingletonType<DatabaseManager>("IptvPlayer.Database", 1, 0, "DatabaseManager",
         [](QQmlEngine *, QJSEngine *) -> QObject * {
             return &DatabaseManager::instance();
+        });
+
+    qmlRegisterSingletonType<ClipboardHelper>("IptvPlayer.Utils", 1, 0, "ClipboardHelper",
+        [](QQmlEngine *, QJSEngine *) -> QObject * {
+            return new ClipboardHelper();
         });
 
     QQmlApplicationEngine engine;

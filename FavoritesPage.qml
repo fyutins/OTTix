@@ -21,13 +21,14 @@ Rectangle {
             font.bold: true
         }
 
-        ListView {
-            id: favoritesList
+        GridView {
+            id: favoritesGrid
             Layout.fillWidth: true
             Layout.fillHeight: true
             model: listModel
+            cellWidth: 158
+            cellHeight: 118
             delegate: ChannelDelegate {
-                width: favoritesList.width
                 channelName: model.name
                 channelUrl: model.url
                 channelLogo: model.logo
@@ -38,16 +39,15 @@ Rectangle {
                 onFavoriteToggled: (id) => DatabaseManager.removeFavorite(id)
             }
             clip: true
-            spacing: 2
-
             ScrollBar.vertical: ScrollBar {}
+            boundsBehavior: Flickable.StopAtBounds
 
             Label {
                 anchors.centerIn: parent
                 text: qsTr("No favorites yet")
                 color: "#808080"
                 font.pixelSize: 16
-                visible: favoritesList.count === 0
+                visible: favoritesGrid.count === 0
             }
         }
     }
