@@ -95,6 +95,9 @@ Rectangle {
     }
 
     Component.onCompleted: {
+        console.log("[QML] ChannelListPage.onCompleted: refreshing model")
+        console.log("[QML] ChannelListModel.count before refresh: " + ChannelListModel.count)
         ChannelListModel.refresh()
+        console.log("[QML] ChannelListModel.count after refresh: " + ChannelListModel.count)
     }
 }

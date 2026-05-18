@@ -133,8 +133,11 @@ void PlaylistLoader::onXtreamCategoriesLoaded(const QList<XtreamCategory> &categ
 
 void PlaylistLoader::onXtreamStreamsLoaded(const QList<XtreamChannel> &channels)
 {
-    qDebug() << "Received" << channels.size() << "live streams";
+    qDebug() << "[LOADER] Received" << channels.size() << "live streams";
+    qDebug() << "[LOADER] m_xtreamCategories.size:" << m_xtreamCategories.size();
 
+    m_xtreamChannels.reserve(channels.size());
+    int mappedGroup = 0;
     for (const auto &ch : channels) {
         ChannelInfo ci;
         ci.name = ch.name;
@@ -147,6 +150,7 @@ void PlaylistLoader::onXtreamStreamsLoaded(const QList<XtreamChannel> &channels)
             for (const auto &cat : m_xtreamCategories) {
                 if (cat.categoryId == ch.categoryId) {
                     ci.group = cat.name;
+                    mappedGroup++;
                     break;
                 }
             }
@@ -157,7 +161,8 @@ void PlaylistLoader::onXtreamStreamsLoaded(const QList<XtreamChannel> &channels)
         m_xtreamChannels.append(ci);
     }
 
-    qDebug() << "Total channels with group:"
+    qDebug() << "[LOADER] Mapped" << mappedGroup << "groups from category_id";
+    qDebug() << "[LOADER] Total channels with group:"
              << std::count_if(m_xtreamChannels.begin(), m_xtreamChannels.end(),
                               [](const ChannelInfo &c) { return !c.group.isEmpty(); });
 
@@ -167,29 +172,49 @@ void PlaylistLoader::onXtreamStreamsLoaded(const QList<XtreamChannel> &channels)
 
 void PlaylistLoader::storeChannels(int playlistId, const QList<ChannelInfo> &channels)
 {
+    qDebug() << "[LOADER] storeChannels: playlistId=" << playlistId << "| input count=" << channels.size();
+
     // Assign playlist ID and filter out channels with empty names
     QList<ChannelInfo> finalChannels;
+    finalChannels.reserve(channels.size());
+    int skipped = 0;
     for (auto ch : channels) {
         ch.playlistId = playlistId;
         if (ch.name.isEmpty()) {
-            qWarning() << "Skipping channel with empty name, url:" << ch.url;
+            qWarning() << "[LOADER] Skipping channel with empty name, url:" << ch.url;
+            skipped++;
             continue;
         }
         finalChannels.append(ch);
     }
 
-    qDebug() << "Storing" << finalChannels.size() << "channels for playlist" << playlistId
-             << "(filtered from" << channels.size() << ")";
+    qDebug() << "[LOADER] Storing" << finalChannels.size() << "channels for playlist" << playlistId
+             << "(filtered from" << channels.size() << ", skipped=" << skipped << ")";
 
     // Atomically replace channels (delete old + insert new in one transaction)
+    qDebug() << "[LOADER] Calling DatabaseManager::replaceChannels...";
     bool ok = DatabaseManager::instance().replaceChannels(playlistId, finalChannels);
+    qDebug() << "[LOADER] DatabaseManager::replaceChannels returned" << ok;
 
     if (!ok) {
+        qWarning() << "[LOADER] replaceChannels failed, emitting loadError";
         emit loadError(playlistId, "Failed to store channels in database");
         return;
     }
 
+    qDebug() << "[LOADER] Calling DatabaseManager::channelCount...";
     int count = DatabaseManager::instance().channelCount(playlistId);
-    qDebug() << "Playlist" << playlistId << "loaded with" << count << "channels";
+    qDebug() << "[LOADER] Playlist" << playlistId << "loaded with" << count << "channels";
+
+    // Memory usage hint
+    qDebug() << "[LOADER] finalChannels capacity:" << finalChannels.capacity()
+             << "size:" << finalChannels.size()
+             << "sizeof(ChannelInfo):" << sizeof(ChannelInfo);
+
+    finalChannels.clear(); // free memory before emitting signal
+    m_xtreamChannels.clear();
+
+    qDebug() << "[LOADER] Emitting loadComplete...";
     emit loadComplete(playlistId, count);
+    qDebug() << "[LOADER] loadComplete emitted, back in storeChannels";
 }

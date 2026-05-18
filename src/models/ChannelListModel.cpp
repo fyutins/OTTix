@@ -70,14 +70,22 @@ void ChannelListModel::refresh()
 
 void ChannelListModel::setChannels(int playlistId)
 {
+    qDebug() << "[MODEL] setChannels(playlistId=" << playlistId << ")";
+    qDebug() << "[MODEL] Calling DatabaseManager::getChannels...";
     auto channels = DatabaseManager::instance().getChannels(playlistId);
+    qDebug() << "[MODEL] DatabaseManager::getChannels returned" << channels.size() << "channels";
     setChannels(channels);
 }
 
 void ChannelListModel::setChannels(const QList<ChannelInfo> &channels)
 {
-    m_channels = channels;
+    qDebug() << "[MODEL] setChannels(const) — channels.size=" << channels.size();
 
+    m_channels = channels;
+    qDebug() << "[MODEL] m_channels assigned, size=" << m_channels.size()
+             << "capacity=" << m_channels.capacity();
+
+    qDebug() << "[MODEL] Building groups set...";
     QSet<QString> groupSet;
     for (const auto &ch : m_channels) {
         if (!ch.group.isEmpty())
@@ -86,11 +94,16 @@ void ChannelListModel::setChannels(const QList<ChannelInfo> &channels)
     m_groups = groupSet.values();
     m_groups.sort();
     m_groups.prepend("");
+    qDebug() << "[MODEL] Groups built:" << m_groups.size() << "unique groups (including empty)";
 
     emit groupsChanged();
+    qDebug() << "[MODEL] groupsChanged emitted";
 
+    qDebug() << "[MODEL] beginResetModel...";
     beginResetModel();
     m_filtered.clear();
+    m_filtered.reserve(m_channels.size());
+    int filteredCount = 0;
     for (const auto &ch : m_channels) {
         bool matchGroup = m_filterGroup.isEmpty() || ch.group == m_filterGroup;
         bool matchText = m_filterText.isEmpty();
@@ -100,11 +113,16 @@ void ChannelListModel::setChannels(const QList<ChannelInfo> &channels)
             for (const auto &token : tokens)
                 matchText &= ch.name.contains(token, Qt::CaseInsensitive);
         }
-        if (matchGroup && matchText)
+        if (matchGroup && matchText) {
             m_filtered.append(ch);
+            filteredCount++;
+        }
     }
+    qDebug() << "[MODEL] Filtered:" << filteredCount << "out of" << m_channels.size();
+    qDebug() << "[MODEL] endResetModel...";
     endResetModel();
     emit countChanged();
+    qDebug() << "[MODEL] countChanged emitted, rowCount=" << rowCount();
 }
 
 void ChannelListModel::setFavorites()

@@ -43,8 +43,12 @@ Window {
     PlaylistLoader {
         id: loader
         onLoadComplete: (playlistId, channelCount) => {
+            console.log("[QML] onLoadComplete: playlistId=" + playlistId + " channelCount=" + channelCount)
+            console.log("[QML] Calling ChannelListModel.setChannels...")
             ChannelListModel.setChannels(playlistId)
+            console.log("[QML] setChannels done, switching to tab 0")
             tabBar.currentIndex = 0
+            console.log("[QML] onLoadComplete done")
         }
         onLoadError: (playlistId, error) => {
             console.log("Playlist load error:", error)
@@ -464,16 +468,24 @@ Window {
     }
 
     Component.onCompleted: {
+        console.log("[QML] Component.onCompleted: refreshing playlist model")
         PlaylistModel.refresh()
+        console.log("[QML] PlaylistModel.count=" + PlaylistModel.count)
 
         if (PlaylistModel.count > 0) {
             var first = PlaylistModel.get(0)
+            console.log("[QML] First playlist: id=" + first.id + " type=" + first.type + " url=" + first.url)
             if (first) {
-                if (first.type === "xtream")
+                if (first.type === "xtream") {
+                    console.log("[QML] Loading xtream playlist...")
                     loader.loadXtream(first.id, first.url, first.username, first.password)
-                else
+                } else {
+                    console.log("[QML] Loading M3U playlist...")
                     loader.loadM3U(first.id, first.url)
+                }
             }
+        } else {
+            console.log("[QML] No playlists found, waiting for user to add one")
         }
     }
 }

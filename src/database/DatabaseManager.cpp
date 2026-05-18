@@ -292,21 +292,45 @@ bool DatabaseManager::replaceChannels(int playlistId, const QList<ChannelInfo> &
 
 QList<ChannelInfo> DatabaseManager::getChannels(int playlistId)
 {
+    qDebug() << "[DB] getChannels: start playlistId=" << playlistId;
+
     QList<ChannelInfo> result;
+
+    qDebug() << "[DB] getChannels: db open?" << m_db.isOpen()
+             << "| db name:" << m_db.databaseName()
+             << "| connection name:" << m_db.connectionName();
+
+    qDebug() << "[DB] getChannels: calling getFavoriteIds...";
+    QList<int> favIdsList = getFavoriteIds();
+    QSet<int> favIds(favIdsList.begin(), favIdsList.end());
+    qDebug() << "[DB] getChannels: getFavoriteIds returned" << favIdsList.size() << "favorites";
+
+    qDebug() << "[DB] getChannels: creating QSqlQuery...";
     QSqlQuery q(m_db);
-    q.prepare("SELECT c.*, CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END AS is_fav "
+
+    qDebug() << "[DB] getChannels: preparing query...";
+    bool prepareOk = q.prepare("SELECT c.*, CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END AS is_fav "
               "FROM channels c LEFT JOIN favorites f ON c.id = f.channel_id "
                "WHERE c.playlist_id = :id ORDER BY c.name");
+    qDebug() << "[DB] getChannels: prepare ok?" << prepareOk
+             << "| last error:" << (prepareOk ? "none" : q.lastError().text());
+
+    qDebug() << "[DB] getChannels: binding playlistId...";
     q.bindValue(":id", playlistId);
 
-    if (!q.exec()) {
-        qWarning() << "Failed to get channels:" << q.lastError().text();
+    qDebug() << "[DB] getChannels: executing query...";
+    bool execOk = q.exec();
+    qDebug() << "[DB] getChannels: exec ok?" << execOk;
+    if (!execOk) {
+        qWarning() << "[DB] getChannels: FAILED —" << q.lastError().text();
         return result;
     }
 
-    QSet<int> favIds = QSet<int>(getFavoriteIds().begin(), getFavoriteIds().end());
-
+    qDebug() << "[DB] getChannels: query executed, fetching rows...";
+    int row = 0;
     while (q.next()) {
+        if (row % 5000 == 0)
+            qDebug() << "[DB] getChannels: fetching row" << row;
         ChannelInfo ch;
         ch.id = q.value("id").toInt();
         ch.playlistId = q.value("playlist_id").toInt();
@@ -318,14 +342,22 @@ QList<ChannelInfo> DatabaseManager::getChannels(int playlistId)
         ch.streamType = q.value("stream_type").toString();
         ch.isFavorite = favIds.contains(ch.id);
         result.append(ch);
+        row++;
     }
 
+    qDebug() << "[DB] getChannels: fetched" << row << "rows, result size=" << result.size();
+
+    qDebug() << "[DB] getChannels: returning result...";
     return result;
 }
 
 QList<ChannelInfo> DatabaseManager::searchChannels(const QString &query)
 {
     QList<ChannelInfo> result;
+
+    QList<int> favIdsList = getFavoriteIds();
+    QSet<int> favIds(favIdsList.begin(), favIdsList.end());
+
     QSqlQuery q(m_db);
     q.prepare("SELECT c.*, CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END AS is_fav "
               "FROM channels c LEFT JOIN favorites f ON c.id = f.channel_id "
@@ -336,8 +368,6 @@ QList<ChannelInfo> DatabaseManager::searchChannels(const QString &query)
         qWarning() << "Failed to search channels:" << q.lastError().text();
         return result;
     }
-
-    QSet<int> favIds = QSet<int>(getFavoriteIds().begin(), getFavoriteIds().end());
 
     while (q.next()) {
         ChannelInfo ch;
@@ -473,13 +503,32 @@ QVariantList DatabaseManager::getFavoritesVariant()
 
 QList<int> DatabaseManager::getFavoriteIds()
 {
+    qDebug() << "[DB] getFavoriteIds: start";
     QList<int> result;
-    QSqlQuery q(m_db);
-    if (!q.exec("SELECT channel_id FROM favorites"))
-        return result;
 
-    while (q.next())
+    qDebug() << "[DB] getFavoriteIds: db open?" << m_db.isOpen()
+             << "| db name:" << m_db.databaseName();
+
+    qDebug() << "[DB] getFavoriteIds: creating QSqlQuery...";
+    QSqlQuery q(m_db);
+
+    qDebug() << "[DB] getFavoriteIds: executing query...";
+    bool execOk = q.exec("SELECT channel_id FROM favorites");
+    qDebug() << "[DB] getFavoriteIds: exec ok?" << execOk;
+    if (!execOk) {
+        qWarning() << "[DB] getFavoriteIds: FAILED —" << q.lastError().text();
+        return result;
+    }
+
+    qDebug() << "[DB] getFavoriteIds: iterating results...";
+    int row = 0;
+    while (q.next()) {
+        if (row % 5000 == 0)
+            qDebug() << "[DB] getFavoriteIds: row" << row;
         result.append(q.value(0).toInt());
+        row++;
+    }
+    qDebug() << "[DB] getFavoriteIds: done, count=" << row;
     return result;
 }
 

@@ -174,7 +174,9 @@ void XtreamApi::getLiveStreams(const QString &categoryId)
             }
         }
 
-        emit liveStreamsLoaded(parseLiveStreams(arr));
+        auto parsed = parseLiveStreams(arr);
+        qDebug() << "[XAPI] Emitting liveStreamsLoaded with" << parsed.size() << "channels";
+        emit liveStreamsLoaded(parsed);
     });
 }
 
@@ -456,6 +458,8 @@ QList<XtreamCategory> XtreamApi::parseCategories(const QJsonArray &data)
 QList<XtreamChannel> XtreamApi::parseLiveStreams(const QJsonArray &data)
 {
     QList<XtreamChannel> channels;
+    channels.reserve(data.size());
+    int skipped = 0;
     for (int i = 0; i < data.size(); i++) {
         QJsonObject s = data[i].toObject();
         XtreamChannel ch;
@@ -468,22 +472,23 @@ QList<XtreamChannel> XtreamApi::parseLiveStreams(const QJsonArray &data)
         ch.categoryId = s["category_id"].toVariant().toString();
         ch.epgChannelId = s["epg_channel_id"].toString();
 
-        if (i < 5) {
-            qDebug() << "Stream" << i
+        if (i < 5 || (i % 5000 == 0)) {
+            qDebug() << "[XAPI] Stream" << i
                      << "| name:" << ch.name
                      << "| category_name:" << ch.group
-                     << "| category_id:" << ch.categoryId
-                     << "| raw category_id type:" << s["category_id"].type();
+                     << "| category_id:" << ch.categoryId;
         }
 
         if (ch.name.isEmpty()) {
-            qWarning() << "Skipping live stream with empty name, id:" << ch.id;
+            qWarning() << "[XAPI] Skipping live stream with empty name, id:" << ch.id;
+            skipped++;
             continue;
         }
 
         channels.append(ch);
     }
-    qDebug() << "Parsed" << channels.size() << "live streams from" << data.size() << "entries";
+    qDebug() << "[XAPI] Parsed" << channels.size() << "live streams from" << data.size()
+             << "entries (skipped" << skipped << ")";
     return channels;
 }
 

@@ -68,7 +68,8 @@ MpvObject::~MpvObject()
 #if HAS_MPV
     qDebug() << "[MPV] Destroying MpvObject";
     if (m_mpv) {
-        mpv_command(m_mpv, (const char *[]){"stop", nullptr});
+        const char *stop_cmd[] = {"stop", nullptr};
+        mpv_command(m_mpv, stop_cmd);
         mpv_terminate_destroy(m_mpv);
     }
 #endif
@@ -124,7 +125,8 @@ void MpvObject::stop()
 {
     qDebug() << "[MPV] stop()";
 #if HAS_MPV
-    int r = mpv_command(m_mpv, (const char *[]){"stop", nullptr});
+    const char *stop_cmd[] = {"stop", nullptr};
+    int r = mpv_command(m_mpv, stop_cmd);
     qDebug() << "[MPV] mpv_command(stop) returned:" << r;
     if (r < 0) qDebug() << "[MPV] ERROR:" << mpv_error_string(r);
 #endif
