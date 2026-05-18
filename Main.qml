@@ -58,17 +58,23 @@ Window {
     Shortcut {
         sequence: "F11"
         onActivated: {
-            window.visibility = window.visibility === Window.FullScreen
-                ? Window.Windowed
-                : Window.FullScreen
+            if (window.visibility === Window.FullScreen) {
+                window.visibility = Window.Windowed
+                isFullScreen = false
+            } else {
+                window.visibility = Window.FullScreen
+                isFullScreen = true
+            }
         }
     }
 
     Shortcut {
         sequence: "Escape"
         onActivated: {
-            if (window.visibility === Window.FullScreen)
+            if (window.visibility === Window.FullScreen) {
                 window.visibility = Window.Windowed
+                isFullScreen = false
+            }
         }
     }
 
@@ -91,7 +97,7 @@ Window {
         Rectangle {
             id: playerArea
             Layout.fillWidth: true
-            Layout.preferredHeight: showPlayer ? (parent.height * 0.45) : 0
+            Layout.preferredHeight: showPlayer ? (isFullScreen ? parent.height : parent.height * 0.45) : 0
             color: "black"
             visible: showPlayer
             clip: true
@@ -162,9 +168,13 @@ Window {
                 hoverEnabled: true
                 onPositionChanged: controlsTimer.restart()
                 onDoubleClicked: {
-                    window.visibility = window.visibility === Window.FullScreen
-                        ? Window.Windowed
-                        : Window.FullScreen
+                    if (window.visibility === Window.FullScreen) {
+                        window.visibility = Window.Windowed
+                        isFullScreen = false
+                    } else {
+                        window.visibility = Window.FullScreen
+                        isFullScreen = true
+                    }
                 }
             }
 
@@ -330,6 +340,7 @@ Window {
             Layout.fillWidth: true
             Layout.fillHeight: true
             color: "#1a1a2e"
+            visible: !isFullScreen
 
             ColumnLayout {
                 anchors.fill: parent
