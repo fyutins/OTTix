@@ -104,9 +104,9 @@ Popup {
                 id: tabBar
                 Layout.fillWidth: true
 
+                TabButton { text: qsTr("Favorites") }
                 TabButton { text: qsTr("All Channels") }
                 TabButton { text: qsTr("Groups") }
-                TabButton { text: qsTr("Favorites") }
             }
 
             // ── Content ──
@@ -115,7 +115,77 @@ Popup {
                 Layout.fillHeight: true
                 currentIndex: tabBar.currentIndex
 
-                // ── Tab 0: All Channels ──
+                // ── Tab 0: Favorites ──
+                ColumnLayout {
+                    spacing: 8
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 40
+                        color: "#16213e"
+                        radius: 8
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.margins: 8
+                            spacing: 8
+
+                            TextField {
+                                id: favoritesSearchField
+                                Layout.fillWidth: true
+                                placeholderText: qsTr("Search favorites...")
+                                color: "#e0e0e0"
+                                placeholderTextColor: "#808080"
+                                background: Rectangle {
+                                    color: "#0f3460"
+                                    radius: 6
+                                }
+                                onTextChanged: favoritesModel.refresh()
+                            }
+
+                            Label {
+                                text: favoritesModel.count + " " + qsTr("favorites")
+                                color: "#a0a0a0"
+                                font.pixelSize: 11
+                            }
+                        }
+                    }
+
+                    GridView {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        model: favoritesModel
+                        cellWidth: 158
+                        cellHeight: 118
+                        clip: true
+                        ScrollBar.vertical: ScrollBar {}
+                        boundsBehavior: Flickable.StopAtBounds
+
+                        delegate: ChannelDelegate {
+                            channelName: model.name
+                            channelUrl: model.url
+                            channelLogo: model.logo
+                            channelGroup: model.group
+                            channelDbId: model.id
+                            isFavorite: true
+                            onPlayRequested: (name, url, logo, group) => popup.handlePick(name, url, logo, group)
+                            onFavoriteToggled: (id) => {
+                                DatabaseManager.removeFavorite(id)
+                                favoritesModel.refresh()
+                            }
+                        }
+
+                        Label {
+                            anchors.centerIn: parent
+                            text: qsTr("No favorites yet")
+                            color: "#808080"
+                            font.pixelSize: 16
+                            visible: parent.count === 0
+                        }
+                    }
+                }
+
+                // ── Tab 1: All Channels ──
                 ColumnLayout {
                     spacing: 8
 
@@ -141,7 +211,7 @@ Popup {
                                     radius: 6
                                 }
                                 onTextChanged: {
-                                    if (tabBar.currentIndex === 0)
+                                    if (tabBar.currentIndex === 1)
                                         ChannelListModel.filterText = text
                                 }
                             }
@@ -185,7 +255,7 @@ Popup {
                     }
                 }
 
-                // ── Tab 1: Groups ──
+                // ── Tab 2: Groups ──
                 ColumnLayout {
                     spacing: 8
 
@@ -396,75 +466,6 @@ Popup {
                     }
                 }
 
-                // ── Tab 2: Favorites ──
-                ColumnLayout {
-                    spacing: 8
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 40
-                        color: "#16213e"
-                        radius: 8
-
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.margins: 8
-                            spacing: 8
-
-                            TextField {
-                                id: favoritesSearchField
-                                Layout.fillWidth: true
-                                placeholderText: qsTr("Search favorites...")
-                                color: "#e0e0e0"
-                                placeholderTextColor: "#808080"
-                                background: Rectangle {
-                                    color: "#0f3460"
-                                    radius: 6
-                                }
-                                onTextChanged: favoritesModel.refresh()
-                            }
-
-                            Label {
-                                text: favoritesModel.count + " " + qsTr("favorites")
-                                color: "#a0a0a0"
-                                font.pixelSize: 11
-                            }
-                        }
-                    }
-
-                    GridView {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        model: favoritesModel
-                        cellWidth: 158
-                        cellHeight: 118
-                        clip: true
-                        ScrollBar.vertical: ScrollBar {}
-                        boundsBehavior: Flickable.StopAtBounds
-
-                        delegate: ChannelDelegate {
-                            channelName: model.name
-                            channelUrl: model.url
-                            channelLogo: model.logo
-                            channelGroup: model.group
-                            channelDbId: model.id
-                            isFavorite: true
-                            onPlayRequested: (name, url, logo, group) => popup.handlePick(name, url, logo, group)
-                            onFavoriteToggled: (id) => {
-                                DatabaseManager.removeFavorite(id)
-                                favoritesModel.refresh()
-                            }
-                        }
-
-                        Label {
-                            anchors.centerIn: parent
-                            text: qsTr("No favorites yet")
-                            color: "#808080"
-                            font.pixelSize: 16
-                            visible: parent.count === 0
-                        }
-                    }
-                }
             }
         }
     }
@@ -502,9 +503,9 @@ Popup {
         target: tabBar
         function onCurrentIndexChanged() {
             var idx = tabBar.currentIndex
-            if (idx === 2)
+            if (idx === 0)
                 favoritesModel.refresh()
-            else if (idx === 1 && selectedGroup === "")
+            else if (idx === 2 && selectedGroup === "")
                 groupListModel.build()
         }
     }
@@ -518,7 +519,7 @@ Popup {
     Connections {
         target: ChannelListModel
         function onGroupsChanged() {
-            if (tabBar.currentIndex === 1 && selectedGroup === "")
+            if (tabBar.currentIndex === 2 && selectedGroup === "")
                 groupListModel.build()
         }
     }

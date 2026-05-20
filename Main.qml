@@ -232,9 +232,9 @@ Window {
                     id: tabBar
                     Layout.fillWidth: true
 
-                    TabButton { text: qsTr("All Channels") }
-                    TabButton { text: qsTr("Groups") }
                     TabButton { text: qsTr("Favorites") }
+                    TabButton { text: qsTr("All Channels") }
+                    TabButton { text: qsTr("Groups") }                    
                 }
 
                 // Content
@@ -243,17 +243,17 @@ Window {
                     Layout.fillHeight: true
                     currentIndex: tabBar.currentIndex
 
+                    FavoritesPage {
+                        onChannelSelected: (name, url, logo, group) => handleChannelSelected(name, url, logo, group)
+                    }
+
                     ChannelListPage {
                         onChannelSelected: (name, url, logo, group) => handleChannelSelected(name, url, logo, group)
                     }
 
                     GroupsPage {
                         onChannelSelected: (name, url, logo, group) => handleChannelSelected(name, url, logo, group)
-                    }
-
-                    FavoritesPage {
-                        onChannelSelected: (name, url, logo, group) => handleChannelSelected(name, url, logo, group)
-                    }
+                    }                    
                 }
             }
 
