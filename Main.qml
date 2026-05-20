@@ -273,6 +273,15 @@ Window {
 
         onCloseRequested: stopPlayback()
         onNavigateRequested: openChannelSearch()
+        onToggleFullscreenRequested: {
+            if (window.visibility === Window.FullScreen) {
+                window.visibility = Window.Windowed
+                isFullScreen = false
+            } else {
+                window.visibility = Window.FullScreen
+                isFullScreen = true
+            }
+        }
     }
 
     // ── Channel search popup ──

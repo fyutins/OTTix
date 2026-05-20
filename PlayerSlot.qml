@@ -17,32 +17,19 @@ Rectangle {
     property bool pendingPick: false
     property int globalVolume: 100
 
-    property bool mpvPlaying: mpvItem.playing
-    property alias mpvRef: mpvItem
-
     signal pickRequested(int slotIndex)
     signal audioToggleRequested(int slotIndex)
+    signal doubleClickRequested()
 
-    function doPlay() { mpvItem.play() }
-    function doPause() { mpvItem.pause() }
-    function doStop() { mpvItem.stop() }
-    function doSeek(pos) { mpvItem.seek(pos) }
-
-    function formatTime(seconds) {
-        if (seconds <= 0) return "00:00"
-        var h = Math.floor(seconds / 3600)
-        var m = Math.floor((seconds % 3600) / 60)
-        var s = Math.floor(seconds % 60)
-        if (h > 0)
-            return h.toString().padStart(2, '0') + ":" +
-                   m.toString().padStart(2, '0') + ":" +
-                   s.toString().padStart(2, '0')
-        return m.toString().padStart(2, '0') + ":" +
-               s.toString().padStart(2, '0')
-    }
+    property bool mpvPlaying: mpvItem.playing
+    property alias mpvRef: mpvItem
+    property bool overlayActive: false
+    property int hideBlockedUntil: 0
 
     function showControls() {
+        if (Date.now() < hideBlockedUntil) return
         controlsOpacity = 1.0
+        overlayActive = true
         if (root.channelUrl !== "")
             hideTimer.restart()
     }
@@ -70,17 +57,22 @@ Rectangle {
         id: hideTimer
         interval: 3000
         onTriggered: {
-            if (root.channelUrl !== "")
+            if (root.channelUrl !== "") {
                 controlsOpacity = 0.0
+                overlayActive = false
+                hideBlockedUntil = Date.now() + 500
+            }
         }
     }
 
     onChannelUrlChanged: {
         if (root.channelUrl === "") {
             controlsOpacity = 1.0
+            overlayActive = false
             hideTimer.stop()
         } else {
             controlsOpacity = 1.0
+            overlayActive = true
             hideTimer.restart()
         }
     }
@@ -261,7 +253,10 @@ Rectangle {
         z: 100
         propagateComposedEvents: true
         cursorShape: Qt.PointingHandCursor
-        onPositionChanged: root.showControls()
-        onPressed: (mouse) => mouse.accepted = false
+        onPositionChanged: {
+            if (controlsOpacity < 0.5)
+                root.showControls()
+        }
+        onDoubleClicked: root.doubleClickRequested()
     }
 }

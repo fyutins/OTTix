@@ -108,3 +108,10 @@ Get-Process appIptvPlayer -ErrorAction SilentlyContinue | Stop-Process -Force
 - **Curseur** dans `PlayerPage.qml`, id `volumeSlider`, largeur 130px, `stepSize: 1`, `value: 100` (statique, pas de binding pour éviter le verrouillage)
 - Les 4 PlayerSlot lient `globalVolume` directement à `volumeSlider.value` (pas d'intermédiaire PlayerPage.globalVolume)
 - **Persistance** : `QtCore.Settings` dans `PlayerPage.qml`, alias sur `volumeSlider.value`
+
+## Overlays
+
+- **PlayerSlot** : `controlsOpacity` et `overlayActive` (défaut `false`). `showControls()` → `controlsOpacity=1, overlayActive=true`, timer 3s redémarré. Timer → `controlsOpacity=0, overlayActive=false` + cooldown 500ms.
+- **Top bar (PlayerPage)** : `opacity: slotN.overlayActive || ... ? 1.0 : 0.0` — binding direct sur `overlayActive` des 4 slots. Visible dès qu'au moins un slot a son overlay actif.
+- **Hover** : `onPositionChanged` avec garde `controlsOpacity < 0.5` pour éviter le cycle de réaffichage permanent (onPositionChanged qui spam à cause de la souris/vidéo).
+- **Double-clic** : `onDoubleClicked` dans la hoverArea de chaque PlayerSlot → signal `doubleClickRequested()` → `PlayerPage.toggleFullscreenRequested()` → `Main.qml` toggle `Window.FullScreen`.

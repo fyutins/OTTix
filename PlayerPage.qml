@@ -13,6 +13,7 @@ Rectangle {
     signal multiplexModeChangeRequested(int mode)
     signal activeAudioSlotChangeRequested(int slot)
     signal pendingPickSlotChangeRequested(int slot)
+    signal toggleFullscreenRequested()
 
     property int multiplexMode: 1
     property int activeAudioSlot: 0
@@ -73,33 +74,6 @@ Rectangle {
                s.toString().padStart(2, '0')
     }
 
-    property real controlsOpacity: 1.0
-
-    Timer {
-        id: hideTimer
-        interval: 3000
-        onTriggered: {
-            if (root.anyChannelLoaded)
-                controlsOpacity = 0.0
-        }
-    }
-
-    onAnyChannelLoadedChanged: {
-        if (root.anyChannelLoaded) {
-            controlsOpacity = 1.0
-            hideTimer.restart()
-        } else {
-            controlsOpacity = 1.0
-            hideTimer.stop()
-        }
-    }
-
-    function showControls() {
-        controlsOpacity = 1.0
-        if (root.anyChannelLoaded)
-            hideTimer.restart()
-    }
-
     ColumnLayout {
         anchors.fill: parent
         spacing: 2
@@ -124,6 +98,7 @@ Rectangle {
                 pendingPick: pendingPickSlot === 0
                 onPickRequested: root.startSlotPick(slotIndex)
                 onAudioToggleRequested: root.activeAudioSlotChangeRequested(slotIndex)
+                onDoubleClickRequested: root.toggleFullscreenRequested()
             }
 
             PlayerSlot {
@@ -141,6 +116,7 @@ Rectangle {
                 pendingPick: pendingPickSlot === 1
                 onPickRequested: root.startSlotPick(slotIndex)
                 onAudioToggleRequested: root.activeAudioSlotChangeRequested(slotIndex)
+                onDoubleClickRequested: root.toggleFullscreenRequested()
             }
         }
 
@@ -164,6 +140,7 @@ Rectangle {
                 pendingPick: pendingPickSlot === 2
                 onPickRequested: root.startSlotPick(slotIndex)
                 onAudioToggleRequested: root.activeAudioSlotChangeRequested(slotIndex)
+                onDoubleClickRequested: root.toggleFullscreenRequested()
             }
 
             PlayerSlot {
@@ -181,6 +158,7 @@ Rectangle {
                 pendingPick: pendingPickSlot === 3
                 onPickRequested: root.startSlotPick(slotIndex)
                 onAudioToggleRequested: root.activeAudioSlotChangeRequested(slotIndex)
+                onDoubleClickRequested: root.toggleFullscreenRequested()
             }
         }
     }
@@ -192,7 +170,7 @@ Rectangle {
         anchors.top: parent.top
         height: 40
         color: Qt.rgba(0, 0, 0, 0.65)
-        opacity: controlsOpacity
+        opacity: slot0.overlayActive || slot1.overlayActive || slot2.overlayActive || slot3.overlayActive ? 1.0 : 0.0
         Behavior on opacity { NumberAnimation { duration: 300 } }
         z: 10
 
@@ -296,14 +274,6 @@ Rectangle {
                     Layout.preferredWidth: 30
                 }
             }
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            hoverEnabled: true
-            propagateComposedEvents: true
-            onPositionChanged: root.showControls()
-            onPressed: (mouse) => mouse.accepted = false
         }
     }
 
