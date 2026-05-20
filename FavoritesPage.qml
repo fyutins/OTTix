@@ -9,17 +9,59 @@ Rectangle {
 
     signal channelSelected(string name, string url, string logo, string group)
 
+    property string filterText: ""
+
+    function matchesFilter(name, filter) {
+        if (filter === "") return true
+        var tokens = filter.split(" ")
+        for (var t = 0; t < tokens.length; t++) {
+            if (tokens[t] === "") continue
+            if (name.toLowerCase().indexOf(tokens[t].toLowerCase()) === -1)
+                return false
+        }
+        return true
+    }
+
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 16
-        spacing: 12
+        spacing: 0
 
-        Label {
-            text: qsTr("Favorites")
-            color: "#e0e0e0"
-            font.pixelSize: 22
-            font.bold: true
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 48
+            color: "#16213e"
+            radius: 8
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: 8
+                spacing: 8
+
+                TextField {
+                    id: searchField
+                    Layout.fillWidth: true
+                    placeholderText: qsTr("Search favorites...")
+                    color: "#e0e0e0"
+                    placeholderTextColor: "#808080"
+                    background: Rectangle {
+                        color: "#0f3460"
+                        radius: 6
+                    }
+                    onTextChanged: {
+                        filterText = text
+                        refresh()
+                    }
+                }
+
+                Label {
+                    text: displayCount + " " + qsTr("favorites")
+                    color: "#a0a0a0"
+                    font.pixelSize: 12
+                }
+            }
         }
+
+        Item { Layout.preferredHeight: 8 }
 
         GridView {
             id: favoritesGrid
@@ -36,7 +78,10 @@ Rectangle {
                 channelDbId: model.id
                 isFavorite: true
                 onPlayRequested: (name, url, logo, group) => root.channelSelected(name, url, logo, group)
-                onFavoriteToggled: (id) => DatabaseManager.removeFavorite(id)
+                onFavoriteToggled: (id) => {
+                    DatabaseManager.removeFavorite(id)
+                    root.refresh()
+                }
             }
             clip: true
             ScrollBar.vertical: ScrollBar {}
@@ -52,13 +97,21 @@ Rectangle {
         }
     }
 
+    property int displayCount: 0
+
     ListModel { id: listModel }
 
     function refresh() {
         listModel.clear()
+        var count = 0
         var favs = DatabaseManager.getFavoritesVariant()
-        for (var i = 0; i < favs.length; i++)
-            listModel.append(favs[i])
+        for (var i = 0; i < favs.length; i++) {
+            if (root.matchesFilter(favs[i].name, root.filterText)) {
+                listModel.append(favs[i])
+                count++
+            }
+        }
+        displayCount = count
     }
 
     Component.onCompleted: {

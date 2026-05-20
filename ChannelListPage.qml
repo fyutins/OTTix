@@ -37,28 +37,8 @@ Rectangle {
                     onTextChanged: ChannelListModel.filterText = text
                 }
 
-                ComboBox {
-                    id: groupFilter
-                    Layout.preferredWidth: 150
-                    model: {
-                        var groups = ChannelListModel.groups
-                        var arr = ["All"]
-                        for (var i = 0; i < groups.length; i++) {
-                            if (groups[i] !== "")
-                                arr.push(groups[i])
-                        }
-                        return arr
-                    }
-                    onCurrentTextChanged: {
-                        if (currentIndex === 0)
-                            ChannelListModel.filterGroup = ""
-                        else
-                            ChannelListModel.filterGroup = currentText
-                    }
-                }
-
                 Label {
-                    text: ChannelListModel.count + " channels"
+                    text: ChannelListModel.count + " " + qsTr("channels")
                     color: "#a0a0a0"
                     font.pixelSize: 12
                 }
@@ -91,9 +71,7 @@ Rectangle {
     }
 
     Component.onCompleted: {
-        console.log("[QML] ChannelListPage.onCompleted: refreshing model")
-        console.log("[QML] ChannelListModel.count before refresh: " + ChannelListModel.count)
+        ChannelListModel.filterGroup = ""
         ChannelListModel.refresh()
-        console.log("[QML] ChannelListModel.count after refresh: " + ChannelListModel.count)
     }
 }

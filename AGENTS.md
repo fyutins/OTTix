@@ -7,14 +7,18 @@ Application Qt 6 / QML avec backend C++ pour lire des flux IPTV (M3U / XTREAM Co
 
 ```
 IptvPlayer/
-├── Main.qml              # Fenêtre principale + multiplex
+├── Main.qml              # Fenêtre principale — navigation + player overlay
+├── PlayerPage.qml        # Vue plein écran du player (multiplex, contrôles, close+nav)
 ├── PlayerSlot.qml        # Zone player individuelle (multiplex)
-├── ChannelDelegate.qml   # Tuile de chaîne dans la grille
-├── ChannelListPage.qml   # Liste des chaînes avec recherche/filtre
+├── ChannelListPage.qml   # Toutes les chaînes avec recherche
+├── GroupsPage.qml        # Navigation par groupe avec drill-down
 ├── FavoritesPage.qml     # Chaînes favorites
-├── PlayerPage.qml        # Placeholder
+├── ChannelDelegate.qml   # Tuile de chaîne dans la grille
+├── ChannelSearchPopup.qml# Popup de navigation dans les chaînes depuis le player
+├── AdminDialog.qml       # Dialog admin (Playlists + Settings)
 ├── PlaylistDialog.qml    # Dialogue d'ajout de playlist
-├── SettingsPage.qml      # Paramètres
+├── SettingsPage.qml      # Placeholder (utilisé via AdminDialog)
+├── PLAN.md               # Plan de refonte ergonomique
 ├── CMakeLists.txt        # Build CMake + Qt6
 ├── AGENTS.md             # Ce fichier
 └── src/
@@ -27,6 +31,22 @@ IptvPlayer/
     ├── utils/            # ClipboardHelper
     └── xtream/           # XtreamApi
 ```
+
+## Navigation
+
+```
+TabBar: [All Channels] [Groups] [Favorites]
+Admin: ⚙️ button in toolbar → AdminDialog (Playlists + Settings)
+```
+
+## Architecture UI
+
+- **Navigation** visible par défaut (showPlayer = false)
+- **PlayerPage** overlay plein écran quand showPlayer = true
+  - [X] close → stopPlayback(), retour à la navigation
+  - [≡] navigate → ChannelSearchPopup
+- **ChannelSearchPopup** : popup modal pour chercher/changer de chaîne en mode player
+- **GroupsPage** : deux états — liste des groupes → drill-down vers les chaînes d'un groupe
 
 ## Commandes
 
@@ -66,17 +86,18 @@ Get-Process appIptvPlayer -ErrorAction SilentlyContinue | Stop-Process -Force
 - Plusieurs `MpvObject` peuvent coexister (multiplex 1-4 écrans)
 - **Audio** : un seul slot démuté à la fois (`muted: !isActiveAudio`)
 - **ChannelListModel** : singleton C++ (QAbstractListModel), filtré par texte/groupe
-- **Pick mode** : clic sur `+` → `pendingPickSlot` → sélection dans la liste des chaînes
-- **Layout multiplex** : 
+- **Pick mode** : clic sur `+` → `pendingPickSlot` → sélection dans ChannelSearchPopup
+- **Layout multiplex** :
   - Mode 1 : 1 écran plein
   - Mode 2 : 2 écrans côte à côte
   - Mode 3 : 2 en haut, 1 en bas centré
   - Mode 4 : 2×2
+- **MultiplexMode/ActiveAudioSlot** : propriétés dans Main.qml (source de vérité), synchronisées avec PlayerPage via signaux
 
 ## Convention QML
 
 - Palette sombre : `#1a1a2e` fond, `#16213e` cartes, `#0f3460` accent, `#e0e0e0` texte
 - `qsTr()` pour les textes affichés
 - Contrôles par player dans `PlayerSlot.qml` (barre haute, play/pause centré, `+` en dessous)
-- Contrôles globaux dans `Main.qml` (mode selector + volume)
+- Contrôles globaux dans `PlayerPage.qml` (mode selector + volume)
 - Auto-hide des contrôles après 3s d'inactivité

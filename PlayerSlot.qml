@@ -64,15 +64,6 @@ Rectangle {
         }
     }
 
-    Rectangle {
-        anchors.fill: parent
-        color: "transparent"
-        border.color: "#4a90d9"
-        border.width: 3
-        visible: root.pendingPick
-        z: 1
-    }
-
     property real controlsOpacity: 1.0
 
     Timer {
@@ -103,71 +94,81 @@ Rectangle {
         Rectangle {
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.top: parent.top
-            height: 32
+            anchors.bottom: parent.bottom
+            height: 50
             color: Qt.rgba(0, 0, 0, 0.75)
             visible: root.channelUrl !== ""
             z: 4
 
-            RowLayout {
+            ColumnLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 6
-                anchors.rightMargin: 6
-                spacing: 4
+                anchors.margins: 4
+                spacing: 2
 
-                Image {
-                    Layout.preferredWidth: 20
-                    Layout.preferredHeight: 20
-                    source: root.channelLogo || ""
-                    asynchronous: true
-                    fillMode: Image.PreserveAspectFit
-                    visible: root.channelLogo !== ""
-                }
-
-                Text {
-                    text: root.channelName
-                    color: "white"
-                    font.pixelSize: 11
-                    font.bold: true
-                    elide: Text.ElideRight
+                // Row 1: logo + channel name
+                RowLayout {
                     Layout.fillWidth: true
-                }
+                    spacing: 6
 
-                Slider {
-                    id: seekSlider
-                    Layout.fillWidth: true
-                    Layout.maximumWidth: 200
-                    from: 0
-                    to: mpvItem.sessionDuration > 0 ? mpvItem.sessionDuration : 1
-                    value: mpvItem.sessionPosition
-                    enabled: mpvItem.sessionDuration > 0
-                    implicitHeight: 14
-                    onMoved: mpvItem.seek(value)
-                }
-
-                Text {
-                    text: formatTime(mpvItem.sessionPosition) + " / " + formatTime(mpvItem.sessionDuration)
-                    color: "#a0a0a0"
-                    font.pixelSize: 9
-                }
-
-                Rectangle {
-                    width: 22
-                    height: 22
-                    radius: 11
-                    color: root.isActiveAudio ? "#4a90d9" : Qt.rgba(1,1,1,0.2)
-                    border.color: root.isActiveAudio ? "#4a90d9" : "#888"
-                    border.width: 1
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: root.isActiveAudio ? "\uD83D\uDD0A" : "\uD83D\uDD07"
-                        font.pixelSize: 12
+                    Image {
+                        Layout.preferredWidth: 18
+                        Layout.preferredHeight: 18
+                        source: root.channelLogo || ""
+                        asynchronous: true
+                        fillMode: Image.PreserveAspectFit
+                        visible: root.channelLogo !== ""
                     }
 
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: root.audioToggleRequested(root.slotIndex)
+                    Text {
+                        text: root.channelName
+                        color: "white"
+                        font.pixelSize: 12
+                        font.bold: true
+                        elide: Text.ElideRight
+                        Layout.fillWidth: true
+                    }
+                }
+
+                // Row 2: seek + time + audio
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+
+                    Slider {
+                        id: seekSlider
+                        Layout.fillWidth: true
+                        from: 0
+                        to: mpvItem.sessionDuration > 0 ? mpvItem.sessionDuration : 1
+                        value: mpvItem.sessionPosition
+                        enabled: mpvItem.sessionDuration > 0
+                        implicitHeight: 12
+                        onMoved: mpvItem.seek(value)
+                    }
+
+                    Text {
+                        text: formatTime(mpvItem.sessionPosition) + " / " + formatTime(mpvItem.sessionDuration)
+                        color: "#a0a0a0"
+                        font.pixelSize: 10
+                    }
+
+                    Rectangle {
+                        width: 22
+                        height: 22
+                        radius: 11
+                        color: root.isActiveAudio ? "#4a90d9" : Qt.rgba(1,1,1,0.2)
+                        border.color: root.isActiveAudio ? "#4a90d9" : "#888"
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: root.isActiveAudio ? "\uD83D\uDD0A" : "\uD83D\uDD07"
+                            font.pixelSize: 11
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: root.audioToggleRequested(root.slotIndex)
+                        }
                     }
                 }
             }
@@ -208,18 +209,17 @@ Rectangle {
 
                 Rectangle {
                     Layout.alignment: Qt.AlignHCenter
-                    width: 56
-                    height: 56
-                    radius: 28
+                    width: 48
+                    height: 48
+                    radius: 24
                     color: Qt.rgba(0, 0, 0, 0.7)
                     visible: root.channelUrl !== ""
 
                     Text {
                         anchors.centerIn: parent
-                        text: "+"
+                        text: "\u2630"
                         color: "white"
-                        font.pixelSize: 28
-                        font.bold: true
+                        font.pixelSize: 22
                     }
 
                     MouseArea {
