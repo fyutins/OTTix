@@ -481,8 +481,13 @@ void MpvObject::setSubtitleTrack(int trackId)
 {
     qDebug() << "[MPV] setSubtitleTrack:" << trackId;
     enqueueCommand([trackId](mpv_handle *mpv) {
-        int64_t id = trackId;
-        mpv_set_property(mpv, "sub", MPV_FORMAT_INT64, &id);
+        if (trackId < 0) {
+            const char *args[] = {"set", "sub", "no", nullptr};
+            mpv_command(mpv, args);
+        } else {
+            int64_t id = trackId;
+            mpv_set_property(mpv, "sub", MPV_FORMAT_INT64, &id);
+        }
     });
 }
 
