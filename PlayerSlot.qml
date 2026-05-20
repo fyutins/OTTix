@@ -42,6 +42,13 @@ Rectangle {
         muted: !root.isActiveAudio
     }
 
+    Rectangle {
+        anchors.fill: parent
+        color: "black"
+        visible: root.channelUrl === ""
+        z: 1
+    }
+
     BusyIndicator {
         anchors.centerIn: parent
         running: mpvItem.loading && root.channelUrl !== ""
@@ -67,6 +74,7 @@ Rectangle {
 
     onChannelUrlChanged: {
         if (root.channelUrl === "") {
+            mpvItem.stop()
             controlsOpacity = 1.0
             overlayActive = false
             hideTimer.stop()
@@ -141,6 +149,27 @@ Rectangle {
                         text: formatTime(mpvItem.sessionPosition) + " / " + formatTime(mpvItem.sessionDuration)
                         color: "#a0a0a0"
                         font.pixelSize: 10
+                    }
+
+                    Rectangle {
+                        width: 22
+                        height: 22
+                        radius: 11
+                        color: Qt.rgba(1,1,1,0.2)
+                        border.color: "#888"
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "\u21BB"
+                            font.pixelSize: 12
+                            color: "white"
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: mpvItem.reload()
+                        }
                     }
 
                     Rectangle {

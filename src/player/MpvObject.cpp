@@ -224,6 +224,21 @@ void MpvObject::clearVideo()
     m_clearFrame = true;
 }
 
+void MpvObject::reload()
+{
+    qDebug() << "[MPV] reload() - restarting current stream:" << m_source;
+#if HAS_MPV
+    if (!m_mpv || m_source.isEmpty())
+        return;
+    clearVideo();
+    const char *stop_cmd[] = {"stop", nullptr};
+    mpv_command(m_mpv, stop_cmd);
+    QByteArray ba = m_source.toUtf8();
+    const char *load_cmd[] = {"loadfile", ba.constData(), nullptr};
+    mpv_command(m_mpv, load_cmd);
+#endif
+}
+
 void MpvObject::enqueueCommand(std::function<void(mpv_handle *)> cmd)
 {
 #if HAS_MPV

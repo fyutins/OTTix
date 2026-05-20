@@ -61,6 +61,7 @@ public:
     Q_INVOKABLE void loadFile(const QString &path);
     Q_INVOKABLE void loadUrl(const QString &url);
     Q_INVOKABLE void clearVideo();
+    Q_INVOKABLE void reload();
     Q_INVOKABLE void setAudioTrack(int trackId);
     Q_INVOKABLE void setSubtitleTrack(int trackId);
     Q_INVOKABLE void setVideoTrack(int trackId);

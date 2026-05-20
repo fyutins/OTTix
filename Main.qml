@@ -34,26 +34,34 @@ Window {
     }
 
     function handleChannelSelected(name, url, logo, group) {
-        if (pendingPickSlot >= 0) {
-            var slot = pendingPickSlot
-            pendingPickSlot = -1
-            setSlotChannel(slot, name, url, logo, group)
-            if (!showPlayer)
-                showPlayer = true
-            if (multiplexMode === 1)
-                activeAudioSlot = slot
-        } else {
-            setSlotChannel(0, name, url, logo, group)
+        var slot = pendingPickSlot >= 0 ? pendingPickSlot : 0
+        var isPick = pendingPickSlot >= 0
+        pendingPickSlot = -1
+
+        // Clear first to force reload even if same URL
+        var empty = { name: "", url: "", logo: "", group: "" }
+        var ch = slotChannels.slice()
+        ch[slot] = empty
+        slotChannels = ch
+
+        // Set the new channel
+        ch = slotChannels.slice()
+        ch[slot] = { name: name, url: url, logo: logo, group: group }
+        slotChannels = ch
+
+        if (!showPlayer)
             showPlayer = true
-            activeAudioSlot = 0
-        }
+        if (multiplexMode === 1 || !isPick)
+            activeAudioSlot = slot
     }
 
     function stopPlayback() {
         showPlayer = false
         pendingPickSlot = -1
         var empty = { name: "", url: "", logo: "", group: "" }
-        slotChannels = [empty, empty, empty, empty]
+        var ch = []
+        for (var i = 0; i < 4; i++) ch.push(empty)
+        slotChannels = ch
     }
 
     function openChannelSearch() {
@@ -267,7 +275,14 @@ Window {
         pendingPickSlot: window.pendingPickSlot
         slotChannels: window.slotChannels
 
-        onMultiplexModeChangeRequested: (mode) => { window.multiplexMode = mode }
+        onMultiplexModeChangeRequested: (mode) => {
+            window.multiplexMode = mode
+            var empty = { name: "", url: "", logo: "", group: "" }
+            var ch = window.slotChannels.slice()
+            for (var i = mode; i < 4; i++)
+                ch[i] = empty
+            window.slotChannels = ch
+        }
         onActiveAudioSlotChangeRequested: (slot) => { window.activeAudioSlot = slot }
         onPendingPickSlotChangeRequested: (slot) => { window.pendingPickSlot = slot }
 
