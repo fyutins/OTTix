@@ -15,24 +15,74 @@ Window {
 
     property bool isFullScreen: false
     property bool showPlayer: false
-    property string currentChannelName: ""
-    property string currentChannelUrl: ""
-    property string currentChannelLogo: ""
-    property string currentChannelGroup: ""
 
-    function playChannel(name, url, logo, group) {
-        console.log("[QML] playChannel:", name, url)
-        currentChannelName = name
-        currentChannelLogo = logo || ""
-        currentChannelGroup = group || ""
-        showPlayer = true
-        mpvItem.clearVideo()
-        currentChannelUrl = url
+    property int multiplexMode: 1
+    property int activeAudioSlot: 0
+    property int pendingPickSlot: -1
+    property var slotChannels: [
+        { name: "", url: "", logo: "", group: "" },
+        { name: "", url: "", logo: "", group: "" },
+        { name: "", url: "", logo: "", group: "" },
+        { name: "", url: "", logo: "", group: "" }
+    ]
+
+    function setSlotChannel(index, name, url, logo, group) {
+        var arr = slotChannels.slice()
+        arr[index] = { name: name, url: url, logo: logo || "", group: group || "" }
+        slotChannels = arr
+    }
+
+    function startSlotPick(index) {
+        pendingPickSlot = index
+    }
+
+    function setActiveAudioSlot(index) {
+        activeAudioSlot = index
+    }
+
+    function handleChannelSelected(name, url, logo, group) {
+        if (pendingPickSlot >= 0) {
+            var slot = pendingPickSlot
+            pendingPickSlot = -1
+            setSlotChannel(slot, name, url, logo, group)
+            if (!showPlayer)
+                showPlayer = true
+            if (multiplexMode === 1)
+                activeAudioSlot = slot
+        } else {
+            setSlotChannel(0, name, url, logo, group)
+            showPlayer = true
+            activeAudioSlot = 0
+        }
     }
 
     function stopPlayback() {
         showPlayer = false
-        mpvItem.stop()
+        var empty = { name: "", url: "", logo: "", group: "" }
+        slotChannels = [empty, empty, empty, empty]
+    }
+
+    function getSlotItem(index) {
+        if (index === 0) return slot0
+        if (index === 1) return slot1
+        if (index === 2) return slot2
+        if (index === 3) return slot3
+        return null
+    }
+
+    property var activeSlotItem: null
+
+    function updateActiveSlotItem() {
+        activeSlotItem = getSlotItem(activeAudioSlot)
+    }
+
+    onActiveAudioSlotChanged: {
+        updateActiveSlotItem()
+    }
+
+    onMultiplexModeChanged: {
+        if (activeAudioSlot >= multiplexMode)
+            activeAudioSlot = 0
     }
 
     onShowPlayerChanged: {
@@ -71,7 +121,9 @@ Window {
     Shortcut {
         sequence: "Escape"
         onActivated: {
-            if (window.visibility === Window.FullScreen) {
+            if (pendingPickSlot >= 0) {
+                pendingPickSlot = -1
+            } else if (window.visibility === Window.FullScreen) {
                 window.visibility = Window.Windowed
                 isFullScreen = false
             }
@@ -81,11 +133,12 @@ Window {
     Shortcut {
         sequence: "Space"
         onActivated: {
-            if (showPlayer) {
-                if (mpvItem.playing)
-                    mpvItem.pause()
+            if (showPlayer && activeSlotItem) {
+                var p = activeSlotItem
+                if (p.mpvPlaying)
+                    p.doPause()
                 else
-                    mpvItem.play()
+                    p.doPlay()
             }
         }
     }
@@ -106,74 +159,87 @@ Window {
                 NumberAnimation { duration: 300; easing.type: Easing.InOutQuad }
             }
 
-            MpvObject {
-                id: mpvItem
+            ColumnLayout {
                 anchors.fill: parent
-                source: currentChannelUrl
-                visible: showPlayer
-                volume: volumeSlider.value
-                onReady: {
-                    console.log("[QML] mpvItem.onReady received, calling play()")
-                    errorLabel.visible = false
-                    mpvItem.play()
-                }
-                onErrorOccurred: {
-                    errorLabel.text = "Error: " + error
-                    errorLabel.visible = true
-                    errorHideTimer.restart()
-                }
-            }
+                spacing: 2
 
-            Rectangle {
-                id: loadingOverlay
-                anchors.fill: parent
-                color: "#1a1a2e"
-                visible: mpvItem.loading
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    spacing: 2
 
-                BusyIndicator {
-                    anchors.centerIn: parent
-                    running: parent.visible
-                    palette {
-                        dark: "#e0e0e0"
-                        mid: "#4a90d9"
+                    PlayerSlot {
+                        id: slot0
+                        slotIndex: 0
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        visible: multiplexMode >= 1
+                        channelName: slotChannels[0].name
+                        channelUrl: slotChannels[0].url
+                        channelLogo: slotChannels[0].logo
+                        channelGroup: slotChannels[0].group
+                        isActiveAudio: activeAudioSlot === 0
+                        globalVolume: volumeSlider.value
+                        pendingPick: pendingPickSlot === 0
+                        onPickRequested: startSlotPick(slotIndex)
+                        onAudioToggleRequested: setActiveAudioSlot(slotIndex)
+                    }
+
+                    PlayerSlot {
+                        id: slot1
+                        slotIndex: 1
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        visible: multiplexMode >= 2
+                        channelName: slotChannels[1].name
+                        channelUrl: slotChannels[1].url
+                        channelLogo: slotChannels[1].logo
+                        channelGroup: slotChannels[1].group
+                        isActiveAudio: activeAudioSlot === 1
+                        globalVolume: volumeSlider.value
+                        pendingPick: pendingPickSlot === 1
+                        onPickRequested: startSlotPick(slotIndex)
+                        onAudioToggleRequested: setActiveAudioSlot(slotIndex)
                     }
                 }
 
-                Label {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.top: parent.verticalCenter
-                    anchors.topMargin: 40
-                    text: qsTr("Loading...")
-                    color: "#a0a0a0"
-                    font.pixelSize: 14
-                }
-            }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    spacing: 2
+                    visible: multiplexMode >= 3
 
-            Label {
-                id: errorLabel
-                anchors.centerIn: parent
-                color: "red"
-                font.pixelSize: 16
-                visible: false
-            }
+                    PlayerSlot {
+                        id: slot2
+                        slotIndex: 2
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        channelName: slotChannels[2].name
+                        channelUrl: slotChannels[2].url
+                        channelLogo: slotChannels[2].logo
+                        channelGroup: slotChannels[2].group
+                        isActiveAudio: activeAudioSlot === 2
+                        globalVolume: volumeSlider.value
+                        pendingPick: pendingPickSlot === 2
+                        onPickRequested: startSlotPick(slotIndex)
+                        onAudioToggleRequested: setActiveAudioSlot(slotIndex)
+                    }
 
-            Timer {
-                id: errorHideTimer
-                interval: 3000
-                onTriggered: errorLabel.visible = false
-            }
-
-            MouseArea {
-                anchors.fill: parent
-                hoverEnabled: true
-                onPositionChanged: controlsTimer.restart()
-                onDoubleClicked: {
-                    if (window.visibility === Window.FullScreen) {
-                        window.visibility = Window.Windowed
-                        isFullScreen = false
-                    } else {
-                        window.visibility = Window.FullScreen
-                        isFullScreen = true
+                    PlayerSlot {
+                        id: slot3
+                        slotIndex: 3
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        visible: multiplexMode >= 4
+                        channelName: slotChannels[3].name
+                        channelUrl: slotChannels[3].url
+                        channelLogo: slotChannels[3].logo
+                        channelGroup: slotChannels[3].group
+                        isActiveAudio: activeAudioSlot === 3
+                        globalVolume: volumeSlider.value
+                        pendingPick: pendingPickSlot === 3
+                        onPickRequested: startSlotPick(slotIndex)
+                        onAudioToggleRequested: setActiveAudioSlot(slotIndex)
                     }
                 }
             }
@@ -183,7 +249,7 @@ Window {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                height: 80
+                height: 40
                 color: Qt.rgba(0, 0, 0, 0.65)
                 opacity: controlsTimer.running ? 1.0 : 0.0
                 visible: showPlayer
@@ -204,132 +270,49 @@ Window {
                     propagateComposedEvents: true
                 }
 
-                ColumnLayout {
+                RowLayout {
                     anchors.fill: parent
                     anchors.margins: 6
-                    spacing: 4
+                    spacing: 8
 
                     RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 8
+                        spacing: 4
 
-                        Image {
-                            Layout.preferredWidth: 36
-                            Layout.preferredHeight: 36
-                            source: currentChannelLogo || ""
-                            asynchronous: true
-                            fillMode: Image.PreserveAspectFit
-                            visible: currentChannelLogo !== ""
-                        }
-
-                        ColumnLayout {
-                            spacing: 0
-                            Label {
-                                text: currentChannelName
-                                color: "white"
-                                font.pixelSize: 13
-                                font.bold: true
-                                elide: Text.ElideRight
-                                Layout.fillWidth: true
-                            }
-                            Label {
-                                text: currentChannelGroup
-                                color: "#a0a0a0"
+                        Repeater {
+                            model: [1, 2, 3, 4]
+                            delegate: ToolButton {
+                                text: modelData
+                                checkable: true
+                                checked: multiplexMode === modelData
                                 font.pixelSize: 11
-                                visible: currentChannelGroup !== ""
-                                elide: Text.ElideRight
-                                Layout.fillWidth: true
+                                implicitWidth: 28
+                                implicitHeight: 24
+                                onClicked: multiplexMode = modelData
+                                contentItem: Text {
+                                    text: modelData
+                                    color: checked ? "white" : "#a0a0a0"
+                                    font.pixelSize: 11
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                                background: Rectangle {
+                                    color: checked ? "#4a90d9" : "transparent"
+                                    radius: 4
+                                    border.color: checked ? "#4a90d9" : "#555"
+                                    border.width: 1
+                                }
                             }
-                        }
-
-                        Item { Layout.fillWidth: true }
-
-                        ComboBox {
-                            id: audioTrackCombo
-                            model: mpvItem.audioTracks
-                            textRole: "label"
-                            visible: mpvItem.audioTracks.length > 1
-                            Layout.preferredWidth: 100
-                            delegate: ItemDelegate {
-                                text: modelData.label + (modelData.selected ? "  *" : "")
-                                width: parent.width
-                            }
-                            onActivated: mpvItem.setAudioTrack(mpvItem.audioTracks[index].id)
-                        }
-
-                        ComboBox {
-                            id: subTrackCombo
-                            model: mpvItem.subtitleTracks
-                            textRole: "label"
-                            visible: mpvItem.subtitleTracks.length > 0
-                            Layout.preferredWidth: 100
-                            delegate: ItemDelegate {
-                                text: modelData.label + (modelData.selected ? "  *" : "")
-                                width: parent.width
-                            }
-                            onActivated: mpvItem.setSubtitleTrack(mpvItem.subtitleTracks[index].id)
-                        }
-
-                        ComboBox {
-                            id: videoTrackCombo
-                            model: mpvItem.videoTracks
-                            textRole: "label"
-                            visible: mpvItem.videoTracks.length > 1
-                            Layout.preferredWidth: 100
-                            delegate: ItemDelegate {
-                                text: modelData.label + (modelData.selected ? "  *" : "")
-                                width: parent.width
-                            }
-                            onActivated: mpvItem.setVideoTrack(mpvItem.videoTracks[index].id)
                         }
                     }
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 6
+                    Item { Layout.fillWidth: true }
 
-                        Slider {
-                            id: positionSlider
-                            Layout.fillWidth: true
-                            from: 0
-                            to: mpvItem.sessionDuration > 0 ? mpvItem.sessionDuration : 1
-                            value: mpvItem.sessionPosition
-                            enabled: mpvItem.sessionDuration > 0
-                            onMoved: mpvItem.seek(value)
-                        }
-
-                        Label {
-                            text: formatTime(mpvItem.sessionPosition) + " / " + formatTime(mpvItem.sessionDuration)
-                            color: "white"
-                            font.pixelSize: 11
-                            Layout.preferredWidth: 100
-                        }
-
-                        ToolButton {
-                            text: mpvItem.playing ? "\u23F8" : "\u25B6"
-                            font.pixelSize: 16
-                            onClicked: {
-                                if (mpvItem.playing)
-                                    mpvItem.pause()
-                                else
-                                    mpvItem.play()
-                            }
-                        }
-
-                        ToolButton {
-                            text: mpvItem.muted ? "\uD83D\uDD07" : "\uD83D\uDD0A"
-                            font.pixelSize: 14
-                            onClicked: mpvItem.setMuted(!mpvItem.muted)
-                        }
-
-                        Slider {
-                            id: volumeSlider
-                            Layout.preferredWidth: 80
-                            from: 0
-                            to: 100
-                            value: 100
-                            onMoved: mpvItem.setVolume(value)
-                        }
+                    Slider {
+                        id: volumeSlider
+                        Layout.preferredWidth: 80
+                        from: 0
+                        to: 100
+                        value: 100
                     }
                 }
             }
@@ -345,6 +328,49 @@ Window {
             ColumnLayout {
                 anchors.fill: parent
                 spacing: 0
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: pendingPickSlot >= 0 ? 40 : 0
+                    visible: pendingPickSlot >= 0
+                    color: "#0f3460"
+                    clip: true
+
+                    Behavior on Layout.preferredHeight {
+                        NumberAnimation { duration: 200 }
+                    }
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: 8
+                        spacing: 8
+
+                        Label {
+                            text: qsTr("Select a channel for Player %1").arg(pendingPickSlot + 1)
+                            color: "white"
+                            font.pixelSize: 13
+                            font.bold: true
+                            Layout.fillWidth: true
+                        }
+
+                        Button {
+                            text: qsTr("Cancel")
+                            flat: true
+                            contentItem: Text {
+                                text: qsTr("Cancel")
+                                color: "#4a90d9"
+                                font.pixelSize: 12
+                            }
+                            background: Rectangle {
+                                color: "transparent"
+                                border.color: "#4a90d9"
+                                border.width: 1
+                                radius: 4
+                            }
+                            onClicked: pendingPickSlot = -1
+                        }
+                    }
+                }
 
                 TabBar {
                     id: tabBar
@@ -362,11 +388,11 @@ Window {
                     currentIndex: tabBar.currentIndex
 
                     ChannelListPage {
-                        onChannelSelected: (name, url, logo, group) => playChannel(name, url, logo, group)
+                        onChannelSelected: (name, url, logo, group) => handleChannelSelected(name, url, logo, group)
                     }
 
                     FavoritesPage {
-                        onChannelSelected: (name, url, logo, group) => playChannel(name, url, logo, group)
+                        onChannelSelected: (name, url, logo, group) => handleChannelSelected(name, url, logo, group)
                     }
 
                     Item {
@@ -436,7 +462,7 @@ Window {
                                                     loader.loadM3U(model.playlistId, model.url)
                                                 else if (model.type === "xtream")
                                                     loader.loadXtream(model.playlistId, model.url,
-                                                                      model.username, model.password)
+                                                                       model.username, model.password)
                                             }
                                         }
 
@@ -479,6 +505,7 @@ Window {
     }
 
     Component.onCompleted: {
+        updateActiveSlotItem()
         console.log("[QML] Component.onCompleted: refreshing playlist model")
         PlaylistModel.refresh()
         console.log("[QML] PlaylistModel.count=" + PlaylistModel.count)

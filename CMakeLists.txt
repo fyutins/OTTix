@@ -87,6 +87,7 @@ qt_add_qml_module(appIptvPlayer
         ChannelListPage.qml
         FavoritesPage.qml
         PlayerPage.qml
+        PlayerSlot.qml
         PlaylistDialog.qml
         SettingsPage.qml
 )
