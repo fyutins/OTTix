@@ -255,18 +255,6 @@ Rectangle {
     }
 
     MouseArea {
-        id: zoneMouseArea
-        anchors.fill: parent
-        z: 0
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
-        onClicked: {
-            root.showControls()
-            root.pickRequested(root.slotIndex)
-        }
-    }
-
-    MouseArea {
         id: hoverArea
         anchors.fill: parent
         hoverEnabled: true
