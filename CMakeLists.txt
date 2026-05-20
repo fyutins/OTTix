@@ -85,9 +85,13 @@ qt_add_qml_module(appIptvPlayer
         Main.qml
         AdminDialog.qml
         ChannelDelegate.qml
+        ChannelGrid.qml
         ChannelListPage.qml
+        ChannelSearchBar.qml
         ChannelSearchPopup.qml
         FavoritesPage.qml
+        GroupGrid.qml
+        GroupSearchBar.qml
         GroupsPage.qml
         PlayerPage.qml
         PlayerSlot.qml

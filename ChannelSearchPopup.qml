@@ -23,14 +23,14 @@ Popup {
         selectedGroup = ""
         ChannelListModel.filterGroup = ""
         ChannelListModel.filterText = ""
-        channelsSearchField.text = ""
-        groupsSearchField.text = ""
-        groupChannelsSearchField.text = ""
-        favoritesSearchField.text = ""
+        if (channelsSearchBar) channelsSearchBar.searchText = ""
+        if (groupSearchBar) groupSearchBar.searchText = ""
+        if (groupChannelsBar) groupChannelsBar.searchText = ""
+        if (favoritesSearchBar) favoritesSearchBar.searchText = ""
         favoritesModel.refresh()
         tabBar.currentIndex = 0
         groupListModel.build()
-        channelsSearchField.forceActiveFocus()
+        if (channelsSearchBar) channelsSearchBar.focusSearch()
         open()
     }
 
@@ -119,68 +119,22 @@ Popup {
                 ColumnLayout {
                     spacing: 8
 
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 40
-                        color: "#16213e"
-                        radius: 8
-
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.margins: 8
-                            spacing: 8
-
-                            TextField {
-                                id: favoritesSearchField
-                                Layout.fillWidth: true
-                                placeholderText: qsTr("Search favorites...")
-                                color: "#e0e0e0"
-                                placeholderTextColor: "#808080"
-                                background: Rectangle {
-                                    color: "#0f3460"
-                                    radius: 6
-                                }
-                                onTextChanged: favoritesModel.refresh()
-                            }
-
-                            Label {
-                                text: favoritesModel.count + " " + qsTr("favorites")
-                                color: "#a0a0a0"
-                                font.pixelSize: 11
-                            }
-                        }
+                    ChannelSearchBar {
+                        id: favoritesSearchBar
+                        searchPlaceholder: qsTr("Search favorites...")
+                        countText: favoritesModel.count + " " + qsTr("favorites")
+                        onSearchChanged: favoritesModel.refresh()
                     }
 
-                    GridView {
+                    ChannelGrid {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
+                        isFavoritesModel: true
                         model: favoritesModel
-                        cellWidth: 158
-                        cellHeight: 118
-                        clip: true
-                        ScrollBar.vertical: ScrollBar {}
-                        boundsBehavior: Flickable.StopAtBounds
-
-                        delegate: ChannelDelegate {
-                            channelName: model.name
-                            channelUrl: model.url
-                            channelLogo: model.logo
-                            channelGroup: model.group
-                            channelDbId: model.id
-                            isFavorite: true
-                            onPlayRequested: (name, url, logo, group) => popup.handlePick(name, url, logo, group)
-                            onFavoriteToggled: (id) => {
-                                DatabaseManager.removeFavorite(id)
-                                favoritesModel.refresh()
-                            }
-                        }
-
-                        Label {
-                            anchors.centerIn: parent
-                            text: qsTr("No favorites yet")
-                            color: "#808080"
-                            font.pixelSize: 16
-                            visible: parent.count === 0
+                        onPlayRequested: (name, url, logo, group) => popup.handlePick(name, url, logo, group)
+                        onFavoriteToggled: (id) => {
+                            DatabaseManager.removeFavorite(id)
+                            favoritesModel.refresh()
                         }
                     }
                 }
@@ -189,69 +143,22 @@ Popup {
                 ColumnLayout {
                     spacing: 8
 
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 40
-                        color: "#16213e"
-                        radius: 8
-
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.margins: 8
-                            spacing: 8
-
-                            TextField {
-                                id: channelsSearchField
-                                Layout.fillWidth: true
-                                placeholderText: qsTr("Search channels...")
-                                color: "#e0e0e0"
-                                placeholderTextColor: "#808080"
-                                background: Rectangle {
-                                    color: "#0f3460"
-                                    radius: 6
-                                }
-                                onTextChanged: {
-                                    if (tabBar.currentIndex === 1)
-                                        ChannelListModel.filterText = text
-                                }
-                            }
-
-                            Label {
-                                text: ChannelListModel.count + " " + qsTr("channels")
-                                color: "#a0a0a0"
-                                font.pixelSize: 11
-                            }
+                    ChannelSearchBar {
+                        id: channelsSearchBar
+                        searchPlaceholder: qsTr("Search channels...")
+                        countText: ChannelListModel.count + " " + qsTr("channels")
+                        onSearchChanged: {
+                            if (tabBar.currentIndex === 1)
+                                ChannelListModel.filterText = text
                         }
                     }
 
-                    GridView {
+                    ChannelGrid {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         model: ChannelListModel
-                        cellWidth: 158
-                        cellHeight: 118
-                        clip: true
-                        ScrollBar.vertical: ScrollBar {}
-                        boundsBehavior: Flickable.StopAtBounds
-
-                        delegate: ChannelDelegate {
-                            channelName: model.name
-                            channelUrl: model.url
-                            channelLogo: model.logo
-                            channelGroup: model.groupName
-                            channelDbId: model.channelId
-                            isFavorite: model.isFavorite
-                            onPlayRequested: (name, url, logo, group) => popup.handlePick(name, url, logo, group)
-                            onFavoriteToggled: (id) => ChannelListModel.toggleFavorite(id)
-                        }
-
-                        Label {
-                            anchors.centerIn: parent
-                            text: qsTr("No channels found")
-                            color: "#808080"
-                            font.pixelSize: 16
-                            visible: parent.count === 0
-                        }
+                        onPlayRequested: (name, url, logo, group) => popup.handlePick(name, url, logo, group)
+                        onFavoriteToggled: (id) => ChannelListModel.toggleFavorite(id)
                     }
                 }
 
@@ -259,72 +166,19 @@ Popup {
                 ColumnLayout {
                     spacing: 8
 
-                    // Search + back button (when drilling into a group)
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: selectedGroup !== "" ? 36 : 40
-                        color: "#16213e"
-                        radius: 8
-
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.margins: 8
-                            spacing: 8
-
-                            Button {
-                                text: "\u2190"
-                                flat: true
-                                implicitWidth: 24
-                                implicitHeight: 24
-                                visible: selectedGroup !== ""
-                                contentItem: Text {
-                                    text: "\u2190"
-                                    color: "#4a90d9"
-                                    font.pixelSize: 16
-                                    horizontalAlignment: Text.AlignHCenter
-                                    verticalAlignment: Text.AlignVCenter
-                                }
-                                background: Rectangle { color: "transparent"; radius: 4 }
-                                onClicked: {
-                                    selectedGroup = ""
-                                    ChannelListModel.filterGroup = ""
-                                    ChannelListModel.filterText = ""
-                                    groupsSearchField.text = ""
-                                }
-                            }
-
-                            TextField {
-                                id: groupsSearchField
-                                Layout.fillWidth: true
-                                visible: selectedGroup === ""
-                                placeholderText: qsTr("Search groups...")
-                                color: "#e0e0e0"
-                                placeholderTextColor: "#808080"
-                                background: Rectangle {
-                                    color: "#0f3460"
-                                    radius: 6
-                                }
-                                onTextChanged: groupListModel.build()
-                            }
-
-                            Label {
-                                visible: selectedGroup !== ""
-                                text: selectedGroup
-                                color: "#e0e0e0"
-                                font.pixelSize: 13
-                                font.bold: true
-                                Layout.fillWidth: true
-                                elide: Text.ElideRight
-                            }
-
-                            Label {
-                                text: selectedGroup !== ""
-                                    ? ChannelListModel.count + " " + qsTr("channels")
-                                    : groupListModel.count + " " + qsTr("groups")
-                                color: "#a0a0a0"
-                                font.pixelSize: 11
-                            }
+                    GroupSearchBar {
+                        id: groupSearchBar
+                        drillMode: selectedGroup !== ""
+                        groupName: selectedGroup
+                        countText: selectedGroup !== ""
+                            ? ChannelListModel.count + " " + qsTr("channels")
+                            : groupListModel.count + " " + qsTr("groups")
+                        onBackRequested: {
+                            selectedGroup = ""
+                            ChannelListModel.filterGroup = ""
+                            ChannelListModel.filterText = ""
                         }
+                        onSearchChanged: groupListModel.build()
                     }
 
                     StackLayout {
@@ -332,140 +186,38 @@ Popup {
                         Layout.fillHeight: true
                         currentIndex: selectedGroup === "" ? 0 : 1
 
-                        // Group list
-                        GridView {
-                            id: groupsGrid
+                        GroupGrid {
                             model: groupListModel
-                            cellWidth: 200
-                            cellHeight: 56
-                            clip: true
-                            ScrollBar.vertical: ScrollBar {}
-                            boundsBehavior: Flickable.StopAtBounds
-
-                            delegate: Rectangle {
-                                width: groupsGrid.cellWidth - 12
-                                height: groupsGrid.cellHeight - 12
-                                x: 6
-                                y: 6
-                                radius: 8
-                                color: mouseArea.containsMouse ? "#0f3460" : "#16213e"
-
-                                property string gName: model.name
-
-                                MouseArea {
-                                    id: mouseArea
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    onClicked: {
-                                        selectedGroup = gName
-                                        ChannelListModel.filterGroup = gName
-                                        ChannelListModel.filterText = ""
-                                    }
-                                }
-
-                                Label {
-                                    anchors.left: parent.left
-                                    anchors.leftMargin: 12
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: gName
-                                    color: "#e0e0e0"
-                                    font.pixelSize: 13
-                                    font.bold: true
-                                    elide: Text.ElideRight
-                                    width: parent.width - 36
-                                }
-
-                                Label {
-                                    anchors.right: parent.right
-                                    anchors.rightMargin: 12
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: "\u203A"
-                                    color: "#808080"
-                                    font.pixelSize: 18
-                                }
-                            }
-
-                            Label {
-                                anchors.centerIn: parent
-                                text: qsTr("No groups found")
-                                color: "#808080"
-                                font.pixelSize: 16
-                                visible: parent.count === 0
+                            onGroupSelected: (gName) => {
+                                selectedGroup = gName
+                                ChannelListModel.filterGroup = gName
+                                ChannelListModel.filterText = ""
                             }
                         }
 
-                        // Channels in group
                         ColumnLayout {
                             spacing: 8
 
-                            Rectangle {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 40
-                                color: "#16213e"
-                                radius: 8
-
-                                RowLayout {
-                                    anchors.fill: parent
-                                    anchors.margins: 8
-                                    spacing: 8
-
-                                    TextField {
-                                        id: groupChannelsSearchField
-                                        Layout.fillWidth: true
-                                        placeholderText: qsTr("Search in group...")
-                                        color: "#e0e0e0"
-                                        placeholderTextColor: "#808080"
-                                        background: Rectangle {
-                                            color: "#0f3460"
-                                            radius: 6
-                                        }
-                                        onTextChanged: {
-                                            if (selectedGroup !== "")
-                                                ChannelListModel.filterText = text
-                                        }
-                                    }
-
-                                    Label {
-                                        text: ChannelListModel.count + " " + qsTr("channels")
-                                        color: "#a0a0a0"
-                                        font.pixelSize: 11
-                                    }
+                            ChannelSearchBar {
+                                id: groupChannelsBar
+                                searchPlaceholder: qsTr("Search in group...")
+                                countText: ""
+                                onSearchChanged: {
+                                    if (selectedGroup !== "")
+                                        ChannelListModel.filterText = text
                                 }
                             }
 
-                            GridView {
+                            ChannelGrid {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
                                 model: ChannelListModel
-                                cellWidth: 158
-                                cellHeight: 118
-                                clip: true
-                                ScrollBar.vertical: ScrollBar {}
-                                boundsBehavior: Flickable.StopAtBounds
-
-                                delegate: ChannelDelegate {
-                                    channelName: model.name
-                                    channelUrl: model.url
-                                    channelLogo: model.logo
-                                    channelGroup: model.groupName
-                                    channelDbId: model.channelId
-                                    isFavorite: model.isFavorite
-                                    onPlayRequested: (name, url, logo, group) => popup.handlePick(name, url, logo, group)
-                                    onFavoriteToggled: (id) => ChannelListModel.toggleFavorite(id)
-                                }
-
-                                Label {
-                                    anchors.centerIn: parent
-                                    text: qsTr("No channels found")
-                                    color: "#808080"
-                                    font.pixelSize: 16
-                                    visible: parent.count === 0
-                                }
+                                onPlayRequested: (name, url, logo, group) => popup.handlePick(name, url, logo, group)
+                                onFavoriteToggled: (id) => ChannelListModel.toggleFavorite(id)
                             }
                         }
                     }
                 }
-
             }
         }
     }
@@ -476,7 +228,7 @@ Popup {
         function build() {
             clear()
             var groups = ChannelListModel.groups
-            var filter = groupsSearchField.text
+            var filter = groupSearchBar.searchText
             for (var i = 0; i < groups.length; i++) {
                 if (groups[i] === "") continue
                 if (filter === "" || popup.matchesFilter(groups[i], filter))
@@ -491,7 +243,7 @@ Popup {
         function refresh() {
             clear()
             var favs = DatabaseManager.getFavoritesVariant()
-            var filter = favoritesSearchField.text
+            var filter = favoritesSearchBar.searchText
             for (var i = 0; i < favs.length; i++) {
                 if (filter === "" || popup.matchesFilter(favs[i].name, filter))
                     append(favs[i])
