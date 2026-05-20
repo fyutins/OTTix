@@ -40,7 +40,7 @@ MpvObject::MpvObject(QQuickItem *parent)
     qDebug() << "[MPV] mpv handle created:" << m_mpv;
 
     mpv_set_option_string(m_mpv, "vo", "libmpv");
-    mpv_set_option_string(m_mpv, "hwdec", "auto");
+    mpv_set_option_string(m_mpv, "hwdec", m_hwdec.toUtf8().constData());
     mpv_set_option_string(m_mpv, "profile", "low-latency");
     mpv_set_option_string(m_mpv, "cache", "yes");
     mpv_set_option_string(m_mpv, "demuxer-max-bytes", "150M");
@@ -498,6 +498,20 @@ void MpvObject::setVideoTrack(int trackId)
         int64_t id = trackId;
         mpv_set_property(mpv, "video", MPV_FORMAT_INT64, &id);
     });
+}
+
+void MpvObject::setHwdec(const QString &hwdec)
+{
+    if (m_hwdec == hwdec)
+        return;
+    m_hwdec = hwdec;
+    emit hwdecChanged();
+#if HAS_MPV
+    QByteArray ba = hwdec.toUtf8();
+    int r = mpv_set_property_string(m_mpv, "hwdec", ba.constData());
+    if (r < 0)
+        qDebug() << "[MPV] setHwdec error:" << mpv_error_string(r);
+#endif
 }
 
 void MpvObject::timerEvent(QTimerEvent *event)

@@ -83,7 +83,7 @@ qt_add_qml_module(appIptvPlayer
     VERSION 1.0
     QML_FILES
         Main.qml
-        AdminDialog.qml
+        AdminPage.qml
         ChannelDelegate.qml
         ChannelGrid.qml
         ChannelListPage.qml
@@ -96,7 +96,6 @@ qt_add_qml_module(appIptvPlayer
         PlayerPage.qml
         PlayerSlot.qml
         PlaylistDialog.qml
-        SettingsPage.qml
 )
 
 set_target_properties(appIptvPlayer PROPERTIES

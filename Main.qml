@@ -258,7 +258,7 @@ Window {
             }
 
             // Page 1: Admin page
-            AdminDialog {
+            AdminPage {
                 onBackRequested: showAdmin = false
             }
         }

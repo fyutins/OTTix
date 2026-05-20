@@ -21,6 +21,7 @@ Rectangle {
     signal pickRequested(int slotIndex)
     signal audioToggleRequested(int slotIndex)
     signal doubleClickRequested()
+    signal hwdecChangeRequested(string value)
 
     property bool mpvPlaying: mpvItem.playing
     property alias mpvRef: mpvItem
@@ -366,6 +367,38 @@ Rectangle {
             id: subtitleTrackMenu
             title: qsTr("Subtitle Track")
             onAboutToShow: buildTrackMenu(subtitleTrackMenu, mpvItem.subtitleTracks, false)
+        }
+
+        MenuSeparator {}
+
+        Menu {
+            id: hwdecMenu
+            title: qsTr("Hardware Decoding")
+
+            MenuItem {
+                text: "auto"
+                checkable: true
+                checked: mpvItem.hwdec === "auto"
+                onTriggered: root.hwdecChangeRequested("auto")
+            }
+            MenuItem {
+                text: "no"
+                checkable: true
+                checked: mpvItem.hwdec === "no"
+                onTriggered: root.hwdecChangeRequested("no")
+            }
+            MenuItem {
+                text: "d3d11va"
+                checkable: true
+                checked: mpvItem.hwdec === "d3d11va"
+                onTriggered: root.hwdecChangeRequested("d3d11va")
+            }
+            MenuItem {
+                text: "nvdec"
+                checkable: true
+                checked: mpvItem.hwdec === "nvdec"
+                onTriggered: root.hwdecChangeRequested("nvdec")
+            }
         }
 
         MenuSeparator {}

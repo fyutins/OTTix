@@ -31,8 +31,11 @@ Rectangle {
         || slotChannels[2].url !== ""
         || slotChannels[3].url !== ""
 
+    property string playerHwdec: "auto"
+
     Settings {
         property alias volume: volumeSlider.value
+        property alias playerHwdec: root.playerHwdec
     }
 
     function getSlotItem(index) {
@@ -54,6 +57,19 @@ Rectangle {
     onMultiplexModeChanged: {
         if (activeAudioSlot >= multiplexMode)
             activeAudioSlotChangeRequested(0)
+    }
+
+    function applyHwdecToAll(value) {
+        for (var i = 0; i < 4; i++) {
+            var slot = getSlotItem(i)
+            if (slot)
+                slot.mpvRef.setHwdec(value)
+        }
+        for (var i = 0; i < 4; i++) {
+            var slot = getSlotItem(i)
+            if (slot && slot.channelUrl !== "")
+                slot.mpvRef.reload()
+        }
     }
 
     function startSlotPick(index) {
@@ -99,6 +115,7 @@ Rectangle {
                 onPickRequested: root.startSlotPick(slotIndex)
                 onAudioToggleRequested: root.activeAudioSlotChangeRequested(slotIndex)
                 onDoubleClickRequested: root.toggleFullscreenRequested()
+                onHwdecChangeRequested: { root.playerHwdec = value; root.applyHwdecToAll(value) }
             }
 
             PlayerSlot {
@@ -117,6 +134,7 @@ Rectangle {
                 onPickRequested: root.startSlotPick(slotIndex)
                 onAudioToggleRequested: root.activeAudioSlotChangeRequested(slotIndex)
                 onDoubleClickRequested: root.toggleFullscreenRequested()
+                onHwdecChangeRequested: { root.playerHwdec = value; root.applyHwdecToAll(value) }
             }
         }
 
@@ -141,6 +159,7 @@ Rectangle {
                 onPickRequested: root.startSlotPick(slotIndex)
                 onAudioToggleRequested: root.activeAudioSlotChangeRequested(slotIndex)
                 onDoubleClickRequested: root.toggleFullscreenRequested()
+                onHwdecChangeRequested: { root.playerHwdec = value; root.applyHwdecToAll(value) }
             }
 
             PlayerSlot {
@@ -159,6 +178,7 @@ Rectangle {
                 onPickRequested: root.startSlotPick(slotIndex)
                 onAudioToggleRequested: root.activeAudioSlotChangeRequested(slotIndex)
                 onDoubleClickRequested: root.toggleFullscreenRequested()
+                onHwdecChangeRequested: { root.playerHwdec = value; root.applyHwdecToAll(value) }
             }
         }
     }
@@ -279,5 +299,6 @@ Rectangle {
 
     Component.onCompleted: {
         updateActiveSlotItem()
+        applyHwdecToAll(playerHwdec)
     }
 }

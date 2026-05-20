@@ -28,6 +28,7 @@ class MpvObject : public QQuickFramebufferObject
     Q_PROPERTY(QVariantList audioTracks READ audioTracks NOTIFY tracksChanged)
     Q_PROPERTY(QVariantList subtitleTracks READ subtitleTracks NOTIFY tracksChanged)
     Q_PROPERTY(QVariantList videoTracks READ videoTracks NOTIFY tracksChanged)
+    Q_PROPERTY(QString hwdec READ hwdec WRITE setHwdec NOTIFY hwdecChanged)
 
 public:
     explicit MpvObject(QQuickItem *parent = nullptr);
@@ -43,6 +44,8 @@ public:
     QVariantList audioTracks() const { return m_audioTracks; }
     QVariantList subtitleTracks() const { return m_subtitleTracks; }
     QVariantList videoTracks() const { return m_videoTracks; }
+    QString hwdec() const { return m_hwdec; }
+
     double position() const { return m_position; }
     double duration() const { return m_duration; }
     double sessionPosition() const { return m_sessionPosition; }
@@ -65,6 +68,7 @@ public:
     Q_INVOKABLE void setAudioTrack(int trackId);
     Q_INVOKABLE void setSubtitleTrack(int trackId);
     Q_INVOKABLE void setVideoTrack(int trackId);
+    Q_INVOKABLE void setHwdec(const QString &hwdec);
 
     void enqueueCommand(std::function<void(mpv_handle *)> cmd);
     bool dequeueCommand(std::function<void(mpv_handle *)> &cmd);
@@ -84,6 +88,7 @@ signals:
     void ready();
     void loadingChanged();
     void tracksChanged();
+    void hwdecChanged();
 
 private:
     QString m_source;
@@ -99,6 +104,7 @@ private:
     int m_volume = 100;
     bool m_muted = false;
     double m_speed = 1.0;
+    QString m_hwdec = "auto";
     bool m_clearFrame = false;
     QVariantList m_audioTracks;
     QVariantList m_subtitleTracks;
