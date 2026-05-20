@@ -51,7 +51,7 @@ Rectangle {
         id: mpvItem
         anchors.fill: parent
         source: root.channelUrl
-        volume: root.globalVolume
+        volume: Math.pow(root.globalVolume / 100.0, 1.1) * 100.0
         muted: !root.isActiveAudio
     }
 
@@ -262,13 +262,6 @@ Rectangle {
         propagateComposedEvents: true
         cursorShape: Qt.PointingHandCursor
         onPositionChanged: root.showControls()
-        onPressed: (mouse) => {
-            root.showControls()
-            mouse.accepted = false
-        }
-        onClicked: (mouse) => {
-            root.showControls()
-            mouse.accepted = false
-        }
+        onPressed: (mouse) => mouse.accepted = false
     }
 }

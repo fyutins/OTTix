@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtCore
 import IptvPlayer.Player
 
 Rectangle {
@@ -24,12 +25,14 @@ Rectangle {
         { name: "", url: "", logo: "", group: "" }
     ]
 
-    property int globalVolume: 100
-
     property bool anyChannelLoaded: slotChannels[0].url !== ""
         || slotChannels[1].url !== ""
         || slotChannels[2].url !== ""
         || slotChannels[3].url !== ""
+
+    Settings {
+        property alias volume: volumeSlider.value
+    }
 
     function getSlotItem(index) {
         if (index === 0) return slot0
@@ -117,7 +120,7 @@ Rectangle {
                 channelLogo: slotChannels[0].logo
                 channelGroup: slotChannels[0].group
                 isActiveAudio: activeAudioSlot === 0
-                globalVolume: globalVolume
+                globalVolume: volumeSlider.value
                 pendingPick: pendingPickSlot === 0
                 onPickRequested: root.startSlotPick(slotIndex)
                 onAudioToggleRequested: root.activeAudioSlotChangeRequested(slotIndex)
@@ -134,7 +137,7 @@ Rectangle {
                 channelLogo: slotChannels[1].logo
                 channelGroup: slotChannels[1].group
                 isActiveAudio: activeAudioSlot === 1
-                globalVolume: globalVolume
+                globalVolume: volumeSlider.value
                 pendingPick: pendingPickSlot === 1
                 onPickRequested: root.startSlotPick(slotIndex)
                 onAudioToggleRequested: root.activeAudioSlotChangeRequested(slotIndex)
@@ -157,7 +160,7 @@ Rectangle {
                 channelLogo: slotChannels[2].logo
                 channelGroup: slotChannels[2].group
                 isActiveAudio: activeAudioSlot === 2
-                globalVolume: globalVolume
+                globalVolume: volumeSlider.value
                 pendingPick: pendingPickSlot === 2
                 onPickRequested: root.startSlotPick(slotIndex)
                 onAudioToggleRequested: root.activeAudioSlotChangeRequested(slotIndex)
@@ -174,7 +177,7 @@ Rectangle {
                 channelLogo: slotChannels[3].logo
                 channelGroup: slotChannels[3].group
                 isActiveAudio: activeAudioSlot === 3
-                globalVolume: globalVolume
+                globalVolume: volumeSlider.value
                 pendingPick: pendingPickSlot === 3
                 onPickRequested: root.startSlotPick(slotIndex)
                 onAudioToggleRequested: root.activeAudioSlotChangeRequested(slotIndex)
@@ -258,36 +261,49 @@ Rectangle {
             Item { Layout.fillWidth: true }
 
             RowLayout {
-                spacing: 6
+                spacing: 8
 
                 Label {
-                    text: qsTr("Volume")
+                    text: qsTr("Vol")
                     color: "#a0a0a0"
                     font.pixelSize: 11
                 }
 
                 Slider {
                     id: volumeSlider
-                    Layout.preferredWidth: 80
+                    Layout.preferredWidth: 130
+                    implicitHeight: 22
                     from: 0
                     to: 100
-                    value: root.globalVolume
-                    onValueChanged: root.globalVolume = value
+                    stepSize: 1
+                    value: 100
+                    handle: Rectangle {
+                        x: volumeSlider.leftPadding + volumeSlider.visualPosition * (volumeSlider.availableWidth - width)
+                        y: volumeSlider.topPadding + volumeSlider.availableHeight / 2 - height / 2
+                        width: 16
+                        height: 16
+                        radius: 8
+                        color: volumeSlider.pressed ? "#6ab0f0" : "#4a90d9"
+                        Behavior on color { ColorAnimation { duration: 100 } }
+                    }
+                }
+
+                Label {
+                    text: Math.round(volumeSlider.value) + "%"
+                    color: "#e0e0e0"
+                    font.pixelSize: 11
+                    horizontalAlignment: Text.AlignRight
+                    Layout.preferredWidth: 30
                 }
             }
         }
-    }
 
-    // ── Click anywhere to show controls ──
-    MouseArea {
-        anchors.fill: parent
-        hoverEnabled: true
-        z: 5
-        propagateComposedEvents: true
-        onPositionChanged: root.showControls()
-        onPressed: (mouse) => {
-            root.showControls()
-            mouse.accepted = false
+        MouseArea {
+            anchors.fill: parent
+            hoverEnabled: true
+            propagateComposedEvents: true
+            onPositionChanged: root.showControls()
+            onPressed: (mouse) => mouse.accepted = false
         }
     }
 

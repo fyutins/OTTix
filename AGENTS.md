@@ -101,3 +101,10 @@ Get-Process appIptvPlayer -ErrorAction SilentlyContinue | Stop-Process -Force
 - Contrôles par player dans `PlayerSlot.qml` (barre haute, play/pause centré, `+` en dessous)
 - Contrôles globaux dans `PlayerPage.qml` (mode selector + volume)
 - Auto-hide des contrôles après 3s d'inactivité
+
+## Volume
+
+- **Binding** : `PlayerSlot → MpvObject.volume` courbe puissance `^1.1` pour compenser la perception logarithmique
+- **Curseur** dans `PlayerPage.qml`, id `volumeSlider`, largeur 130px, `stepSize: 1`, `value: 100` (statique, pas de binding pour éviter le verrouillage)
+- Les 4 PlayerSlot lient `globalVolume` directement à `volumeSlider.value` (pas d'intermédiaire PlayerPage.globalVolume)
+- **Persistance** : `QtCore.Settings` dans `PlayerPage.qml`, alias sur `volumeSlider.value`
