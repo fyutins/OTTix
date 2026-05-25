@@ -4,6 +4,7 @@
 #include <QDir>
 #include <QDebug>
 #include <QSet>
+#include <QStandardPaths>
 
 DatabaseManager &DatabaseManager::instance()
 {
@@ -23,7 +24,8 @@ bool DatabaseManager::initialize(const QString &path)
 {
     QString dbPath = path;
     if (dbPath.isEmpty()) {
-        QString dataDir = QCoreApplication::applicationDirPath();
+        QString dataDir = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+        QDir().mkpath(dataDir);
         dbPath = dataDir + "/iptv_player.db";
     }
 
@@ -87,8 +89,20 @@ void DatabaseManager::createTables()
         )
     )");
 
+    q.exec(R"(
+        CREATE TABLE IF NOT EXISTS watch_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            url TEXT NOT NULL UNIQUE,
+            logo TEXT,
+            group_name TEXT,
+            watched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    )");
+
     q.exec("CREATE INDEX IF NOT EXISTS idx_channels_playlist ON channels(playlist_id)");
     q.exec("CREATE INDEX IF NOT EXISTS idx_channels_name ON channels(name)");
+    q.exec("CREATE INDEX IF NOT EXISTS idx_watch_history_watched ON watch_history(watched_at)");
 
     q.exec("PRAGMA foreign_keys = ON");
 }
@@ -559,4 +573,58 @@ void DatabaseManager::clearCache(int olderThanDays)
     q.prepare("DELETE FROM cache WHERE created_at < datetime('now', :days)");
     q.bindValue(":days", QString("-%1 days").arg(olderThanDays));
     q.exec();
+}
+
+// ── Watch History ──
+
+void DatabaseManager::addHistoryEntry(const QString &name, const QString &url,
+                                      const QString &logo, const QString &group)
+{
+    QSqlQuery q(m_db);
+    q.prepare(R"(
+        INSERT OR REPLACE INTO watch_history (name, url, logo, group_name, watched_at)
+        VALUES (:name, :url, :logo, :group_name, CURRENT_TIMESTAMP)
+    )");
+    q.bindValue(":name", name);
+    q.bindValue(":url", url);
+    q.bindValue(":logo", logo);
+    q.bindValue(":group_name", group);
+    if (!q.exec())
+        qWarning() << "Failed to add history entry:" << q.lastError().text();
+    else
+        emit historyChanged();
+}
+
+QVariantList DatabaseManager::getHistoryVariant(int limit)
+{
+    QVariantList result;
+    QSqlQuery q(m_db);
+    q.prepare("SELECT id, name, url, logo, group_name FROM watch_history "
+              "ORDER BY watched_at DESC LIMIT :limit");
+    q.bindValue(":limit", limit);
+
+    if (!q.exec()) {
+        qWarning() << "Failed to get history:" << q.lastError().text();
+        return result;
+    }
+
+    while (q.next()) {
+        result.append(QVariantMap{
+            {"id", q.value("id").toInt()},
+            {"name", q.value("name").toString()},
+            {"url", q.value("url").toString()},
+            {"logo", q.value("logo").toString()},
+            {"group", q.value("group_name").toString()},
+        });
+    }
+    return result;
+}
+
+void DatabaseManager::clearHistory()
+{
+    QSqlQuery q(m_db);
+    if (!q.exec("DELETE FROM watch_history"))
+        qWarning() << "Failed to clear history:" << q.lastError().text();
+    else
+        emit historyChanged();
 }

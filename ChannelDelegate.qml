@@ -16,6 +16,7 @@ Rectangle {
     property string channelGroup: ""
     property int channelDbId: -1
     property bool isFavorite: false
+    property bool showFavoriteIcon: true
 
     signal playRequested(string name, string url, string logo, string group)
     signal favoriteToggled(int channelDbId)
@@ -105,6 +106,7 @@ Rectangle {
         color: "#e0e0e0"
         font.pixelSize: 14
         z: 1
+        visible: delegateRoot.showFavoriteIcon
         MouseArea {
             anchors.fill: parent
             anchors.margins: -4

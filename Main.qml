@@ -5,6 +5,7 @@ import QtQuick.Window
 import IptvPlayer.Player
 import IptvPlayer.Models
 import IptvPlayer.Loader
+import IptvPlayer.Database
 
 Window {
     id: window
@@ -53,6 +54,9 @@ Window {
             showPlayer = true
         if (multiplexMode === 1 || !isPick)
             activeAudioSlot = slot
+
+        // Record in watch history
+        DatabaseManager.addHistoryEntry(name, url, logo, group)
     }
 
     function stopPlayback() {
@@ -234,7 +238,8 @@ Window {
 
                     TabButton { text: qsTr("Favorites") }
                     TabButton { text: qsTr("All Channels") }
-                    TabButton { text: qsTr("Groups") }                    
+                    TabButton { text: qsTr("Groups") }
+                    TabButton { text: qsTr("History") }
                 }
 
                 // Content
@@ -253,7 +258,11 @@ Window {
 
                     GroupsPage {
                         onChannelSelected: (name, url, logo, group) => handleChannelSelected(name, url, logo, group)
-                    }                    
+                    }
+
+                    HistoryPage {
+                        onChannelSelected: (name, url, logo, group) => handleChannelSelected(name, url, logo, group)
+                    }
                 }
             }
 

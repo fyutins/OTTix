@@ -91,6 +91,7 @@ qt_add_qml_module(appIptvPlayer
         ChannelSearchPopup.qml
         FavoritesPage.qml
         GroupGrid.qml
+        HistoryPage.qml
         GroupSearchBar.qml
         GroupsPage.qml
         PlayerPage.qml

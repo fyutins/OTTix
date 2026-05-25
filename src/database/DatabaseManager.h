@@ -88,11 +88,13 @@ struct PlaylistInfo {
 class DatabaseManager : public QObject
 {
     Q_OBJECT
+    Q_PROPERTY(QString databasePath READ databasePath NOTIFY databasePathChanged)
 
 public:
     static DatabaseManager &instance();
 
     bool initialize(const QString &path = QString());
+    Q_INVOKABLE QString databasePath() const { return m_db.databaseName(); }
 
     // Playlist CRUD
     int addPlaylist(const PlaylistInfo &playlist);
@@ -119,8 +121,16 @@ public:
     QList<int> getFavoriteIds();
     Q_INVOKABLE QVariantList getFavoritesVariant();
 
+    // Watch History
+    Q_INVOKABLE void addHistoryEntry(const QString &name, const QString &url,
+                                     const QString &logo, const QString &group);
+    Q_INVOKABLE QVariantList getHistoryVariant(int limit = 200);
+    Q_INVOKABLE void clearHistory();
+
 signals:
     void favoritesChanged();
+    void historyChanged();
+    void databasePathChanged();
 
 public:
     // Cache

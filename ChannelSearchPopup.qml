@@ -27,7 +27,9 @@ Popup {
         if (groupSearchBar) groupSearchBar.searchText = ""
         if (groupChannelsBar) groupChannelsBar.searchText = ""
         if (favoritesSearchBar) favoritesSearchBar.searchText = ""
+        if (historySearchBar) historySearchBar.searchText = ""
         favoritesModel.refresh()
+        historyModel.refresh()
         tabBar.currentIndex = 0
         groupListModel.build()
         if (channelsSearchBar) channelsSearchBar.focusSearch()
@@ -107,6 +109,7 @@ Popup {
                 TabButton { text: qsTr("Favorites") }
                 TabButton { text: qsTr("All Channels") }
                 TabButton { text: qsTr("Groups") }
+                TabButton { text: qsTr("History") }
             }
 
             // ── Content ──
@@ -218,6 +221,26 @@ Popup {
                         }
                     }
                 }
+
+                // ── Tab 3: History ──
+                ColumnLayout {
+                    spacing: 8
+
+                    ChannelSearchBar {
+                        id: historySearchBar
+                        searchPlaceholder: qsTr("Search history...")
+                        countText: historyModel.count + " " + qsTr("channels")
+                        onSearchChanged: historyModel.refresh()
+                    }
+
+                    ChannelGrid {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        isHistoryModel: true
+                        model: historyModel
+                        onPlayRequested: (name, url, logo, group) => popup.handlePick(name, url, logo, group)
+                    }
+                }
             }
         }
     }
@@ -251,6 +274,20 @@ Popup {
         }
     }
 
+    ListModel {
+        id: historyModel
+
+        function refresh() {
+            clear()
+            var entries = DatabaseManager.getHistoryVariant()
+            var filter = historySearchBar.searchText
+            for (var i = 0; i < entries.length; i++) {
+                if (filter === "" || popup.matchesFilter(entries[i].name, filter))
+                    append(entries[i])
+            }
+        }
+    }
+
     Connections {
         target: tabBar
         function onCurrentIndexChanged() {
@@ -259,6 +296,8 @@ Popup {
                 favoritesModel.refresh()
             else if (idx === 2 && selectedGroup === "")
                 groupListModel.build()
+            else if (idx === 3)
+                historyModel.refresh()
         }
     }
 
@@ -273,6 +312,14 @@ Popup {
         function onGroupsChanged() {
             if (tabBar.currentIndex === 2 && selectedGroup === "")
                 groupListModel.build()
+        }
+    }
+
+    Connections {
+        target: DatabaseManager
+        function onHistoryChanged() {
+            if (tabBar.currentIndex === 3)
+                historyModel.refresh()
         }
     }
 
