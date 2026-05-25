@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Installer>
+    <Name>IPTV Player</Name>
+    <Version>0.1.0</Version>
+    <Title>IPTV Player Installer</Title>
+    <Publisher>IptvPlayer</Publisher>
+    <ProductUrl>https://iptvplayer.example.com</ProductUrl>
+    <InstallerWindowIcon>../app.ico</InstallerWindowIcon>
+    <InstallerApplicationIcon>../app.ico</InstallerApplicationIcon>
+    <Logo>../logo.png</Logo>
+    <TitleColor>#1a1a2e</TitleColor>
+    <RunProgram>@TargetDir@/appIptvPlayer.exe</RunProgram>
+    <RunProgramDescription>Launch IPTV Player</RunProgramDescription>
+    <StartMenuDir>IPTV Player</StartMenuDir>
+    <MaintenanceToolName>IPTVPlayerMaintenance</MaintenanceToolName>
+    <AllowNonAsciiCharacters>true</AllowNonAsciiCharacters>
+    <TargetDir>@ApplicationsDir@/IptvPlayer</TargetDir>
+    <AdminTargetDir>@ApplicationsDirX64@/IptvPlayer</AdminTargetDir>
+    <RemoveTargetDir>true</RemoveTargetDir>
+    <AllowSpaceInPath>true</AllowSpaceInPath>
+</Installer>

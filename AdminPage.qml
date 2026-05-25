@@ -207,7 +207,7 @@ Rectangle {
                             }
 
                             Label {
-                                text: qsTr("Database location: ") + Qt.application.applicationDirPath + "/iptv_player.db"
+                                text: qsTr("Database location: ") + DatabaseManager.databasePath
                                 color: "#808080"
                                 font.pixelSize: 11
                                 wrapMode: Text.WordWrap
