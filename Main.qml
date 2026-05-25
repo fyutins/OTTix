@@ -68,6 +68,33 @@ Window {
         slotChannels = ch
     }
 
+    function navigateChannel(direction) {
+        var slot = activeAudioSlot
+        var url = slotChannels[slot].url
+        if (!url) return
+
+        var count = ChannelListModel.count
+        if (count === 0) return
+
+        var currentIdx = -1
+        for (var i = 0; i < count; i++) {
+            var ch = ChannelListModel.get(i)
+            if (ch.url === url) {
+                currentIdx = i
+                break
+            }
+        }
+
+        var targetIdx
+        if (currentIdx < 0)
+            targetIdx = direction > 0 ? 0 : count - 1
+        else
+            targetIdx = (currentIdx + direction + count) % count
+
+        var next = ChannelListModel.get(targetIdx)
+        handleChannelSelected(next.name, next.url, next.logo, next.group)
+    }
+
     function openChannelSearch() {
         channelSearchPopup.pickMode = pendingPickSlot >= 0
         if (pendingPickSlot >= 0)
@@ -124,6 +151,16 @@ Window {
                     p.doPlay()
             }
         }
+    }
+
+    Shortcut {
+        sequence: "Left"
+        onActivated: { if (showPlayer) navigateChannel(-1) }
+    }
+
+    Shortcut {
+        sequence: "Right"
+        onActivated: { if (showPlayer) navigateChannel(1) }
     }
 
     // ── Navigation layer ──
@@ -297,6 +334,8 @@ Window {
 
         onCloseRequested: stopPlayback()
         onNavigateRequested: openChannelSearch()
+        onPrevChannelRequested: navigateChannel(-1)
+        onNextChannelRequested: navigateChannel(1)
         onToggleFullscreenRequested: {
             if (window.visibility === Window.FullScreen) {
                 window.visibility = Window.Windowed

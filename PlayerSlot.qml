@@ -22,6 +22,8 @@ Rectangle {
     signal audioToggleRequested(int slotIndex)
     signal doubleClickRequested()
     signal hwdecChangeRequested(string value)
+    signal prevRequested()
+    signal nextRequested()
 
     property bool mpvPlaying: mpvItem.playing
     property alias mpvRef: mpvItem
@@ -198,54 +200,97 @@ Rectangle {
             }
         }
 
-        // ── Center: Play/Pause · ≡ ──
+        // ── Center: ≡ (top) · ◀ ▶ Play/Pause (bottom) ──
         Item {
             anchors.centerIn: parent
-            width: centerRow.implicitWidth
-            height: centerRow.implicitHeight
+            width: centerColumn.implicitWidth
+            height: centerColumn.implicitHeight
             z: 3
 
-            RowLayout {
-                id: centerRow
-                spacing: 16
+            ColumnLayout {
+                id: centerColumn
+                spacing: 12
                 visible: root.channelUrl !== ""
 
-                // Play / Pause
+                // ≡ (pick) — centered above play/pause
                 Rectangle {
-                    width: 48
-                    height: 48
-                    radius: 24
-                    color: Qt.rgba(0, 0, 0, 0.65)
-                    Text {
-                        anchors.centerIn: parent
-                        text: mpvItem.playing ? "\u23F8" : "\u25B6"
-                        color: "white"
-                        font.pixelSize: 22
-                    }
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: {
-                            if (mpvItem.playing) mpvItem.pause()
-                            else mpvItem.play()
-                        }
-                    }
-                }
-
-                // ≡ (pick)
-                Rectangle {
-                    width: 44
-                    height: 44
-                    radius: 22
+                    Layout.alignment: Qt.AlignHCenter
+                    width: 40
+                    height: 40
+                    radius: 20
                     color: Qt.rgba(0, 0, 0, 0.7)
                     Text {
                         anchors.centerIn: parent
                         text: "\u2630"
                         color: "white"
-                        font.pixelSize: 20
+                        font.pixelSize: 18
                     }
                     MouseArea {
                         anchors.fill: parent
                         onClicked: root.pickRequested(root.slotIndex)
+                    }
+                }
+
+                // ◀ · Play/Pause · ▶
+                RowLayout {
+                    spacing: 12
+                    Layout.alignment: Qt.AlignHCenter
+
+                    // ◀ Prev
+                    Rectangle {
+                        width: 44
+                        height: 44
+                        radius: 22
+                        color: Qt.rgba(0, 0, 0, 0.65)
+                        Text {
+                            anchors.centerIn: parent
+                            text: "\u25C0"
+                            color: "white"
+                            font.pixelSize: 18
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: root.prevRequested()
+                        }
+                    }
+
+                    // Play / Pause
+                    Rectangle {
+                        width: 48
+                        height: 48
+                        radius: 24
+                        color: Qt.rgba(0, 0, 0, 0.65)
+                        Text {
+                            anchors.centerIn: parent
+                            text: mpvItem.playing ? "\u23F8" : "\u25B6"
+                            color: "white"
+                            font.pixelSize: 22
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: {
+                                if (mpvItem.playing) mpvItem.pause()
+                                else mpvItem.play()
+                            }
+                        }
+                    }
+
+                    // ▶ Next
+                    Rectangle {
+                        width: 44
+                        height: 44
+                        radius: 22
+                        color: Qt.rgba(0, 0, 0, 0.65)
+                        Text {
+                            anchors.centerIn: parent
+                            text: "\u25B6"
+                            color: "white"
+                            font.pixelSize: 18
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: root.nextRequested()
+                        }
                     }
                 }
             }

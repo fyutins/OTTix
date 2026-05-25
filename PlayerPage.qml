@@ -10,6 +10,8 @@ Rectangle {
 
     signal closeRequested()
     signal navigateRequested()
+    signal prevChannelRequested()
+    signal nextChannelRequested()
     signal multiplexModeChangeRequested(int mode)
     signal activeAudioSlotChangeRequested(int slot)
     signal pendingPickSlotChangeRequested(int slot)
@@ -116,6 +118,8 @@ Rectangle {
                 onAudioToggleRequested: root.activeAudioSlotChangeRequested(slotIndex)
                 onDoubleClickRequested: root.toggleFullscreenRequested()
                 onHwdecChangeRequested: { root.playerHwdec = value; root.applyHwdecToAll(value) }
+                onPrevRequested: root.prevChannelRequested()
+                onNextRequested: root.nextChannelRequested()
             }
 
             PlayerSlot {
@@ -135,6 +139,8 @@ Rectangle {
                 onAudioToggleRequested: root.activeAudioSlotChangeRequested(slotIndex)
                 onDoubleClickRequested: root.toggleFullscreenRequested()
                 onHwdecChangeRequested: { root.playerHwdec = value; root.applyHwdecToAll(value) }
+                onPrevRequested: root.prevChannelRequested()
+                onNextRequested: root.nextChannelRequested()
             }
         }
 
@@ -160,6 +166,8 @@ Rectangle {
                 onAudioToggleRequested: root.activeAudioSlotChangeRequested(slotIndex)
                 onDoubleClickRequested: root.toggleFullscreenRequested()
                 onHwdecChangeRequested: { root.playerHwdec = value; root.applyHwdecToAll(value) }
+                onPrevRequested: root.prevChannelRequested()
+                onNextRequested: root.nextChannelRequested()
             }
 
             PlayerSlot {
@@ -179,6 +187,8 @@ Rectangle {
                 onAudioToggleRequested: root.activeAudioSlotChangeRequested(slotIndex)
                 onDoubleClickRequested: root.toggleFullscreenRequested()
                 onHwdecChangeRequested: { root.playerHwdec = value; root.applyHwdecToAll(value) }
+                onPrevRequested: root.prevChannelRequested()
+                onNextRequested: root.nextChannelRequested()
             }
         }
     }
