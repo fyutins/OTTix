@@ -13,8 +13,30 @@ Dialog {
     y: (parent.height - height) / 2
 
     property string playlistType: "m3u"
+    property int editId: -1
 
     signal playlistAdded(string name, string url, string type, string username, string password)
+    signal playlistEdited(int id, string name, string url, string type, string username, string password)
+
+    function openForEdit(id, name, url, type, username, password) {
+        editId = id
+        nameField.text = name
+        urlField.text = url
+        typeCombo.currentIndex = type === "xtream" ? 1 : 0
+        usernameField.text = username || ""
+        passwordField.text = password || ""
+        title = qsTr("Edit Playlist")
+        open()
+    }
+
+    function resetFields() {
+        nameField.text = ""
+        urlField.text = ""
+        usernameField.text = ""
+        passwordField.text = ""
+        typeCombo.currentIndex = 0
+        title = qsTr("Add Playlist")
+    }
 
     contentItem: ColumnLayout {
         spacing: 12
@@ -104,16 +126,19 @@ Dialog {
         var username = type === "xtream" ? usernameField.text : ""
         var password = type === "xtream" ? passwordField.text : ""
 
-        dialog.playlistAdded(nameField.text, urlField.text, type, username, password)
+        if (editId > 0) {
+            dialog.playlistEdited(editId, nameField.text, urlField.text, type, username, password)
+        } else {
+            dialog.playlistAdded(nameField.text, urlField.text, type, username, password)
+        }
     }
 
     onVisibleChanged: {
         if (visible) {
-            nameField.text = ""
-            urlField.text = ""
-            usernameField.text = ""
-            passwordField.text = ""
-            typeCombo.currentIndex = 0
+            if (editId === -1)
+                resetFields()
+        } else {
+            editId = -1
         }
     }
 }

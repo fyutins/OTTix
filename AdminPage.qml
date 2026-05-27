@@ -163,6 +163,15 @@ Rectangle {
                                 }
 
                                 Button {
+                                    text: qsTr("Edit")
+                                    onClicked: {
+                                        playlistDialog.openForEdit(model.playlistId,
+                                            model.name, model.url, model.type,
+                                            model.username, model.password)
+                                    }
+                                }
+
+                                Button {
                                     text: qsTr("Delete")
                                     onClicked: {
                                         PlaylistModel.removePlaylist(model.playlistId)
@@ -251,6 +260,9 @@ Rectangle {
         id: playlistDialog
         onPlaylistAdded: (name, url, type, username, password) => {
             PlaylistModel.addPlaylist(name, url, type, username, password)
+        }
+        onPlaylistEdited: (id, name, url, type, username, password) => {
+            PlaylistModel.updatePlaylist(id, name, url, type, username, password)
         }
     }
 

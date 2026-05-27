@@ -88,6 +88,24 @@ bool PlaylistModel::addPlaylist(const QString &name, const QString &url,
     return true;
 }
 
+bool PlaylistModel::updatePlaylist(int id, const QString &name, const QString &url,
+                                    const QString &type, const QString &username,
+                                    const QString &password)
+{
+    PlaylistInfo pl;
+    pl.id = id;
+    pl.name = name;
+    pl.url = url;
+    pl.type = type;
+    pl.username = username;
+    pl.password = password;
+
+    bool ok = DatabaseManager::instance().updatePlaylist(pl);
+    if (ok)
+        refresh();
+    return ok;
+}
+
 bool PlaylistModel::removePlaylist(int id)
 {
     bool ok = DatabaseManager::instance().removePlaylist(id);

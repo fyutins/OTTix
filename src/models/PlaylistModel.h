@@ -30,6 +30,9 @@ public:
     Q_INVOKABLE bool addPlaylist(const QString &name, const QString &url,
                                   const QString &type, const QString &username,
                                   const QString &password);
+    Q_INVOKABLE bool updatePlaylist(int id, const QString &name, const QString &url,
+                                     const QString &type, const QString &username,
+                                     const QString &password);
     Q_INVOKABLE bool removePlaylist(int id);
 
 signals:
