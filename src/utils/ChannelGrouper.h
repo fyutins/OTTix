@@ -2,6 +2,8 @@
 
 #include <QString>
 #include <QStringList>
+#include <QRegularExpression>
+#include <QMap>
 
 class ChannelGrouper
 {
@@ -11,9 +13,16 @@ public:
         QString label;
     };
 
+    struct SuffixPattern {
+        QRegularExpression regex;
+        QMap<QString, QString> labelForCaptured;
+    };
+
     static VariantInfo analyze(const QString &name, const QStringList &extraSuffixes = {});
+    static VariantInfo analyzeWithPattern(const QString &name, const SuffixPattern &pattern);
+    static SuffixPattern buildPattern(const QStringList &extraSuffixes = {});
     static QStringList defaultSuffixes();
-    static QStringList allSuffixes(const QStringList &extraSuffixes = {});
+    static QStringList combinedSuffixes(const QStringList &extraSuffixes = {});
 
 private:
     ChannelGrouper() = default;

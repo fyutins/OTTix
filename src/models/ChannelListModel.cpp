@@ -1,6 +1,10 @@
 #include "ChannelListModel.h"
 #include "../utils/ChannelGrouper.h"
 
+#include <QtConcurrent/QtConcurrentRun>
+#include <QFutureWatcher>
+#include <QElapsedTimer>
+
 ChannelListModel::ChannelListModel(QObject *parent)
     : QAbstractListModel(parent)
 {
@@ -72,63 +76,100 @@ void ChannelListModel::refresh()
     applyFilter();
 }
 
+// ── Worker function (runs in background thread) ──
+
+static ChannelListModel::GroupingResult buildGroupingResult(
+    const QList<ChannelInfo> &channels,
+    const QStringList &customSuffixes)
+{
+    QElapsedTimer timer;
+    timer.start();
+
+    ChannelListModel::GroupingResult result;
+
+    auto pattern = ChannelGrouper::buildPattern(customSuffixes);
+
+    QSet<QString> groupSet;
+    for (int i = 0; i < channels.size(); ++i) {
+        const auto &ch = channels[i];
+        if (!ch.group.isEmpty())
+            groupSet.insert(ch.group);
+
+        auto info = ChannelGrouper::analyzeWithPattern(ch.name, pattern);
+        result.channelBaseName[i] = info.baseName;
+        result.channelVariantLabel[i] = info.label;
+        result.baseNameToChannels[info.baseName].append(i);
+    }
+
+    for (auto it = result.baseNameToChannels.begin();
+         it != result.baseNameToChannels.end(); ++it) {
+        if (it.value().size() >= 2)
+            result.multiVariantBaseNames.insert(it.key());
+    }
+
+    qDebug() << "[PERF] Grouping:" << timer.elapsed() << "ms for" << channels.size() << "channels"
+             << "-" << result.multiVariantBaseNames.size() << "multi-variant groups";
+
+    result.groups = groupSet.values();
+    result.groups.sort();
+    result.groups.prepend("");
+
+    return result;
+}
+
 void ChannelListModel::setChannels(int playlistId)
 {
-    qDebug() << "[MODEL] setChannels(playlistId=" << playlistId << ")";
-    qDebug() << "[MODEL] Calling DatabaseManager::getChannels...";
+    qDebug() << "[MODEL] setChannels(playlistId=" << playlistId << ") — querying DB";
+    QElapsedTimer dbTimer;
+    dbTimer.start();
     auto channels = DatabaseManager::instance().getChannels(playlistId);
-    qDebug() << "[MODEL] DatabaseManager::getChannels returned" << channels.size() << "channels";
+    qDebug() << "[PERF] DB query:" << dbTimer.elapsed() << "ms for" << channels.size() << "channels";
+    qDebug() << "[MODEL] DB returned" << channels.size() << "channels";
     setChannels(channels);
 }
 
 void ChannelListModel::setChannels(const QList<ChannelInfo> &channels)
 {
-    qDebug() << "[MODEL] setChannels(const) — channels.size=" << channels.size();
-
     m_channels = channels;
-    qDebug() << "[MODEL] m_channels assigned, size=" << m_channels.size()
-             << "capacity=" << m_channels.capacity();
+    int gen = ++m_loadGeneration;
 
-    rebuildGroups();
+    // Populate view immediately (filter doesn't depend on grouping)
+    applyFilter();
 
-    qDebug() << "[MODEL] Building groups set...";
-    QSet<QString> groupSet;
-    for (const auto &ch : m_channels) {
-        if (!ch.group.isEmpty())
-            groupSet.insert(ch.group);
-    }
-    m_groups = groupSet.values();
-    m_groups.sort();
-    m_groups.prepend("");
-    qDebug() << "[MODEL] Groups built:" << m_groups.size() << "unique groups (including empty)";
+    auto *watcher = new QFutureWatcher<GroupingResult>(this);
+    connect(watcher, &QFutureWatcher<GroupingResult>::finished, this, [this, watcher, gen]() {
+        QElapsedTimer applyTimer;
+        applyTimer.start();
+
+        GroupingResult result = watcher->result();
+        watcher->deleteLater();
+
+        if (gen != m_loadGeneration) {
+            qDebug() << "[MODEL] ignoring stale load (gen" << gen << "!= current" << m_loadGeneration << ")";
+            return;
+        }
+
+        applyGrouping(result);
+        qDebug() << "[PERF] Apply grouping to model:" << applyTimer.elapsed() << "ms";
+    });
+
+    QList<ChannelInfo> channelsCopy = m_channels;
+    QStringList suffixesCopy = m_customSuffixes;
+
+    watcher->setFuture(QtConcurrent::run([channelsCopy, suffixesCopy]() {
+        return buildGroupingResult(channelsCopy, suffixesCopy);
+    }));
+}
+
+void ChannelListModel::applyGrouping(const GroupingResult &result)
+{
+    m_baseNameToChannels = result.baseNameToChannels;
+    m_channelBaseName = result.channelBaseName;
+    m_channelVariantLabel = result.channelVariantLabel;
+    m_multiVariantBaseNames = result.multiVariantBaseNames;
+    m_groups = result.groups;
 
     emit groupsChanged();
-    qDebug() << "[MODEL] groupsChanged emitted";
-
-    qDebug() << "[MODEL] beginResetModel...";
-    beginResetModel();
-    m_filtered.clear();
-    m_filtered.reserve(m_channels.size());
-    int filteredCount = 0;
-    for (const auto &ch : m_channels) {
-        bool matchGroup = m_filterGroup.isEmpty() || ch.group == m_filterGroup;
-        bool matchText = m_filterText.isEmpty();
-        if (!matchText) {
-            const QStringList tokens = m_filterText.split(' ', Qt::SkipEmptyParts);
-            matchText = true;
-            for (const auto &token : tokens)
-                matchText &= ch.name.contains(token, Qt::CaseInsensitive);
-        }
-        if (matchGroup && matchText) {
-            m_filtered.append(ch);
-            filteredCount++;
-        }
-    }
-    qDebug() << "[MODEL] Filtered:" << filteredCount << "out of" << m_channels.size();
-    qDebug() << "[MODEL] endResetModel...";
-    endResetModel();
-    emit countChanged();
-    qDebug() << "[MODEL] countChanged emitted, rowCount=" << rowCount();
 }
 
 void ChannelListModel::setFavorites()
@@ -141,7 +182,6 @@ void ChannelListModel::toggleFavorite(int channelDbId)
 {
     auto &db = DatabaseManager::instance();
 
-    // Find in filtered list
     int row = -1;
     for (int i = 0; i < m_filtered.size(); ++i) {
         if (m_filtered[i].id == channelDbId) {
@@ -161,7 +201,6 @@ void ChannelListModel::toggleFavorite(int channelDbId)
         ch.isFavorite = true;
     }
 
-    // Sync with m_channels
     for (auto &c : m_channels) {
         if (c.id == channelDbId) {
             c.isFavorite = ch.isFavorite;
@@ -218,23 +257,8 @@ void ChannelListModel::applyFilter()
 
 void ChannelListModel::rebuildGroups()
 {
-    m_baseNameToChannels.clear();
-    m_channelBaseName.clear();
-    m_channelVariantLabel.clear();
-    m_multiVariantBaseNames.clear();
-
-    for (int i = 0; i < m_channels.size(); ++i) {
-        const auto &ch = m_channels[i];
-        auto info = ChannelGrouper::analyze(ch.name, m_customSuffixes);
-        m_channelBaseName[i] = info.baseName;
-        m_channelVariantLabel[i] = info.label;
-        m_baseNameToChannels[info.baseName].append(i);
-    }
-
-    for (auto it = m_baseNameToChannels.begin(); it != m_baseNameToChannels.end(); ++it) {
-        if (it.value().size() >= 2)
-            m_multiVariantBaseNames.insert(it.key());
-    }
+    auto result = buildGroupingResult(m_channels, m_customSuffixes);
+    applyGrouping(result);
 }
 
 QVariantList ChannelListModel::getVariantsForUrl(const QString &url) const

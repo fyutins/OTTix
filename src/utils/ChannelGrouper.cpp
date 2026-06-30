@@ -1,11 +1,10 @@
 #include "ChannelGrouper.h"
 
-#include <QRegularExpression>
+#include <algorithm>
 
 QStringList ChannelGrouper::defaultSuffixes()
 {
     return {
-        // Resolutions (longest first for greedy matching)
         QStringLiteral("2160p"),
         QStringLiteral("1080p"),
         QStringLiteral("720p"),
@@ -13,7 +12,6 @@ QStringList ChannelGrouper::defaultSuffixes()
         QStringLiteral("480p"),
         QStringLiteral("360p"),
         QStringLiteral("240p"),
-        // Visual quality
         QStringLiteral("FHD"),
         QStringLiteral("UHD"),
         QStringLiteral("HDR"),
@@ -25,7 +23,6 @@ QStringList ChannelGrouper::defaultSuffixes()
         QStringLiteral("LQ"),
         QStringLiteral("4K"),
         QStringLiteral("8K"),
-        // Codec
         QStringLiteral("H.265"),
         QStringLiteral("H.264"),
         QStringLiteral("HEVC"),
@@ -33,7 +30,6 @@ QStringList ChannelGrouper::defaultSuffixes()
         QStringLiteral("x265"),
         QStringLiteral("x264"),
         QStringLiteral("AVC"),
-        // Language / region variants
         QStringLiteral("VO"),
         QStringLiteral("VF"),
         QStringLiteral("VOSTFR"),
@@ -43,7 +39,7 @@ QStringList ChannelGrouper::defaultSuffixes()
     };
 }
 
-QStringList ChannelGrouper::allSuffixes(const QStringList &extraSuffixes)
+QStringList ChannelGrouper::combinedSuffixes(const QStringList &extraSuffixes)
 {
     QStringList result = defaultSuffixes();
     for (const QString &s : extraSuffixes) {
@@ -51,14 +47,37 @@ QStringList ChannelGrouper::allSuffixes(const QStringList &extraSuffixes)
         if (!trimmed.isEmpty() && !result.contains(trimmed, Qt::CaseInsensitive))
             result.append(trimmed);
     }
-    // Sort by length descending so longer suffixes match first
     std::sort(result.begin(), result.end(),
               [](const QString &a, const QString &b) { return a.length() > b.length(); });
     return result;
 }
 
-ChannelGrouper::VariantInfo ChannelGrouper::analyze(const QString &name,
-                                                      const QStringList &extraSuffixes)
+ChannelGrouper::SuffixPattern ChannelGrouper::buildPattern(const QStringList &extraSuffixes)
+{
+    QStringList suffixes = combinedSuffixes(extraSuffixes);
+    if (suffixes.isEmpty()) {
+        return {};
+    }
+
+    QStringList escaped;
+    escaped.reserve(suffixes.size());
+    for (const QString &s : suffixes)
+        escaped << QRegularExpression::escape(s);
+
+    QString pattern = QStringLiteral(R"(^(.+?)[\s.\-–—_()\[\]]+((?:%1))[\s.\-–—_()\[\]]*$)")
+                          .arg(escaped.join(u'|'));
+
+    SuffixPattern sp;
+    sp.regex = QRegularExpression(pattern, QRegularExpression::CaseInsensitiveOption);
+
+    for (const QString &s : suffixes)
+        sp.labelForCaptured[s.toLower()] = s;
+
+    return sp;
+}
+
+ChannelGrouper::VariantInfo ChannelGrouper::analyzeWithPattern(const QString &name,
+                                                                 const SuffixPattern &pattern)
 {
     VariantInfo info;
     QString trimmed = name.trimmed();
@@ -67,27 +86,30 @@ ChannelGrouper::VariantInfo ChannelGrouper::analyze(const QString &name,
         return info;
     }
 
-    QStringList suffixes = allSuffixes(extraSuffixes);
+    if (!pattern.regex.isValid()) {
+        info.baseName = trimmed;
+        return info;
+    }
 
-    for (const QString &suffix : suffixes) {
-        // Pattern 1: with separators (space, dot, hyphen, underscore, parentheses, brackets)
-        QString escaped = QRegularExpression::escape(suffix);
-        QRegularExpression re(
-            QStringLiteral(R"(^(.+?)[\s.\-–—_()\[\]]+(%1)[\s.\-–—_()\[\]]*$)")
-                .arg(escaped),
-            QRegularExpression::CaseInsensitiveOption);
-        QRegularExpressionMatch m = re.match(trimmed);
-        if (m.hasMatch()) {
-            QString base = m.captured(1).trimmed();
-            if (base.length() >= 2) {
-                info.baseName = base;
-                info.label = suffix;
-                return info;
-            }
+    QRegularExpressionMatch m = pattern.regex.match(trimmed);
+    if (m.hasMatch()) {
+        QString base = m.captured(1).trimmed();
+        if (base.length() >= 2) {
+            info.baseName = base;
+            QString captured = m.captured(2);
+            info.label = pattern.labelForCaptured.value(captured.toLower(), captured);
+            return info;
         }
     }
 
-    // No suffix found: the whole name is the base name
     info.baseName = trimmed;
     return info;
+}
+
+// Legacy method kept for backward compatibility
+ChannelGrouper::VariantInfo ChannelGrouper::analyze(const QString &name,
+                                                      const QStringList &extraSuffixes)
+{
+    SuffixPattern pattern = buildPattern(extraSuffixes);
+    return analyzeWithPattern(name, pattern);
 }

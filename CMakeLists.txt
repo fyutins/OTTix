@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 Sql Network OpenGL)
+find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 Sql Network OpenGL Concurrent)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 find_package(PkgConfig QUIET)
@@ -110,7 +110,7 @@ set_target_properties(appIptvPlayer PROPERTIES
 )
 
 target_link_libraries(appIptvPlayer
-    PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Sql Qt6::Network Qt6::OpenGL
+    PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Sql Qt6::Network Qt6::OpenGL Qt6::Concurrent
 )
 
 if(MPV_INCLUDE_DIR)

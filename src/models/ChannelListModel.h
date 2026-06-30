@@ -54,6 +54,14 @@ public:
 
     QList<ChannelInfo> channels() const { return m_channels; }
 
+    struct GroupingResult {
+        QMap<QString, QList<int>> baseNameToChannels;
+        QMap<int, QString> channelBaseName;
+        QMap<int, QString> channelVariantLabel;
+        QSet<QString> multiVariantBaseNames;
+        QStringList groups;
+    };
+
 signals:
     void countChanged();
     void filterChanged();
@@ -64,6 +72,7 @@ private:
     void setChannels(const QList<ChannelInfo> &channels);
     void applyFilter();
     void rebuildGroups();
+    void applyGrouping(const GroupingResult &result);
 
     QList<ChannelInfo> m_channels;
     QList<ChannelInfo> m_filtered;
@@ -77,4 +86,7 @@ private:
     QMap<int, QString> m_channelBaseName;
     QMap<int, QString> m_channelVariantLabel;
     QSet<QString> m_multiVariantBaseNames;
+
+    // Async loading
+    int m_loadGeneration = 0;
 };
