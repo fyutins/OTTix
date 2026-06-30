@@ -226,6 +226,147 @@ Rectangle {
                     }
 
                     GroupBox {
+                        title: qsTr("Quality Suffixes")
+                        Layout.fillWidth: true
+                        label: Label {
+                            text: parent.title
+                            color: "#e0e0e0"
+                            font.bold: true
+                        }
+
+                        ColumnLayout {
+                            width: parent.width
+                            spacing: 8
+
+                            Text {
+                                text: qsTr("Custom quality suffixes used to group channel variants (HD, FHD, SD...)")
+                                color: "#808080"
+                                font.pixelSize: 11
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+
+                            ListView {
+                                id: suffixListView
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: Math.min(contentHeight, 200)
+                                interactive: contentHeight > 200
+                                clip: true
+                                model: suffixListModel
+                                visible: suffixListModel.count > 0
+
+                                delegate: Rectangle {
+                                    width: suffixListView.width
+                                    height: 28
+                                    color: "transparent"
+                                    radius: 4
+
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 4
+                                        spacing: 8
+
+                                        Text {
+                                            text: modelData
+                                            color: "#e0e0e0"
+                                            font.pixelSize: 12
+                                            font.bold: true
+                                            Layout.fillWidth: true
+                                        }
+
+                                        Button {
+                                            text: qsTr("×")
+                                            flat: true
+                                            implicitWidth: 24
+                                            implicitHeight: 24
+                                            contentItem: Text {
+                                                text: qsTr("×")
+                                                color: "#e57373"
+                                                font.pixelSize: 14
+                                                horizontalAlignment: Text.AlignHCenter
+                                                verticalAlignment: Text.AlignVCenter
+                                            }
+                                            background: Rectangle {
+                                                color: mouseArea.containsMouse ? Qt.rgba(1,0,0,0.2) : "transparent"
+                                                radius: 4
+                                            }
+                                            MouseArea {
+                                                id: mouseArea
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: {
+                                                    var arr = ChannelListModel.customSuffixes
+                                                    arr.splice(index, 1)
+                                                    ChannelListModel.customSuffixes = arr
+                                                    refreshSuffixList()
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Text {
+                                text: qsTr("No custom suffixes added")
+                                color: "#808080"
+                                font.pixelSize: 11
+                                visible: suffixListModel.count === 0
+                            }
+
+                            RowLayout {
+                                spacing: 8
+
+                                TextField {
+                                    id: suffixInput
+                                    Layout.fillWidth: true
+                                    placeholderText: qsTr("e.g. HQ, LQ, 4K")
+                                    color: "#e0e0e0"
+                                    font.pixelSize: 12
+                                    background: Rectangle {
+                                        color: "#16213e"
+                                        radius: 4
+                                        border.color: suffixInput.activeFocus ? "#4a90d9" : "#0f3460"
+                                        border.width: 1
+                                    }
+                                    onAccepted: addSuffix()
+                                }
+
+                                Button {
+                                    text: qsTr("Add")
+                                    enabled: suffixInput.text.trim().length > 0
+                                    onClicked: addSuffix()
+                                }
+                            }
+
+                            Item { Layout.preferredHeight: 4 }
+                        }
+
+                        function addSuffix() {
+                            var val = suffixInput.text.trim()
+                            if (val.length === 0) return
+                            var arr = ChannelListModel.customSuffixes
+                            if (arr.indexOf(val) < 0) {
+                                arr.push(val)
+                                ChannelListModel.customSuffixes = arr
+                            }
+                            suffixInput.text = ""
+                            refreshSuffixList()
+                        }
+
+                        function refreshSuffixList() {
+                            suffixListModel.clear()
+                            var arr = ChannelListModel.customSuffixes
+                            for (var i = 0; i < arr.length; i++)
+                                suffixListModel.append({})
+                        }
+
+                        ListModel { id: suffixListModel }
+
+                        Component.onCompleted: refreshSuffixList()
+                    }
+
+                    GroupBox {
                         title: qsTr("About")
                         Layout.fillWidth: true
                         label: Label {

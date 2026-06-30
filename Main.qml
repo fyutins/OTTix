@@ -336,6 +336,10 @@ Window {
         onNavigateRequested: openChannelSearch()
         onPrevChannelRequested: navigateChannel(-1)
         onNextChannelRequested: navigateChannel(1)
+        onVariantSwitchRequested: (slotIndex, url, name, logo) => {
+            setSlotChannel(slotIndex, name, url, logo, slotChannels[slotIndex].group)
+            DatabaseManager.addHistoryEntry(name, url, logo, slotChannels[slotIndex].group)
+        }
         onToggleFullscreenRequested: {
             if (window.visibility === Window.FullScreen) {
                 window.visibility = Window.Windowed

@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import IptvPlayer.Player
+import IptvPlayer.Models
 import IptvPlayer.Utils
 
 Rectangle {
@@ -24,6 +25,7 @@ Rectangle {
     signal hwdecChangeRequested(string value)
     signal prevRequested()
     signal nextRequested()
+    signal variantSwitchRequested(string url, string name, string logo)
 
     property bool mpvPlaying: mpvItem.playing
     property alias mpvRef: mpvItem
@@ -83,6 +85,7 @@ Rectangle {
             overlayActive = false
             hideTimer.stop()
         } else {
+            qualityBadge.currentLabel = ChannelListModel.getVariantLabelForUrl(root.channelUrl)
             controlsOpacity = 1.0
             overlayActive = true
             hideTimer.restart()
@@ -157,6 +160,52 @@ Rectangle {
                     font.bold: true
                     elide: Text.ElideRight
                     Layout.fillWidth: true
+                }
+
+                // Quality badge
+                Rectangle {
+                    id: qualityBadge
+                    implicitWidth: qualityLabel.implicitWidth + 12
+                    height: 20
+                    radius: 4
+                    color: Qt.rgba(1,1,1,0.15)
+                    border.color: "#888"
+                    border.width: 1
+                    visible: root.channelUrl !== "" && ChannelListModel.channelHasVariants(root.channelUrl)
+
+                    property string currentLabel: ""
+
+                    Text {
+                        id: qualityLabel
+                        anchors.centerIn: parent
+                        text: qualityBadge.currentLabel.length > 0 ? qualityBadge.currentLabel : qsTr("SD")
+                        color: "white"
+                        font.pixelSize: 9
+                        font.bold: true
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            qualityListModel.clear()
+                            var variants = ChannelListModel.getVariantsForUrl(root.channelUrl)
+                            for (var i = 0; i < variants.length; i++) {
+                                var v = variants[i]
+                                qualityListModel.append({
+                                    label: v.label || qsTr("Default"),
+                                    name: v.name,
+                                    url: v.url,
+                                    logo: v.logo || "",
+                                    group: v.group || "",
+                                    isCurrent: v.url === root.channelUrl
+                                })
+                            }
+                            var pos = root.mapFromItem(qualityBadge, 0, 0)
+                            qualityPopup.x = pos.x + qualityBadge.width - qualityPopup.width
+                            qualityPopup.y = pos.y - qualityPopup.implicitHeight - 8
+                            qualityPopup.open()
+                        }
+                    }
                 }
 
                 // Reload
@@ -621,6 +670,118 @@ Rectangle {
         MouseArea {
             anchors.fill: parent
             onClicked: root.pickRequested(root.slotIndex)
+        }
+    }
+
+    // ── Quality variant popup ──
+    Popup {
+        id: qualityPopup
+        x: qualityBadge.x
+        y: qualityBadge.y - implicitHeight - 8
+        width: 280
+        implicitHeight: qualityListColumn.implicitHeight + 24
+        padding: 8
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        background: Rectangle {
+            color: "#1a1a2e"
+            radius: 6
+            border.color: "#0f3460"
+            border.width: 1
+        }
+
+        ColumnLayout {
+            id: qualityListColumn
+            anchors.fill: parent
+            spacing: 6
+
+            Text {
+                text: qsTr("Quality Variants")
+                color: "#808080"
+                font.pixelSize: 10
+                font.bold: true
+            }
+
+            Rectangle {
+                height: 1
+                color: "#0f3460"
+                Layout.fillWidth: true
+            }
+
+            ListView {
+                id: qualityListView
+                Layout.fillWidth: true
+                Layout.preferredHeight: contentHeight
+                interactive: contentHeight > 260
+                clip: true
+                model: ListModel { id: qualityListModel }
+                delegate: Rectangle {
+                    width: qualityListView.width
+                    height: 44
+                    radius: 4
+                    color: mouseArea.containsMouse ? "#0f3460" : "transparent"
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 8
+                        anchors.rightMargin: 8
+                        spacing: 2
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+
+                            Text {
+                                text: model.label
+                                color: model.isCurrent ? "#4a90d9" : "#e0e0e0"
+                                font.pixelSize: 12
+                                font.bold: model.isCurrent
+                                Layout.minimumWidth: implicitWidth
+                            }
+
+                            Text {
+                                text: model.name
+                                color: "#a0a0a0"
+                                font.pixelSize: 10
+                                elide: Text.ElideRight
+                                Layout.fillWidth: true
+                            }
+
+                            Text {
+                                text: model.isCurrent ? "\u2713" : ""
+                                color: "#4a90d9"
+                                font.pixelSize: 13
+                                visible: model.isCurrent
+                            }
+                        }
+
+                        Text {
+                            text: model.group || ""
+                            color: "#606060"
+                            font.pixelSize: 10
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true
+                            visible: (model.group || "") !== ""
+                        }
+                    }
+
+                    MouseArea {
+                        id: mouseArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (!model.isCurrent) {
+                                root.channelUrl = model.url
+                                root.channelName = model.name
+                                root.channelLogo = model.logo
+                                root.variantSwitchRequested(model.url, model.name, model.logo)
+                            }
+                            qualityPopup.close()
+                        }
+                    }
+                }
+            }
         }
     }
 

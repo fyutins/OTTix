@@ -74,6 +74,8 @@ qt_add_executable(appIptvPlayer
     src/loader/PlaylistLoader.cpp
     src/utils/ClipboardHelper.h
     src/utils/ClipboardHelper.cpp
+    src/utils/ChannelGrouper.h
+    src/utils/ChannelGrouper.cpp
 )
 
 target_include_directories(appIptvPlayer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)

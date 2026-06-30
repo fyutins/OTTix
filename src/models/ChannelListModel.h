@@ -2,6 +2,8 @@
 
 #include <QAbstractListModel>
 #include <QStringList>
+#include <QMap>
+#include <QSet>
 #include "../database/DatabaseManager.h"
 
 class ChannelListModel : public QAbstractListModel
@@ -11,6 +13,7 @@ class ChannelListModel : public QAbstractListModel
     Q_PROPERTY(QStringList groups READ groups NOTIFY groupsChanged)
     Q_PROPERTY(QString filterGroup READ filterGroup WRITE setFilterGroup NOTIFY filterChanged)
     Q_PROPERTY(QString filterText READ filterText WRITE setFilterText NOTIFY filterChanged)
+    Q_PROPERTY(QStringList customSuffixes READ customSuffixes WRITE setCustomSuffixes NOTIFY customSuffixesChanged)
 
 public:
     enum Roles {
@@ -36,11 +39,18 @@ public:
     Q_INVOKABLE void setFavorites();
     Q_INVOKABLE void toggleFavorite(int channelDbId);
 
+    Q_INVOKABLE QVariantList getVariantsForUrl(const QString &url) const;
+    Q_INVOKABLE bool channelHasVariants(const QString &url) const;
+    Q_INVOKABLE QString getVariantLabelForUrl(const QString &url) const;
+
     QStringList groups() const { return m_groups; }
     QString filterGroup() const { return m_filterGroup; }
     void setFilterGroup(const QString &group);
     QString filterText() const { return m_filterText; }
     void setFilterText(const QString &text);
+
+    QStringList customSuffixes() const { return m_customSuffixes; }
+    void setCustomSuffixes(const QStringList &suffixes);
 
     QList<ChannelInfo> channels() const { return m_channels; }
 
@@ -48,14 +58,23 @@ signals:
     void countChanged();
     void filterChanged();
     void groupsChanged();
+    void customSuffixesChanged();
 
 private:
     void setChannels(const QList<ChannelInfo> &channels);
     void applyFilter();
+    void rebuildGroups();
 
     QList<ChannelInfo> m_channels;
     QList<ChannelInfo> m_filtered;
     QStringList m_groups;
     QString m_filterGroup;
     QString m_filterText;
+    QStringList m_customSuffixes;
+
+    // Grouping data
+    QMap<QString, QList<int>> m_baseNameToChannels;
+    QMap<int, QString> m_channelBaseName;
+    QMap<int, QString> m_channelVariantLabel;
+    QSet<QString> m_multiVariantBaseNames;
 };

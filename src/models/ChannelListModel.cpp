@@ -1,8 +1,12 @@
 #include "ChannelListModel.h"
+#include "../utils/ChannelGrouper.h"
 
 ChannelListModel::ChannelListModel(QObject *parent)
     : QAbstractListModel(parent)
 {
+    QString customData = DatabaseManager::instance().getCache("custom_suffixes");
+    if (!customData.isEmpty())
+        m_customSuffixes = customData.split(",", Qt::SkipEmptyParts);
 }
 
 int ChannelListModel::rowCount(const QModelIndex &parent) const
@@ -84,6 +88,8 @@ void ChannelListModel::setChannels(const QList<ChannelInfo> &channels)
     m_channels = channels;
     qDebug() << "[MODEL] m_channels assigned, size=" << m_channels.size()
              << "capacity=" << m_channels.capacity();
+
+    rebuildGroups();
 
     qDebug() << "[MODEL] Building groups set...";
     QSet<QString> groupSet;
@@ -206,4 +212,89 @@ void ChannelListModel::applyFilter()
 
     endResetModel();
     emit countChanged();
+}
+
+// ── Variant grouping ──
+
+void ChannelListModel::rebuildGroups()
+{
+    m_baseNameToChannels.clear();
+    m_channelBaseName.clear();
+    m_channelVariantLabel.clear();
+    m_multiVariantBaseNames.clear();
+
+    for (int i = 0; i < m_channels.size(); ++i) {
+        const auto &ch = m_channels[i];
+        auto info = ChannelGrouper::analyze(ch.name, m_customSuffixes);
+        m_channelBaseName[i] = info.baseName;
+        m_channelVariantLabel[i] = info.label;
+        m_baseNameToChannels[info.baseName].append(i);
+    }
+
+    for (auto it = m_baseNameToChannels.begin(); it != m_baseNameToChannels.end(); ++it) {
+        if (it.value().size() >= 2)
+            m_multiVariantBaseNames.insert(it.key());
+    }
+}
+
+QVariantList ChannelListModel::getVariantsForUrl(const QString &url) const
+{
+    int channelIdx = -1;
+    for (int i = 0; i < m_channels.size(); ++i) {
+        if (m_channels[i].url == url) {
+            channelIdx = i;
+            break;
+        }
+    }
+    if (channelIdx < 0)
+        return {};
+
+    QString baseName = m_channelBaseName.value(channelIdx);
+    if (baseName.isEmpty() || !m_multiVariantBaseNames.contains(baseName))
+        return {};
+
+    QVariantList variants;
+    const auto &indices = m_baseNameToChannels[baseName];
+    for (int idx : indices) {
+        const auto &ch = m_channels[idx];
+        QVariantMap vm;
+        vm["id"] = ch.id;
+        vm["name"] = ch.name;
+        vm["url"] = ch.url;
+        vm["logo"] = ch.logo;
+        vm["group"] = ch.group;
+        vm["label"] = m_channelVariantLabel.value(idx, "");
+        variants.append(vm);
+    }
+    return variants;
+}
+
+QString ChannelListModel::getVariantLabelForUrl(const QString &url) const
+{
+    for (int i = 0; i < m_channels.size(); ++i) {
+        if (m_channels[i].url == url)
+            return m_channelVariantLabel.value(i, "");
+    }
+    return "";
+}
+
+bool ChannelListModel::channelHasVariants(const QString &url) const
+{
+    for (int i = 0; i < m_channels.size(); ++i) {
+        if (m_channels[i].url == url) {
+            QString baseName = m_channelBaseName.value(i);
+            return !baseName.isEmpty() && m_multiVariantBaseNames.contains(baseName);
+        }
+    }
+    return false;
+}
+
+void ChannelListModel::setCustomSuffixes(const QStringList &suffixes)
+{
+    if (m_customSuffixes == suffixes)
+        return;
+    m_customSuffixes = suffixes;
+    DatabaseManager::instance().setCache("custom_suffixes", suffixes.join(","));
+    rebuildGroups();
+    emit customSuffixesChanged();
 }

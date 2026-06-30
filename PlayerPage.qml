@@ -16,6 +16,7 @@ Rectangle {
     signal activeAudioSlotChangeRequested(int slot)
     signal pendingPickSlotChangeRequested(int slot)
     signal toggleFullscreenRequested()
+    signal variantSwitchRequested(int slotIndex, string url, string name, string logo)
 
     property int multiplexMode: 1
     property int activeAudioSlot: 0
@@ -120,6 +121,7 @@ Rectangle {
                 onHwdecChangeRequested: { root.playerHwdec = value; root.applyHwdecToAll(value) }
                 onPrevRequested: root.prevChannelRequested()
                 onNextRequested: root.nextChannelRequested()
+                onVariantSwitchRequested: (url, name, logo) => root.variantSwitchRequested(slotIndex, url, name, logo)
             }
 
             PlayerSlot {
@@ -141,6 +143,7 @@ Rectangle {
                 onHwdecChangeRequested: { root.playerHwdec = value; root.applyHwdecToAll(value) }
                 onPrevRequested: root.prevChannelRequested()
                 onNextRequested: root.nextChannelRequested()
+                onVariantSwitchRequested: (url, name, logo) => root.variantSwitchRequested(slotIndex, url, name, logo)
             }
         }
 
@@ -168,6 +171,7 @@ Rectangle {
                 onHwdecChangeRequested: { root.playerHwdec = value; root.applyHwdecToAll(value) }
                 onPrevRequested: root.prevChannelRequested()
                 onNextRequested: root.nextChannelRequested()
+                onVariantSwitchRequested: (url, name, logo) => root.variantSwitchRequested(slotIndex, url, name, logo)
             }
 
             PlayerSlot {
@@ -189,6 +193,7 @@ Rectangle {
                 onHwdecChangeRequested: { root.playerHwdec = value; root.applyHwdecToAll(value) }
                 onPrevRequested: root.prevChannelRequested()
                 onNextRequested: root.nextChannelRequested()
+                onVariantSwitchRequested: (url, name, logo) => root.variantSwitchRequested(slotIndex, url, name, logo)
             }
         }
     }
