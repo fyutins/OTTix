@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QObject>
+#include <QtQml/qqmlregistration.h>
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QSqlRecord>
@@ -13,6 +14,9 @@
 #include <QVariantList>
 #include <QVariantMap>
 #include <QDateTime>
+
+class QQmlEngine;
+class QJSEngine;
 
 struct ChannelInfo {
     int id = -1;
@@ -88,10 +92,15 @@ struct PlaylistInfo {
 class DatabaseManager : public QObject
 {
     Q_OBJECT
+    QML_ELEMENT
+    QML_SINGLETON
     Q_PROPERTY(QString databasePath READ databasePath NOTIFY databasePathChanged)
 
 public:
     static DatabaseManager &instance();
+
+    // Le singleton vit cote C++ : l'engine QML ne doit pas le detruire.
+    static DatabaseManager *create(QQmlEngine *, QJSEngine *);
 
     bool initialize(const QString &path = QString());
     Q_INVOKABLE QString databasePath() const { return m_db.databaseName(); }

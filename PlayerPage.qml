@@ -2,7 +2,6 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtCore
-import IptvPlayer.Player
 
 Rectangle {
     id: root
@@ -33,6 +32,12 @@ Rectangle {
         || slotChannels[1].url !== ""
         || slotChannels[2].url !== ""
         || slotChannels[3].url !== ""
+
+    function stopAll() {
+        for (var i = 0; i < 4; i++) {
+            slotChannels[i] = { name: "", url: "", logo: "", group: "" }
+        }
+    }
 
     property string playerHwdec: "auto"
 
@@ -235,7 +240,7 @@ Rectangle {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: root.closeRequested()
+                    onClicked: { root.stopAll(); root.closeRequested() }
                 }
             }
 

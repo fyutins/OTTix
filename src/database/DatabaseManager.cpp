@@ -1,5 +1,7 @@
 #include "DatabaseManager.h"
 
+#include <QJSEngine>
+
 #include <QCoreApplication>
 #include <QDir>
 #include <QDebug>
@@ -9,6 +11,13 @@
 DatabaseManager &DatabaseManager::instance()
 {
     static DatabaseManager inst;
+    return inst;
+}
+
+DatabaseManager *DatabaseManager::create(QQmlEngine *, QJSEngine *)
+{
+    DatabaseManager *inst = &instance();
+    QJSEngine::setObjectOwnership(inst, QJSEngine::CppOwnership);
     return inst;
 }
 

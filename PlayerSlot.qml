@@ -1,9 +1,6 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import IptvPlayer.Player
-import IptvPlayer.Models
-import IptvPlayer.Utils
 
 Rectangle {
     id: root

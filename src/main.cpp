@@ -9,12 +9,17 @@
 #include <QFile>
 #include <QTextStream>
 
+#ifdef Q_OS_UNIX
+#include <locale.h>
+#endif
+
 #include "database/DatabaseManager.h"
 #include "models/PlaylistModel.h"
 #include "models/ChannelListModel.h"
 #include "loader/PlaylistLoader.h"
 #include "player/MpvObject.h"
 #include "utils/ClipboardHelper.h"
+#include "utils/SleepInhibitor.h"
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -186,6 +191,11 @@ int main(int argc, char *argv[])
     app.setOrganizationName("IptvPlayer");
     app.setApplicationName("IptvPlayer");
 
+#ifdef Q_OS_UNIX
+    // libmpv requires LC_NUMERIC=C (breaks with e.g. fr_FR.UTF-8)
+    setlocale(LC_NUMERIC, "C");
+#endif
+
 #ifdef Q_OS_WIN
     installMsgHandler();
 #endif
@@ -206,29 +216,8 @@ int main(int argc, char *argv[])
     }
     qDebug() << "[MAIN] Database initialized successfully";
 
-    qmlRegisterType<MpvObject>("IptvPlayer.Player", 1, 0, "MpvObject");
-    qmlRegisterType<PlaylistLoader>("IptvPlayer.Loader", 1, 0, "PlaylistLoader");
-
-    qmlRegisterSingletonType<PlaylistModel>("IptvPlayer.Models", 1, 0, "PlaylistModel",
-        [](QQmlEngine *, QJSEngine *) -> QObject * {
-            return new PlaylistModel();
-        });
-
-    qmlRegisterSingletonType<ChannelListModel>("IptvPlayer.Models", 1, 0, "ChannelListModel",
-        [](QQmlEngine *, QJSEngine *) -> QObject * {
-            return new ChannelListModel();
-        });
-
-    // Register DatabaseManager as a singleton for QML use
-    qmlRegisterSingletonType<DatabaseManager>("IptvPlayer.Database", 1, 0, "DatabaseManager",
-        [](QQmlEngine *, QJSEngine *) -> QObject * {
-            return &DatabaseManager::instance();
-        });
-
-    qmlRegisterSingletonType<ClipboardHelper>("IptvPlayer.Utils", 1, 0, "ClipboardHelper",
-        [](QQmlEngine *, QJSEngine *) -> QObject * {
-            return new ClipboardHelper();
-        });
+    // Les types QML sont enregistres de maniere declarative (QML_ELEMENT /
+    // QML_SINGLETON dans les en-tetes) et exposes par le module QML "IptvPlayer".
 
     QQmlApplicationEngine engine;
     QObject::connect(

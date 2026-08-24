@@ -6,6 +6,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_AUTOMOC ON)
 
+# Qt Creator / clangd : index C++ correct (compile_commands.json)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 Sql Network OpenGL Concurrent)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
@@ -54,6 +57,11 @@ endif()
 
 qt_standard_project_setup(REQUIRES 6.10)
 
+# Qt Creator / qmlls : genere .qmlls.ini a la racine des sources pour que
+# l'editeur QML retrouve les modules generes dans le dossier de build.
+# Doit etre positionne AVANT qt_add_qml_module().
+set(QT_QML_GENERATE_QMLLS_INI ON)
+
 qt_add_executable(appIptvPlayer
     src/main.cpp
     src/database/DatabaseManager.h
@@ -74,11 +82,25 @@ qt_add_executable(appIptvPlayer
     src/loader/PlaylistLoader.cpp
     src/utils/ClipboardHelper.h
     src/utils/ClipboardHelper.cpp
+    src/utils/SleepInhibitor.h
+    src/utils/SleepInhibitor.cpp
     src/utils/ChannelGrouper.h
     src/utils/ChannelGrouper.cpp
 )
 
-target_include_directories(appIptvPlayer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+# Le fichier de registration QML genere (appiptvplayer_qmltyperegistrations.cpp)
+# inclut les en-tetes par leur seul nom de fichier : chaque sous-dossier de src/
+# doit donc etre dans le include path.
+target_include_directories(appIptvPlayer PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/database
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/loader
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/models
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/parser
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/player
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/utils
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/xtream
+)
 
 qt_add_qml_module(appIptvPlayer
     URI IptvPlayer

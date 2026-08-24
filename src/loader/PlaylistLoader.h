@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QObject>
+#include <QtQml/qqmlregistration.h>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include "../parser/M3UParser.h"
@@ -10,6 +11,7 @@
 class PlaylistLoader : public QObject
 {
     Q_OBJECT
+    QML_ELEMENT
 
 public:
     explicit PlaylistLoader(QObject *parent = nullptr);

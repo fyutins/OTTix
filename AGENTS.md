@@ -80,6 +80,42 @@ cmake --build .
 Get-Process appIptvPlayer -ErrorAction SilentlyContinue | Stop-Process -Force
 ```
 
+## Linux (Fedora 44)
+
+Prérequis : `sudo dnf install gcc-c++ mpv-devel ninja-build` (Qt via l'installateur officiel dans `~/opt/Qt`, CMake/Ninja dans `~/opt/Qt/Tools`).
+
+```bash
+export PATH="$HOME/opt/Qt/Tools/Ninja:$HOME/opt/Qt/Tools/CMake/bin:$PATH"
+cmake -B build-linux -G Ninja -DCMAKE_PREFIX_PATH="$HOME/opt/Qt/6.11.2/gcc_64" -DCMAKE_BUILD_TYPE=Debug
+cmake --build build-linux
+```
+
+### Lancer l'application
+```bash
+./build-linux/appIptvPlayer
+```
+
+Notes :
+- mpv est trouvé via pkg-config (libmpv système)
+- `setlocale(LC_NUMERIC, "C")` est appliqué dans main.cpp sous Q_OS_UNIX — obligatoire pour libmpv avec une locale fr
+- Kit Qt Creator : « Desktop Qt 6.11.2 » (auto-détecté), ouvrir directement le CMakeLists.txt
+
+## Qt Creator
+
+Le **seul** fichier de projet est `CMakeLists.txt` : « File > Open File or Project… » →
+sélectionner `CMakeLists.txt`, choisir le kit *Desktop Qt 6.11.2*, puis Configure Project.
+
+Ne **jamais** générer en parallèle un projet qmake (`.pro`) ni un projet générique
+(`.creator` / `.files` / `.includes` / `.config`) : Qt Creator lance alors `make all`
+à la racine, où il n'existe aucun Makefile → `No rule to make target 'all'. Stop.`
+
+Deux réglages CMake existent pour l'IDE :
+- `CMAKE_EXPORT_COMPILE_COMMANDS` → `compile_commands.json` pour clangd (indexation C++)
+- `QT_QML_GENERATE_QMLLS_INI` → `.qmlls.ini` à la racine des sources, qui pointe qmlls
+  vers le dossier de build (résolution des imports QML dans l'éditeur). Le fichier est
+  régénéré à chaque build et ignoré par git ; il porte le chemin du **dernier** dossier
+  de build configuré.
+
 ## Architecture clé
 
 - **MpvObject** : `QQuickFramebufferObject` wrapping libmpv, un handle mpv par instance
@@ -93,6 +129,24 @@ Get-Process appIptvPlayer -ErrorAction SilentlyContinue | Stop-Process -Force
   - Mode 3 : 2 en haut, 1 en bas centré
   - Mode 4 : 2×2
 - **MultiplexMode/ActiveAudioSlot** : propriétés dans Main.qml (source de vérité), synchronisées avec PlayerPage via signaux
+
+## Enregistrement des types QML
+
+Tous les types C++ exposés à QML sont enregistrés de manière **déclarative**, via
+`QML_ELEMENT` / `QML_SINGLETON` dans les en-têtes — pas de `qmlRegisterType*` dans
+`main.cpp`. C'est ce qui rend les types visibles pour l'éditeur et pour `qmllint`.
+
+Ils appartiennent tous au module QML `IptvPlayer` (celui de `qt_add_qml_module`), donc
+les `.qml` du module y accèdent **sans import** (`DatabaseManager`, `ChannelListModel`,
+`PlaylistModel`, `PlaylistLoader`, `MpvObject`, `ClipboardHelper`, `SleepInhibitor`).
+
+Pour ajouter un type : `QML_ELEMENT` (+ `QML_SINGLETON` pour un singleton) dans le
+`.h`, et ajouter le `.h`/`.cpp` aux sources de `appIptvPlayer`. Un singleton adossé à
+une instance C++ existante fournit `static T *create(QQmlEngine *, QJSEngine *)` et
+appelle `QJSEngine::setObjectOwnership(..., CppOwnership)` (cf. `DatabaseManager`).
+
+Le fichier de registration généré inclut les en-têtes **par leur seul nom de fichier** :
+tout nouveau sous-dossier de `src/` doit être ajouté à `target_include_directories()`.
 
 ## Convention QML
 

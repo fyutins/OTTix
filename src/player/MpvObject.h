@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QQuickFramebufferObject>
+#include <QtQml/qqmlregistration.h>
 #include <functional>
 
 #if HAS_MPV
@@ -15,6 +16,7 @@ class MpvRenderer;
 class MpvObject : public QQuickFramebufferObject
 {
     Q_OBJECT
+    QML_ELEMENT
     Q_PROPERTY(QString source READ source WRITE setSource NOTIFY sourceChanged)
     Q_PROPERTY(bool playing READ isPlaying NOTIFY playingChanged)
     Q_PROPERTY(double position READ position NOTIFY positionChanged)

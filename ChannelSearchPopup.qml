@@ -1,8 +1,6 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import IptvPlayer.Models
-import IptvPlayer.Database
 
 Popup {
     id: popup

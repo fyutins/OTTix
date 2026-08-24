@@ -1,11 +1,14 @@
 #pragma once
 
 #include <QAbstractListModel>
+#include <QtQml/qqmlregistration.h>
 #include "../database/DatabaseManager.h"
 
 class PlaylistModel : public QAbstractListModel
 {
     Q_OBJECT
+    QML_ELEMENT
+    QML_SINGLETON
     Q_PROPERTY(int count READ rowCount NOTIFY countChanged)
 
 public:

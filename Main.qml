@@ -2,10 +2,6 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Window
-import IptvPlayer.Player
-import IptvPlayer.Models
-import IptvPlayer.Loader
-import IptvPlayer.Database
 
 Window {
     id: window
@@ -57,6 +53,8 @@ Window {
 
         // Record in watch history
         DatabaseManager.addHistoryEntry(name, url, logo, group)
+
+        SleepInhibitor.enable()
     }
 
     function stopPlayback() {
@@ -66,6 +64,7 @@ Window {
         var ch = []
         for (var i = 0; i < 4; i++) ch.push(empty)
         slotChannels = ch
+        SleepInhibitor.disable()
     }
 
     function navigateChannel(direction) {
