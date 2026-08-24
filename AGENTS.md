@@ -161,6 +161,12 @@ En CI, libmpv vient des builds shinchiro (`.github/scripts/fetch-libmpv.ps1`,
 paquet `mpv-dev-x86_64`), et le compilateur est MinGW 13.1.0 — celui dont
 dépend le paquet Qt `win64_mingw`.
 
+La CI Windows est figée sur **Qt 6.10.3**, pas 6.11.2 : le dépôt Qt a changé
+d'arborescence pour 6.11 sous Windows (un sous-dossier par architecture,
+`qt6_6112/qt6_6112_mingw/`) et aqtinstall 3.3.0 cherche encore
+`qt6_6112/qt6_6112/`. Linux n'est pas touché. À repasser en 6.11 quand
+aqtinstall suivra — d'ici là, ne pas utiliser d'API Qt postérieure à 6.10.
+
 L'installateur s'installe par défaut par utilisateur (`PrivilegesRequired=lowest`,
 donc sans élévation) et **conserve** `%LOCALAPPDATA%\OTTix` à la
 désinstallation (playlists, favoris, historique).

@@ -17,7 +17,14 @@ permissions:
   contents: write
 
 env:
-  QT_VERSION: 6.11.2
+  # Le Flatpak prend Qt du runtime KDE 6.11 ; seul Windows installe Qt.
+  # aqtinstall 3.3.0 ne sait pas installer Qt 6.11 sous Windows : le depot Qt
+  # a change de structure pour 6.11 (un sous-dossier par architecture,
+  # qt6_6112/qt6_6112_mingw/) alors qu'aqt cherche encore qt6_6112/qt6_6112/.
+  # 6.10.3 est la derniere version installable et respecte le plancher du
+  # projet (qt_standard_project_setup REQUIRES 6.10). A repasser en 6.11 des
+  # qu'aqtinstall gere la nouvelle arborescence.
+  QT_VERSION_WINDOWS: 6.10.3
   APP_ID: io.github.fyutins.OTTix
 
 jobs:
@@ -52,7 +59,7 @@ jobs:
 
       - uses: jurplel/install-qt-action@v4
         with:
-          version: ${{ env.QT_VERSION }}
+          version: ${{ env.QT_VERSION_WINDOWS }}
           host: windows
           target: desktop
           arch: win64_mingw
