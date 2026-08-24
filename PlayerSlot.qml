@@ -67,6 +67,17 @@ Rectangle {
         }
     }
 
+    // Double-clic sur la video : plein ecran. Volontairement **sous** la couche
+    // de controles (z: 0) pour que les boutons recoivent l'appui les premiers ;
+    // une MouseArea pleine surface posee au-dessus le capterait et les boutons
+    // (Controls) ne seraient plus cliquables.
+    MouseArea {
+        id: doubleClickArea
+        anchors.fill: parent
+        z: 0
+        onDoubleClicked: root.doubleClickRequested()
+    }
+
     // Liseré sur le slot dont on entend le son (utile en multiplex).
     Rectangle {
         anchors.fill: parent
@@ -928,24 +939,27 @@ Rectangle {
         }
     }
 
-    MouseArea {
-        id: hoverArea
-        anchors.fill: parent
-        hoverEnabled: true
-        z: 100
-        propagateComposedEvents: true
-        cursorShape: Qt.PointingHandCursor
-        onPositionChanged: {
+    // Le survol reveille les controles. Un HoverHandler et non une MouseArea
+    // pleine surface : la MouseArea capterait l'appui et les boutons (Controls)
+    // ne le recevraient jamais. `propagateComposedEvents` ne rattrape pas ce
+    // cas — il ne repropage les evenements composes qu'a d'autres MouseArea.
+    HoverHandler {
+        id: hoverHandler
+        onPointChanged: {
             if (root.controlsOpacity < 0.5)
                 root.showControls()
         }
-        onDoubleClicked: root.doubleClickRequested()
     }
 
+    // Clic droit : au-dessus de tout, mais n'accepte que le bouton droit, donc
+    // les clics gauches continuent d'atteindre les boutons.
     MouseArea {
         anchors.fill: parent
         acceptedButtons: Qt.RightButton
         z: 101
-        onClicked: (mouse) => contextMenu.popup(mouse.x, mouse.y)
+        onClicked: (mouse) => {
+            root.showControls()
+            contextMenu.popup(mouse.x, mouse.y)
+        }
     }
 }
