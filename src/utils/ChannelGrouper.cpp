@@ -25,6 +25,8 @@ QStringList ChannelGrouper::defaultSuffixes()
         QStringLiteral("8K"),
         QStringLiteral("H.265"),
         QStringLiteral("H.264"),
+        QStringLiteral("H265"),
+        QStringLiteral("H264"),
         QStringLiteral("HEVC"),
         QStringLiteral("HVEC"),
         QStringLiteral("x265"),
@@ -39,11 +41,15 @@ QStringList ChannelGrouper::defaultSuffixes()
     };
 }
 
-QStringList ChannelGrouper::combinedSuffixes(const QStringList &extraSuffixes)
+// Nettoie une liste de suffixes : trim, doublons (insensibles a la casse) et
+// tri du plus long au plus court — indispensable pour que « FULLHD » soit
+// teste avant « HD » dans l'alternative de l'expression reguliere.
+QStringList ChannelGrouper::normalizeSuffixes(const QStringList &suffixes)
 {
-    QStringList result = defaultSuffixes();
-    for (const QString &s : extraSuffixes) {
-        QString trimmed = s.trimmed();
+    QStringList result;
+    result.reserve(suffixes.size());
+    for (const QString &s : suffixes) {
+        const QString trimmed = s.trimmed();
         if (!trimmed.isEmpty() && !result.contains(trimmed, Qt::CaseInsensitive))
             result.append(trimmed);
     }
@@ -52,9 +58,22 @@ QStringList ChannelGrouper::combinedSuffixes(const QStringList &extraSuffixes)
     return result;
 }
 
+QStringList ChannelGrouper::combinedSuffixes(const QStringList &extraSuffixes)
+{
+    return normalizeSuffixes(defaultSuffixes() + extraSuffixes);
+}
+
 ChannelGrouper::SuffixPattern ChannelGrouper::buildPattern(const QStringList &extraSuffixes)
 {
-    QStringList suffixes = combinedSuffixes(extraSuffixes);
+    return buildPatternFromList(combinedSuffixes(extraSuffixes));
+}
+
+// Construit le motif a partir de la liste exacte fournie : c'est ce que
+// l'application utilise, pour que retirer un suffixe dans les reglages le
+// retire vraiment (buildPattern y ajouterait toujours les suffixes par defaut).
+ChannelGrouper::SuffixPattern ChannelGrouper::buildPatternFromList(const QStringList &list)
+{
+    QStringList suffixes = normalizeSuffixes(list);
     if (suffixes.isEmpty()) {
         return {};
     }

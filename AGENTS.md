@@ -162,11 +162,28 @@ partageable entre threads).
 Deux tables distinctes pour les données non-chaînes :
 
 - `cache` : données regénérables, purgées par « Clear Cache » (`clearCache`)
-- `settings` : réglages utilisateur (ex. `custom_suffixes`, horodatage de
+- `settings` : réglages utilisateur (ex. `quality_suffixes`, horodatage de
   synchro par playlist) — **jamais** purgés. Une migration automatique déplace
   les anciennes clefs de `cache` vers `settings`.
 
 L'historique de lecture est plafonné aux 500 dernières entrées.
+
+## Suffixes de qualité
+
+`quality_suffixes` contient la **liste complète** des suffixes servant à
+regrouper les variantes d'une même chaîne (HD, FHD, H265, VOSTFR…), entièrement
+éditable dans Administration > Settings > Quality Suffixes : l'utilisateur peut
+retirer les suffixes fournis par défaut aussi bien qu'en ajouter, et « Reset »
+revient à `ChannelGrouper::defaultSuffixes()`.
+
+Le regroupement utilise `ChannelGrouper::buildPatternFromList()` avec cette
+liste **telle quelle** — surtout pas `buildPattern()`, qui y réinjecterait les
+suffixes par défaut et rendrait toute suppression sans effet.
+`normalizeSuffixes()` nettoie, dédoublonne (insensible à la casse) et trie du
+plus long au plus court : « FULLHD » doit être testé avant « HD ».
+
+Au premier démarrage la liste est semée avec les valeurs par défaut, en y
+reprenant l'ancien réglage `custom_suffixes` (qui ne contenait que les ajouts).
 
 ## Logs
 

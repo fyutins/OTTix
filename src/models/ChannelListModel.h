@@ -17,7 +17,7 @@ class ChannelListModel : public QAbstractListModel
     Q_PROPERTY(QStringList groups READ groups NOTIFY groupsChanged)
     Q_PROPERTY(QString filterGroup READ filterGroup WRITE setFilterGroup NOTIFY filterChanged)
     Q_PROPERTY(QString filterText READ filterText WRITE setFilterText NOTIFY filterChanged)
-    Q_PROPERTY(QStringList customSuffixes READ customSuffixes WRITE setCustomSuffixes NOTIFY customSuffixesChanged)
+    Q_PROPERTY(QStringList qualitySuffixes READ qualitySuffixes WRITE setQualitySuffixes NOTIFY qualitySuffixesChanged)
 
 public:
     enum Roles {
@@ -61,8 +61,10 @@ public:
     QString filterText() const { return m_filterText; }
     void setFilterText(const QString &text);
 
-    QStringList customSuffixes() const { return m_customSuffixes; }
-    void setCustomSuffixes(const QStringList &suffixes);
+    QStringList qualitySuffixes() const { return m_qualitySuffixes; }
+    void setQualitySuffixes(const QStringList &suffixes);
+    Q_INVOKABLE QStringList defaultQualitySuffixes() const;
+    Q_INVOKABLE void resetQualitySuffixes();
 
     QList<ChannelInfo> channels() const { return m_channels; }
 
@@ -78,7 +80,7 @@ signals:
     void countChanged();
     void filterChanged();
     void groupsChanged();
-    void customSuffixesChanged();
+    void qualitySuffixesChanged();
 
 private:
     void setChannels(const QList<ChannelInfo> &channels);
@@ -93,7 +95,7 @@ private:
     QStringList m_groups;
     QString m_filterGroup;
     QString m_filterText;
-    QStringList m_customSuffixes;
+    QStringList m_qualitySuffixes;
 
     // Grouping data
     QMap<QString, QList<int>> m_baseNameToChannels;

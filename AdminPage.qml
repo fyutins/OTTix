@@ -424,23 +424,28 @@ Rectangle {
                         glyph: Mdi.label
                         title: qsTr("Quality Suffixes")
 
+                        // Affichage alphabetique ; l'ordre de stockage, lui, est
+                        // impose par le C++ (du plus long au plus court).
+                        readonly property var sortedSuffixes:
+                            ChannelListModel.qualitySuffixes.slice().sort(function(a, b) {
+                                return a.toLowerCase().localeCompare(b.toLowerCase())
+                            })
+
                         function addSuffix() {
                             var val = suffixInput.text.trim()
-                            if (val.length === 0) return
-                            var arr = ChannelListModel.customSuffixes
-                            if (arr.indexOf(val) < 0) {
-                                arr.push(val)
-                                ChannelListModel.customSuffixes = arr
-                            }
+                            if (val.length === 0)
+                                return
+                            var arr = ChannelListModel.qualitySuffixes
+                            arr.push(val)
+                            ChannelListModel.qualitySuffixes = arr
                             suffixInput.text = ""
-                            suffixCard.refreshSuffixList()
                         }
 
-                        function refreshSuffixList() {
-                            suffixListModel.clear()
-                            var arr = ChannelListModel.customSuffixes
-                            for (var i = 0; i < arr.length; i++)
-                                suffixListModel.append({ suffix: arr[i] })
+                        function removeSuffix(value) {
+                            ChannelListModel.qualitySuffixes =
+                                ChannelListModel.qualitySuffixes.filter(function(s) {
+                                    return s !== value
+                                })
                         }
 
                         ColumnLayout {
@@ -449,7 +454,7 @@ Rectangle {
 
                             Text {
                                 Layout.fillWidth: true
-                                text: qsTr("Custom quality suffixes used to group channel variants (HD, FHD, SD...)")
+                                text: qsTr("Suffixes used to detect quality variants of the same channel (HD, FHD, H265…). Remove the ones that do not apply to your playlist, add your own — the change regroups the channels immediately.")
                                 color: Theme.textMuted
                                 font.pixelSize: Theme.fontMd
                                 wrapMode: Text.WordWrap
@@ -458,23 +463,26 @@ Rectangle {
                             Flow {
                                 Layout.fillWidth: true
                                 spacing: Theme.spacingSm
-                                visible: suffixListModel.count > 0
+                                visible: suffixCard.sortedSuffixes.length > 0
 
                                 Repeater {
-                                    model: ListModel { id: suffixListModel }
+                                    model: suffixCard.sortedSuffixes
 
                                     delegate: Rectangle {
                                         id: suffixChip
 
-                                        required property string suffix
-                                        required property int index
+                                        required property string modelData
 
                                         width: chipRow.implicitWidth + Theme.spacingMd
                                         height: Theme.controlSm
                                         radius: Theme.radiusPill
-                                        color: Theme.surfaceAlt
+                                        color: chipHover.hovered ? Theme.surfaceHi : Theme.surfaceAlt
                                         border.width: 1
-                                        border.color: Theme.border
+                                        border.color: chipHover.hovered ? Theme.borderStrong : Theme.border
+
+                                        Behavior on color { ColorAnimation { duration: Theme.durFast } }
+
+                                        HoverHandler { id: chipHover }
 
                                         Row {
                                             id: chipRow
@@ -483,7 +491,7 @@ Rectangle {
 
                                             Text {
                                                 anchors.verticalCenter: parent.verticalCenter
-                                                text: suffixChip.suffix
+                                                text: suffixChip.modelData
                                                 color: Theme.text
                                                 font.pixelSize: Theme.fontSm
                                                 font.bold: true
@@ -498,13 +506,8 @@ Rectangle {
                                                 glyph: Mdi.close
                                                 glyphSize: Theme.iconXs
                                                 glyphColor: Theme.textMuted
-                                                tooltip: qsTr("Remove")
-                                                onClicked: {
-                                                    var arr = ChannelListModel.customSuffixes
-                                                    arr.splice(suffixChip.index, 1)
-                                                    ChannelListModel.customSuffixes = arr
-                                                    suffixCard.refreshSuffixList()
-                                                }
+                                                tooltip: qsTr("Remove “%1”").arg(suffixChip.modelData)
+                                                onClicked: suffixCard.removeSuffix(suffixChip.modelData)
                                             }
                                         }
                                     }
@@ -512,10 +515,10 @@ Rectangle {
                             }
 
                             Text {
-                                text: qsTr("No custom suffixes added")
-                                color: Theme.textDim
+                                text: qsTr("No suffix left: channel variants are no longer grouped.")
+                                color: Theme.warning
                                 font.pixelSize: Theme.fontMd
-                                visible: suffixListModel.count === 0
+                                visible: suffixCard.sortedSuffixes.length === 0
                             }
 
                             RowLayout {
@@ -552,10 +555,21 @@ Rectangle {
                                 }
 
                                 Item { Layout.fillWidth: true }
+
+                                Text {
+                                    text: qsTr("%1 suffixes").arg(suffixCard.sortedSuffixes.length)
+                                    color: Theme.textDim
+                                    font.pixelSize: Theme.fontSm
+                                }
+
+                                AppButton {
+                                    text: qsTr("Reset")
+                                    glyph: Mdi.restart
+                                    variant: AppButton.Ghost
+                                    onClicked: ChannelListModel.resetQualitySuffixes()
+                                }
                             }
                         }
-
-                        Component.onCompleted: suffixCard.refreshSuffixList()
                     }
 
                     // ── A propos ──

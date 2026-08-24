@@ -55,7 +55,7 @@ AbstractButton {
         glyph: control.glyph
         font.pixelSize: control.glyphSize
         color: control.checked ? control.checkedColor
-             : control.danger ? Theme.danger
+             : (control.danger && (control.hovered || control.down)) ? Theme.danger
              : control.glyphColor
 
         Behavior on color { ColorAnimation { duration: Theme.durFast } }

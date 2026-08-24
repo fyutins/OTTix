@@ -9,9 +9,19 @@
 ChannelListModel::ChannelListModel(QObject *parent)
     : QAbstractListModel(parent)
 {
-    QString customData = DatabaseManager::instance().getSetting("custom_suffixes");
-    if (!customData.isEmpty())
-        m_customSuffixes = customData.split(",", Qt::SkipEmptyParts);
+    // La liste complete des suffixes est editable par l'utilisateur. Au premier
+    // demarrage on la seme avec les suffixes par defaut, en y reprenant les
+    // suffixes personnalises de l'ancien reglage `custom_suffixes`.
+    const QString stored = DatabaseManager::instance().getSetting("quality_suffixes");
+    if (!stored.isEmpty()) {
+        m_qualitySuffixes = ChannelGrouper::normalizeSuffixes(
+            stored.split(",", Qt::SkipEmptyParts));
+    } else {
+        const QString legacy = DatabaseManager::instance().getSetting("custom_suffixes");
+        m_qualitySuffixes = ChannelGrouper::combinedSuffixes(
+            legacy.isEmpty() ? QStringList() : legacy.split(",", Qt::SkipEmptyParts));
+        DatabaseManager::instance().setSetting("quality_suffixes", m_qualitySuffixes.join(","));
+    }
 }
 
 int ChannelListModel::rowCount(const QModelIndex &parent) const
@@ -111,14 +121,14 @@ void ChannelListModel::refresh()
 
 static ChannelListModel::GroupingResult buildGroupingResult(
     const QList<ChannelInfo> &channels,
-    const QStringList &customSuffixes)
+    const QStringList &qualitySuffixes)
 {
     QElapsedTimer timer;
     timer.start();
 
     ChannelListModel::GroupingResult result;
 
-    auto pattern = ChannelGrouper::buildPattern(customSuffixes);
+    auto pattern = ChannelGrouper::buildPatternFromList(qualitySuffixes);
 
     QSet<QString> groupSet;
     for (int i = 0; i < channels.size(); ++i) {
@@ -192,7 +202,7 @@ void ChannelListModel::setChannels(const QList<ChannelInfo> &channels)
     });
 
     QList<ChannelInfo> channelsCopy = m_channels;
-    QStringList suffixesCopy = m_customSuffixes;
+    QStringList suffixesCopy = m_qualitySuffixes;
 
     watcher->setFuture(QtConcurrent::run([channelsCopy, suffixesCopy]() {
         return buildGroupingResult(channelsCopy, suffixesCopy);
@@ -291,7 +301,7 @@ void ChannelListModel::applyFilter()
 
 void ChannelListModel::rebuildGroups()
 {
-    auto result = buildGroupingResult(m_channels, m_customSuffixes);
+    auto result = buildGroupingResult(m_channels, m_qualitySuffixes);
     applyGrouping(result);
 }
 
@@ -337,12 +347,23 @@ bool ChannelListModel::channelHasVariants(const QString &url) const
     return !baseName.isEmpty() && m_multiVariantBaseNames.contains(baseName);
 }
 
-void ChannelListModel::setCustomSuffixes(const QStringList &suffixes)
+void ChannelListModel::setQualitySuffixes(const QStringList &suffixes)
 {
-    if (m_customSuffixes == suffixes)
+    const QStringList cleaned = ChannelGrouper::normalizeSuffixes(suffixes);
+    if (m_qualitySuffixes == cleaned)
         return;
-    m_customSuffixes = suffixes;
-    DatabaseManager::instance().setSetting("custom_suffixes", suffixes.join(","));
+    m_qualitySuffixes = cleaned;
+    DatabaseManager::instance().setSetting("quality_suffixes", cleaned.join(","));
     rebuildGroups();
-    emit customSuffixesChanged();
+    emit qualitySuffixesChanged();
+}
+
+QStringList ChannelListModel::defaultQualitySuffixes() const
+{
+    return ChannelGrouper::normalizeSuffixes(ChannelGrouper::defaultSuffixes());
+}
+
+void ChannelListModel::resetQualitySuffixes()
+{
+    setQualitySuffixes(ChannelGrouper::defaultSuffixes());
 }
