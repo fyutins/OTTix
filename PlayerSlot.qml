@@ -951,15 +951,17 @@ Rectangle {
         }
     }
 
-    // Clic droit : au-dessus de tout, mais n'accepte que le bouton droit, donc
-    // les clics gauches continuent d'atteindre les boutons.
-    MouseArea {
-        anchors.fill: parent
+    // Clic droit : un TapHandler et non une MouseArea pleine surface. Posee
+    // au-dessus des controles, celle-ci laissait bien passer les clics gauches
+    // mais devenait l'element le plus haut sous le curseur : le curseur des
+    // boutons (HoverHandler) n'etait plus applique et la main ne s'affichait
+    // jamais. Un handler observe sans s'interposer.
+    TapHandler {
         acceptedButtons: Qt.RightButton
-        z: 101
-        onClicked: (mouse) => {
+        gesturePolicy: TapHandler.ReleaseWithinBounds
+        onTapped: (eventPoint) => {
             root.showControls()
-            contextMenu.popup(mouse.x, mouse.y)
+            contextMenu.popup(eventPoint.position.x, eventPoint.position.y)
         }
     }
 }
