@@ -181,8 +181,10 @@ QtObject {
     readonly property color scrimTextMuted: "#c3cad8"
     readonly property color scrimTextDim: "#8b93a5"
 
-    // Fond des logos de chaines : la plupart sont dessines pour un fond sombre
-    // et disparaitraient sur une tuile claire.
+    // Fond par defaut des logos de chaines : la plupart sont dessines pour un
+    // fond sombre et disparaitraient sur une tuile claire. Les logos dont la
+    // couleur dominante s'en approche recoivent un fond derive de cette
+    // couleur (cf. LogoPalette), ce jeton restant le repli.
     readonly property color logoBackdrop: "#1b2133"
 
     // ── Rayons ────────────────────────────────────────────────────────────

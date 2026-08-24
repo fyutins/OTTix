@@ -90,6 +90,8 @@ qt_add_executable(appIptvPlayer
     src/utils/SleepInhibitor.cpp
     src/utils/ChannelGrouper.h
     src/utils/ChannelGrouper.cpp
+    src/utils/LogoPalette.h
+    src/utils/LogoPalette.cpp
 )
 
 # Le fichier de registration QML genere (appiptvplayer_qmltyperegistrations.cpp)

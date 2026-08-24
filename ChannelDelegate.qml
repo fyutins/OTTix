@@ -15,6 +15,11 @@ Item {
     property bool isFavorite: false
     property bool showFavoriteIcon: true
 
+    // Le bouton favori absorbe les evenements de survol : sans cette union, la
+    // carte perdrait le survol des qu'on pointe l'etoile, retrecirait, et la
+    // souris ressortirait du bouton — d'ou un clignotement en boucle.
+    readonly property bool hovered: mouseArea.containsMouse || favoriteButton.hovered
+
     signal playRequested(string name, string url, string logo, string group)
     signal favoriteToggled(int channelDbId)
 
@@ -26,10 +31,10 @@ Item {
         anchors.fill: parent
         anchors.margins: Theme.spacingXs
         radius: Theme.radiusMd
-        color: mouseArea.containsMouse ? Theme.surfaceHi : Theme.surfaceAlt
+        color: delegateRoot.hovered ? Theme.surfaceHi : Theme.surfaceAlt
         border.width: 1
-        border.color: mouseArea.containsMouse ? Theme.accent : Theme.border
-        scale: mouseArea.pressed ? 0.97 : (mouseArea.containsMouse ? 1.03 : 1.0)
+        border.color: delegateRoot.hovered ? Theme.accent : Theme.border
+        scale: mouseArea.pressed ? 0.97 : (delegateRoot.hovered ? 1.03 : 1.0)
 
         Behavior on color { ColorAnimation { duration: Theme.durFast } }
         Behavior on border.color { ColorAnimation { duration: Theme.durFast } }
@@ -61,11 +66,39 @@ Item {
 
             // ── Logo (ou pictogramme de repli) + surimpression de lecture ──
             Rectangle {
+                id: logoFrame
+
+                readonly property string logoSource: delegateRoot.channelLogo || ""
+                // Fond derive de la couleur dominante du logo (cf. LogoPalette) :
+                // un logo sombre se perdrait sur le fond sombre par defaut, et
+                // inversement. Invalide tant que l'analyse n'a pas abouti.
+                property color backdrop: "transparent"
+                readonly property bool lightBackdrop: logoFrame.backdrop.a > 0
+                                                      && logoFrame.backdrop.hslLightness > 0.5
+
+                function refreshBackdrop() {
+                    logoFrame.backdrop = LogoPalette.backdrop(logoFrame.logoSource)
+                }
+
                 Layout.alignment: Qt.AlignHCenter
                 Layout.preferredWidth: 44
                 Layout.preferredHeight: 40
                 radius: Theme.radiusSm
-                color: Theme.logoBackdrop
+                color: logoFrame.backdrop.a > 0 ? logoFrame.backdrop : Theme.logoBackdrop
+
+                onLogoSourceChanged: logoFrame.refreshBackdrop()
+                Component.onCompleted: logoFrame.refreshBackdrop()
+
+                Behavior on color { ColorAnimation { duration: Theme.durNormal } }
+
+                Connections {
+                    target: LogoPalette
+
+                    function onBackdropResolved(source, color) {
+                        if (source === logoFrame.logoSource)
+                            logoFrame.backdrop = color
+                    }
+                }
 
                 Image {
                     id: logo
@@ -75,7 +108,7 @@ Item {
                     source: delegateRoot.channelLogo || ""
                     asynchronous: true
                     cache: true
-                    opacity: mouseArea.containsMouse ? 0.25 : 1.0
+                    opacity: delegateRoot.hovered ? 0.25 : 1.0
 
                     Behavior on opacity { NumberAnimation { duration: Theme.durFast } }
                 }
@@ -86,15 +119,17 @@ Item {
                     glyph: Mdi.television
                     font.pixelSize: Theme.iconLg
                     color: Theme.textDim
-                    opacity: mouseArea.containsMouse ? 0.25 : 1.0
+                    opacity: delegateRoot.hovered ? 0.25 : 1.0
                 }
 
                 MdiIcon {
                     anchors.centerIn: parent
-                    visible: mouseArea.containsMouse
+                    visible: delegateRoot.hovered
                     glyph: Mdi.play
                     font.pixelSize: Theme.iconLg
-                    color: Theme.accent
+                    // Sur un fond clair derive du logo, l'accent nominal manque
+                    // de contraste : on prend sa variante appuyee.
+                    color: logoFrame.lightBackdrop ? Theme.accentPressed : Theme.accent
                 }
             }
 
@@ -124,11 +159,13 @@ Item {
 
         // ── Favori : toujours visible s'il l'est, au survol sinon ──
         IconButton {
+            id: favoriteButton
+
             anchors.top: parent.top
             anchors.right: parent.right
             anchors.margins: Theme.spacingXs
             visible: delegateRoot.showFavoriteIcon
-                     && (delegateRoot.isFavorite || mouseArea.containsMouse)
+                     && (delegateRoot.isFavorite || delegateRoot.hovered)
             implicitWidth: Theme.controlSm
             implicitHeight: Theme.controlSm
             round: true

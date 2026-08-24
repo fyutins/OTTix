@@ -49,7 +49,8 @@ IptvPlayer/
     ├── parser/           # M3UParser
     ├── player/           # MpvObject, MpvRenderer (libmpv OpenGL)
     ├── utils/            # ClipboardHelper, SleepInhibitor, ChannelGrouper,
-    │                     # Logging (catégories), LogUtils (masquage d'URL)
+    │                     # LogoPalette (fond des logos), Logging (catégories),
+    │                     # LogUtils (masquage d'URL)
     └── xtream/           # XtreamApi
 ```
 
@@ -173,6 +174,35 @@ Deux tables distinctes pour les données non-chaînes :
 
 L'historique de lecture est plafonné aux 500 dernières entrées.
 
+## Fond des logos de chaînes
+
+Un fond uni unique rend illisible tout logo peint dans une teinte proche.
+`LogoPalette` (singleton QML, `src/utils/LogoPalette.cpp`) analyse donc chaque
+logo et renvoie le fond à poser derrière lui :
+
+- histogramme grossier (12 teintes × 4 niveaux de clarté + une classe
+  achromatique), pixels quasi transparents ignorés, pixels saturés pondérés :
+  la couleur retenue est celle qu'on garde en tête d'un logo ;
+- **logo détouré** (peu de pixels opaques) : ses pixels se posent directement
+  sur le fond, donc fond contrasté — sombre si le logo est clair, clair sinon.
+  La bascule se fait sur la **luminance relative WCAG** (seuil 0,18, point où
+  les deux fonds candidats donnent le même rapport de contraste), et non sur la
+  clarté HSL, qui se trompe sur les couleurs vives ;
+- **logo plein** (> 92 % de pixels opaques) : le fond ne dépasse qu'en liseré,
+  on l'accorde alors au logo (même teinte, plus sombre) ;
+- **glyphes clairs sans teinte** — le cas le plus courant — : couleur invalide,
+  l'appelant garde `Theme.logoBackdrop`.
+
+La résolution est asynchrone (`backdrop()` renvoie une couleur invalide, puis
+`backdropResolved` est émis), plafonnée à 4 requêtes simultanées, et le
+résultat est persisté dans la table `cache` sous le préfixe `logo_bg1:` —
+**à incrémenter dès que la dérivation change**, sinon les anciens fonds restent
+servis. Un échec réseau n'est pas mémorisé.
+
+Côté QML, `ChannelDelegate` lit `LogoPalette.backdrop(url)` puis écoute
+`backdropResolved` (les délégués sont recyclés : le fond est réévalué à chaque
+changement de `channelLogo`).
+
 ## Suffixes de qualité
 
 `quality_suffixes` contient la **liste complète** des suffixes servant à
@@ -201,7 +231,7 @@ QT_LOGGING_RULES="iptv.perf.debug=true;iptv.mpv.debug=true" ./build-linux/appIpt
 ```
 
 Catégories : `iptv.db`, `iptv.model`, `iptv.loader`, `iptv.xtream`, `iptv.mpv`,
-`iptv.render`, `iptv.perf`.
+`iptv.render`, `iptv.perf`, `iptv.logo`.
 
 Les URLs Xtream portent les identifiants (`/live/<user>/<password>/<id>.ts`) :
 toute URL journalisée doit passer par `LogUtils::scrubUrl()`.
@@ -265,7 +295,8 @@ ensuite.
 Les jetons **independants du mode** couvrent la zone de lecture, qui reste
 sombre dans les deux themes : `videoBg`, `scrim*`, `glass*`, `scrimText`,
 `scrimTextMuted`, `scrimTextDim` (tout texte pose sur la video) et
-`logoBackdrop` (fond des logos de chaines, souvent dessines pour du sombre).
+`logoBackdrop` (fond **par defaut** des logos de chaines : le fond reel est
+derive du logo lui-meme, cf. « Fond des logos de chaînes »).
 Un calque pose sur la video ne doit donc jamais utiliser `Theme.text`.
 
 Jetons regroupes par role : surfaces (`bg` → `surface` → `surfaceAlt` →
