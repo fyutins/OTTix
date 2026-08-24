@@ -130,11 +130,14 @@ jobs:
       # besoin pour extraire les symboles de debogage : le paquet apt
       # flatpak-builder ne les tire pas, et le build echoue sur le premier
       # module compile.
+      # librsvg2-common fournit le loader SVG de gdk-pixbuf, sans lequel
+      # "appstreamcli compose" ne peut pas lire l'icone de l'application et
+      # rejette le composant (file-read-error) a l'etape d'export.
       - name: Installer flatpak-builder
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            flatpak flatpak-builder elfutils
+            flatpak flatpak-builder elfutils librsvg2-common
 
       - name: Runtime et SDK KDE
         run: |
