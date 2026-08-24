@@ -15,9 +15,9 @@ IptvPlayer/
 ├── FavoritesPage.qml     # Chaînes favorites
 ├── ChannelDelegate.qml   # Tuile de chaîne dans la grille
 ├── ChannelSearchPopup.qml# Popup de navigation dans les chaînes depuis le player
-├── AdminDialog.qml       # Dialog admin (Playlists + Settings)
-├── PlaylistDialog.qml    # Dialogue d'ajout de playlist
-├── SettingsPage.qml      # Placeholder (utilisé via AdminDialog)
+├── AdminPage.qml         # Page admin (Playlists + Settings)
+├── PlaylistDialog.qml    # Dialogue d'ajout / édition de playlist
+├── HistoryPage.qml       # Historique de lecture
 ├── PLAN.md               # Plan de refonte ergonomique
 ├── CMakeLists.txt        # Build CMake + Qt6
 ├── AGENTS.md             # Ce fichier
@@ -28,15 +28,16 @@ IptvPlayer/
     ├── models/           # ChannelListModel, PlaylistModel
     ├── parser/           # M3UParser
     ├── player/           # MpvObject, MpvRenderer (libmpv OpenGL)
-    ├── utils/            # ClipboardHelper
+    ├── utils/            # ClipboardHelper, SleepInhibitor, ChannelGrouper,
+    │                     # Logging (catégories), LogUtils (masquage d'URL)
     └── xtream/           # XtreamApi
 ```
 
 ## Navigation
 
 ```
-TabBar: [All Channels] [Groups] [Favorites]
-Admin: ⚙️ button in toolbar → AdminDialog (Playlists + Settings)
+TabBar: [Favorites] [All Channels] [Groups] [History]
+Toolbar: ⟳ refresh playlist · ⚙️ → AdminPage (Playlists + Settings)
 ```
 
 ## Architecture UI
@@ -116,9 +117,55 @@ Deux réglages CMake existent pour l'IDE :
   régénéré à chaque build et ignoré par git ; il porte le chemin du **dernier** dossier
   de build configuré.
 
+## Chargement des chaînes (DB-first)
+
+Au démarrage, `Main.qml` affiche **immédiatement** les chaînes déjà en base
+(`ChannelListModel.setChannels(playlistId)`) : l'application est utilisable hors
+ligne et sans attendre le réseau. Le retéléchargement n'a lieu que si
+`DatabaseManager.needsRefresh(id, 24)` est vrai (playlist vide ou dernière
+synchro > 24 h), ou sur clic du bouton ⟳ de la barre d'outils. Pendant un
+refresh, les chaînes affichées restent celles de la base ; un échec réseau
+n'est donc pas bloquant.
+
+`PlaylistLoader` horodate chaque synchro réussie (`markPlaylistSynced`) et
+parse le M3U **hors du thread GUI** (`M3UParser::parseBuffer` + QtConcurrent) ;
+l'écriture en base reste sur le thread principal (QSqlDatabase n'est pas
+partageable entre threads).
+
+## Base de données
+
+Deux tables distinctes pour les données non-chaînes :
+
+- `cache` : données regénérables, purgées par « Clear Cache » (`clearCache`)
+- `settings` : réglages utilisateur (ex. `custom_suffixes`, horodatage de
+  synchro par playlist) — **jamais** purgés. Une migration automatique déplace
+  les anciennes clefs de `cache` vers `settings`.
+
+L'historique de lecture est plafonné aux 500 dernières entrées.
+
+## Logs
+
+Toutes les traces passent par des catégories (`src/utils/Logging.h`), limitées
+à Warning par défaut. Pour activer :
+
+```bash
+QT_LOGGING_RULES="iptv.*.debug=true" ./build-linux/appIptvPlayer
+QT_LOGGING_RULES="iptv.perf.debug=true;iptv.mpv.debug=true" ./build-linux/appIptvPlayer
+```
+
+Catégories : `iptv.db`, `iptv.model`, `iptv.loader`, `iptv.xtream`, `iptv.mpv`,
+`iptv.render`, `iptv.perf`.
+
+Les URLs Xtream portent les identifiants (`/live/<user>/<password>/<id>.ts`) :
+toute URL journalisée doit passer par `LogUtils::scrubUrl()`.
+
 ## Architecture clé
 
 - **MpvObject** : `QQuickFramebufferObject` wrapping libmpv, un handle mpv par instance
+  - Le handle est un `std::shared_ptr` partagé avec `MpvRenderer` : libmpv impose
+    de libérer le `mpv_render_context` (détruit avec le renderer, sur le thread de
+    rendu) **avant** le handle. Le dernier des deux qui meurt le détruit.
+  - Le renderer garde l'item dans un `QPointer` (il peut survivre à l'item).
 - Plusieurs `MpvObject` peuvent coexister (multiplex 1-4 écrans)
 - **Audio** : un seul slot démuté à la fois (`muted: !isActiveAudio`)
 - **ChannelListModel** : singleton C++ (QAbstractListModel), filtré par texte/groupe
@@ -148,6 +195,12 @@ appelle `QJSEngine::setObjectOwnership(..., CppOwnership)` (cf. `DatabaseManager
 Le fichier de registration généré inclut les en-têtes **par leur seul nom de fichier** :
 tout nouveau sous-dossier de `src/` doit être ajouté à `target_include_directories()`.
 
+## Veille système
+
+`SleepInhibitor` inhibe la mise en veille pendant la lecture :
+`SetThreadExecutionState` sous Windows, `org.freedesktop.ScreenSaver` via D-Bus
+sous Linux (nécessite `Qt6::DBus`, détecté par CMake → `HAS_DBUS`).
+
 ## Convention QML
 
 - Palette sombre : `#1a1a2e` fond, `#16213e` cartes, `#0f3460` accent, `#e0e0e0` texte
@@ -155,6 +208,14 @@ tout nouveau sous-dossier de `src/` doit être ajouté à `target_include_direct
 - Contrôles par player dans `PlayerSlot.qml` (barre haute, play/pause centré, `+` en dessous)
 - Contrôles globaux dans `PlayerPage.qml` (mode selector + volume)
 - Auto-hide des contrôles après 3s d'inactivité
+- **`qmllint` doit rester à zéro warning** (`cmake --build build-linux --target all_qmllint`) :
+  - accès toujours qualifiés par un id (`root.x`, `window.x`)
+  - délégués : `required property var model` / `required property int index`
+    plutôt que l'injection implicite, et `pragma ComponentBehavior: Bound`
+  - dans un Layout : `Layout.preferredWidth/Height`, jamais `width`/`height`
+- `ChannelListModel` est **partagé** par les onglets : chaque page réapplique son
+  propre filtre via `activate()` quand elle redevient visible
+- Le filtre texte multi-tokens est unique : `ChannelListModel.matchesFilter()`
 
 ## Volume
 

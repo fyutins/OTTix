@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -112,18 +113,18 @@ Rectangle {
                 slotIndex: 0
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                visible: multiplexMode >= 1
-                channelName: slotChannels[0].name
-                channelUrl: slotChannels[0].url
-                channelLogo: slotChannels[0].logo
-                channelGroup: slotChannels[0].group
-                isActiveAudio: activeAudioSlot === 0
+                visible: root.multiplexMode >= 1
+                channelName: root.slotChannels[0].name
+                channelUrl: root.slotChannels[0].url
+                channelLogo: root.slotChannels[0].logo
+                channelGroup: root.slotChannels[0].group
+                isActiveAudio: root.activeAudioSlot === 0
                 globalVolume: volumeSlider.value
-                pendingPick: pendingPickSlot === 0
+                pendingPick: root.pendingPickSlot === 0
                 onPickRequested: root.startSlotPick(slotIndex)
                 onAudioToggleRequested: root.activeAudioSlotChangeRequested(slotIndex)
                 onDoubleClickRequested: root.toggleFullscreenRequested()
-                onHwdecChangeRequested: { root.playerHwdec = value; root.applyHwdecToAll(value) }
+                onHwdecChangeRequested: (value) => { root.playerHwdec = value; root.applyHwdecToAll(value) }
                 onPrevRequested: root.prevChannelRequested()
                 onNextRequested: root.nextChannelRequested()
                 onVariantSwitchRequested: (url, name, logo) => root.variantSwitchRequested(slotIndex, url, name, logo)
@@ -134,18 +135,18 @@ Rectangle {
                 slotIndex: 1
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                visible: multiplexMode >= 2
-                channelName: slotChannels[1].name
-                channelUrl: slotChannels[1].url
-                channelLogo: slotChannels[1].logo
-                channelGroup: slotChannels[1].group
-                isActiveAudio: activeAudioSlot === 1
+                visible: root.multiplexMode >= 2
+                channelName: root.slotChannels[1].name
+                channelUrl: root.slotChannels[1].url
+                channelLogo: root.slotChannels[1].logo
+                channelGroup: root.slotChannels[1].group
+                isActiveAudio: root.activeAudioSlot === 1
                 globalVolume: volumeSlider.value
-                pendingPick: pendingPickSlot === 1
+                pendingPick: root.pendingPickSlot === 1
                 onPickRequested: root.startSlotPick(slotIndex)
                 onAudioToggleRequested: root.activeAudioSlotChangeRequested(slotIndex)
                 onDoubleClickRequested: root.toggleFullscreenRequested()
-                onHwdecChangeRequested: { root.playerHwdec = value; root.applyHwdecToAll(value) }
+                onHwdecChangeRequested: (value) => { root.playerHwdec = value; root.applyHwdecToAll(value) }
                 onPrevRequested: root.prevChannelRequested()
                 onNextRequested: root.nextChannelRequested()
                 onVariantSwitchRequested: (url, name, logo) => root.variantSwitchRequested(slotIndex, url, name, logo)
@@ -156,24 +157,24 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 2
-            visible: multiplexMode >= 3
+            visible: root.multiplexMode >= 3
 
             PlayerSlot {
                 id: slot2
                 slotIndex: 2
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                channelName: slotChannels[2].name
-                channelUrl: slotChannels[2].url
-                channelLogo: slotChannels[2].logo
-                channelGroup: slotChannels[2].group
-                isActiveAudio: activeAudioSlot === 2
+                channelName: root.slotChannels[2].name
+                channelUrl: root.slotChannels[2].url
+                channelLogo: root.slotChannels[2].logo
+                channelGroup: root.slotChannels[2].group
+                isActiveAudio: root.activeAudioSlot === 2
                 globalVolume: volumeSlider.value
-                pendingPick: pendingPickSlot === 2
+                pendingPick: root.pendingPickSlot === 2
                 onPickRequested: root.startSlotPick(slotIndex)
                 onAudioToggleRequested: root.activeAudioSlotChangeRequested(slotIndex)
                 onDoubleClickRequested: root.toggleFullscreenRequested()
-                onHwdecChangeRequested: { root.playerHwdec = value; root.applyHwdecToAll(value) }
+                onHwdecChangeRequested: (value) => { root.playerHwdec = value; root.applyHwdecToAll(value) }
                 onPrevRequested: root.prevChannelRequested()
                 onNextRequested: root.nextChannelRequested()
                 onVariantSwitchRequested: (url, name, logo) => root.variantSwitchRequested(slotIndex, url, name, logo)
@@ -184,18 +185,18 @@ Rectangle {
                 slotIndex: 3
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                visible: multiplexMode >= 4
-                channelName: slotChannels[3].name
-                channelUrl: slotChannels[3].url
-                channelLogo: slotChannels[3].logo
-                channelGroup: slotChannels[3].group
-                isActiveAudio: activeAudioSlot === 3
+                visible: root.multiplexMode >= 4
+                channelName: root.slotChannels[3].name
+                channelUrl: root.slotChannels[3].url
+                channelLogo: root.slotChannels[3].logo
+                channelGroup: root.slotChannels[3].group
+                isActiveAudio: root.activeAudioSlot === 3
                 globalVolume: volumeSlider.value
-                pendingPick: pendingPickSlot === 3
+                pendingPick: root.pendingPickSlot === 3
                 onPickRequested: root.startSlotPick(slotIndex)
                 onAudioToggleRequested: root.activeAudioSlotChangeRequested(slotIndex)
                 onDoubleClickRequested: root.toggleFullscreenRequested()
-                onHwdecChangeRequested: { root.playerHwdec = value; root.applyHwdecToAll(value) }
+                onHwdecChangeRequested: (value) => { root.playerHwdec = value; root.applyHwdecToAll(value) }
                 onPrevRequested: root.prevChannelRequested()
                 onNextRequested: root.nextChannelRequested()
                 onVariantSwitchRequested: (url, name, logo) => root.variantSwitchRequested(slotIndex, url, name, logo)
@@ -252,24 +253,28 @@ Rectangle {
                 Repeater {
                     model: [1, 2, 3, 4]
                     delegate: ToolButton {
-                        text: modelData
+                        id: modeButton
+
+                        required property int modelData
+
+                        text: modeButton.modelData
                         checkable: true
-                        checked: root.multiplexMode === modelData
+                        checked: root.multiplexMode === modeButton.modelData
                         font.pixelSize: 11
                         implicitWidth: 28
                         implicitHeight: 24
-                        onClicked: root.multiplexModeChangeRequested(modelData)
+                        onClicked: root.multiplexModeChangeRequested(modeButton.modelData)
                         contentItem: Text {
-                            text: modelData
-                            color: checked ? "white" : "#a0a0a0"
+                            text: modeButton.modelData
+                            color: modeButton.checked ? "white" : "#a0a0a0"
                             font.pixelSize: 11
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
                         background: Rectangle {
-                            color: checked ? "#4a90d9" : "transparent"
+                            color: modeButton.checked ? "#4a90d9" : "transparent"
                             radius: 4
-                            border.color: checked ? "#4a90d9" : "#555"
+                            border.color: modeButton.checked ? "#4a90d9" : "#555"
                             border.width: 1
                         }
                     }

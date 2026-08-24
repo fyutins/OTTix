@@ -1,8 +1,9 @@
 #include "PlaylistLoader.h"
+#include "../utils/Logging.h"
+#include "../utils/LogUtils.h"
 #include <QUrl>
-#include <QDir>
-#include <QFile>
 #include <QDebug>
+#include <QtConcurrent/QtConcurrentRun>
 
 PlaylistLoader::PlaylistLoader(QObject *parent)
     : QObject(parent)
@@ -10,11 +11,6 @@ PlaylistLoader::PlaylistLoader(QObject *parent)
     , m_m3uParser(new M3UParser(this))
     , m_xtreamApi(new XtreamApi(this))
 {
-    connect(m_m3uParser, &M3UParser::parseProgress,
-            this, [this](int current, int total) {
-        emit loadProgress(m_currentPlaylistId, current, total);
-    });
-
     connect(m_xtreamApi, &XtreamApi::authResult,
             this, &PlaylistLoader::onXtreamAuthResult);
     connect(m_xtreamApi, &XtreamApi::liveCategoriesLoaded,
@@ -60,6 +56,10 @@ void PlaylistLoader::loadXtream(int playlistId, const QString &url,
 
 void PlaylistLoader::cancel()
 {
+    if (m_parseWatcher) {
+        m_parseWatcher->disconnect(this);
+        m_parseWatcher = nullptr;
+    }
     if (m_currentReply) {
         m_currentReply->disconnect();
         m_currentReply->abort();
@@ -76,9 +76,13 @@ void PlaylistLoader::onM3UDownloaded()
     auto reply = m_currentReply;
     m_currentReply = nullptr;
 
-    if (!reply || reply->error() != QNetworkReply::NoError) {
-        QString err = reply ? reply->errorString() : "Unknown error";
-        emit loadError(m_currentPlaylistId, "Network error: " + err);
+    if (!reply) {
+        emit loadError(m_currentPlaylistId, "Network error: request vanished");
+        return;
+    }
+
+    if (reply->error() != QNetworkReply::NoError) {
+        emit loadError(m_currentPlaylistId, "Network error: " + reply->errorString());
         reply->deleteLater();
         return;
     }
@@ -86,25 +90,32 @@ void PlaylistLoader::onM3UDownloaded()
     QByteArray data = reply->readAll();
     reply->deleteLater();
 
-    // Save raw data to a temp file and parse with M3UParser
-    QString tmpPath = QDir::temp().filePath("iptv_m3u_" + QString::number(m_currentPlaylistId) + ".m3u");
-    QFile tmpFile(tmpPath);
-    if (!tmpFile.open(QIODevice::WriteOnly)) {
-        emit loadError(m_currentPlaylistId, "Cannot write temp file");
-        return;
-    }
-    tmpFile.write(data);
-    tmpFile.close();
+    // Le parsing d'une grosse playlist (100k+ lignes) bloquerait le thread GUI :
+    // on le deporte, et on revient sur le thread principal pour l'ecriture en
+    // base (QSqlDatabase n'est pas partageable entre threads).
+    const int playlistId = m_currentPlaylistId;
+    auto *watcher = new QFutureWatcher<QList<ChannelInfo>>(this);
+    m_parseWatcher = watcher;
 
-    QList<ChannelInfo> channels = m_m3uParser->parse(tmpPath);
-    QFile::remove(tmpPath);
+    connect(watcher, &QFutureWatcher<QList<ChannelInfo>>::finished, this,
+            [this, watcher, playlistId]() {
+        watcher->deleteLater();
+        if (m_parseWatcher == watcher)
+            m_parseWatcher = nullptr;
 
-    if (channels.isEmpty()) {
-        emit loadError(m_currentPlaylistId, "No channels found in playlist");
-        return;
-    }
+        const QList<ChannelInfo> channels = watcher->result();
+        if (channels.isEmpty()) {
+            emit loadError(playlistId, "No channels found in playlist");
+            return;
+        }
 
-    storeChannels(m_currentPlaylistId, channels);
+        emit loadProgress(playlistId, channels.size(), channels.size());
+        storeChannels(playlistId, channels);
+    });
+
+    watcher->setFuture(QtConcurrent::run([data]() {
+        return M3UParser::parseBuffer(data);
+    }));
 }
 
 void PlaylistLoader::onXtreamAuthResult(bool success, const QString &message, const QJsonObject &userInfo)
@@ -117,24 +128,23 @@ void PlaylistLoader::onXtreamAuthResult(bool success, const QString &message, co
         return;
     }
 
-    qDebug() << "XTREAM auth success, loading live categories...";
+    qCDebug(logLoader) << "XTREAM auth success, loading live categories...";
     m_xtreamChannels.clear();
     m_xtreamApi->getLiveCategories();
 }
 
 void PlaylistLoader::onXtreamCategoriesLoaded(const QList<XtreamCategory> &categories)
 {
-    qDebug() << "Loaded" << categories.size() << "live categories";
+    qCDebug(logLoader) << "Loaded" << categories.size() << "live categories";
     for (int i = 0; i < qMin(5, categories.size()); i++)
-        qDebug() << "  Category" << i << "| id:" << categories[i].categoryId << "| name:" << categories[i].name;
+        qCDebug(logLoader) << "  Category" << i << "| id:" << categories[i].categoryId << "| name:" << categories[i].name;
     m_xtreamCategories = categories;
     m_xtreamApi->getLiveStreams();
 }
 
 void PlaylistLoader::onXtreamStreamsLoaded(const QList<XtreamChannel> &channels)
 {
-    qDebug() << "[LOADER] Received" << channels.size() << "live streams";
-    qDebug() << "[LOADER] m_xtreamCategories.size:" << m_xtreamCategories.size();
+    qCDebug(logLoader) << "[LOADER] Received" << channels.size() << "live streams";
 
     m_xtreamChannels.reserve(channels.size());
     int mappedGroup = 0;
@@ -161,8 +171,8 @@ void PlaylistLoader::onXtreamStreamsLoaded(const QList<XtreamChannel> &channels)
         m_xtreamChannels.append(ci);
     }
 
-    qDebug() << "[LOADER] Mapped" << mappedGroup << "groups from category_id";
-    qDebug() << "[LOADER] Total channels with group:"
+    qCDebug(logLoader) << "[LOADER] Mapped" << mappedGroup << "groups from category_id";
+    qCDebug(logLoader) << "[LOADER] Total channels with group:"
              << std::count_if(m_xtreamChannels.begin(), m_xtreamChannels.end(),
                               [](const ChannelInfo &c) { return !c.group.isEmpty(); });
 
@@ -172,7 +182,7 @@ void PlaylistLoader::onXtreamStreamsLoaded(const QList<XtreamChannel> &channels)
 
 void PlaylistLoader::storeChannels(int playlistId, const QList<ChannelInfo> &channels)
 {
-    qDebug() << "[LOADER] storeChannels: playlistId=" << playlistId << "| input count=" << channels.size();
+    qCDebug(logLoader) << "[LOADER] storeChannels: playlistId=" << playlistId << "| input count=" << channels.size();
 
     // Assign playlist ID and filter out channels with empty names
     QList<ChannelInfo> finalChannels;
@@ -181,40 +191,32 @@ void PlaylistLoader::storeChannels(int playlistId, const QList<ChannelInfo> &cha
     for (auto ch : channels) {
         ch.playlistId = playlistId;
         if (ch.name.isEmpty()) {
-            qWarning() << "[LOADER] Skipping channel with empty name, url:" << ch.url;
+            qCWarning(logLoader) << "[LOADER] Skipping channel with empty name, url:"
+                       << LogUtils::scrubUrl(ch.url);
             skipped++;
             continue;
         }
         finalChannels.append(ch);
     }
 
-    qDebug() << "[LOADER] Storing" << finalChannels.size() << "channels for playlist" << playlistId
+    qCDebug(logLoader) << "[LOADER] Storing" << finalChannels.size() << "channels for playlist" << playlistId
              << "(filtered from" << channels.size() << ", skipped=" << skipped << ")";
 
     // Atomically replace channels (delete old + insert new in one transaction)
-    qDebug() << "[LOADER] Calling DatabaseManager::replaceChannels...";
     bool ok = DatabaseManager::instance().replaceChannels(playlistId, finalChannels);
-    qDebug() << "[LOADER] DatabaseManager::replaceChannels returned" << ok;
-
     if (!ok) {
-        qWarning() << "[LOADER] replaceChannels failed, emitting loadError";
+        qCWarning(logLoader) << "[LOADER] replaceChannels failed, emitting loadError";
         emit loadError(playlistId, "Failed to store channels in database");
         return;
     }
 
-    qDebug() << "[LOADER] Calling DatabaseManager::channelCount...";
-    int count = DatabaseManager::instance().channelCount(playlistId);
-    qDebug() << "[LOADER] Playlist" << playlistId << "loaded with" << count << "channels";
+    DatabaseManager::instance().markPlaylistSynced(playlistId);
 
-    // Memory usage hint
-    qDebug() << "[LOADER] finalChannels capacity:" << finalChannels.capacity()
-             << "size:" << finalChannels.size()
-             << "sizeof(ChannelInfo):" << sizeof(ChannelInfo);
+    int count = DatabaseManager::instance().channelCount(playlistId);
+    qCDebug(logLoader) << "[LOADER] Playlist" << playlistId << "loaded with" << count << "channels";
 
     finalChannels.clear(); // free memory before emitting signal
     m_xtreamChannels.clear();
 
-    qDebug() << "[LOADER] Emitting loadComplete...";
     emit loadComplete(playlistId, count);
-    qDebug() << "[LOADER] loadComplete emitted, back in storeChannels";
 }

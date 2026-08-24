@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 
 Rectangle {
@@ -10,30 +9,27 @@ Rectangle {
 
     property string currentGroup: ""
     property string groupFilterText: ""
+    property string channelFilterText: ""
+
+    // Reapplique le filtre de cette page sur le modele partage (voir
+    // ChannelListPage.activate()).
+    function activate() {
+        ChannelListModel.filterGroup = currentGroup
+        ChannelListModel.filterText = currentGroup !== "" ? channelFilterText : ""
+    }
 
     function backToGroups() {
         currentGroup = ""
         groupFilterText = ""
-        ChannelListModel.filterGroup = ""
-        ChannelListModel.filterText = ""
+        channelFilterText = ""
+        activate()
     }
 
     function openGroup(group) {
         currentGroup = group
         groupFilterText = ""
-        ChannelListModel.filterGroup = group
-        ChannelListModel.filterText = ""
-    }
-
-    function matchesFilter(name, filter) {
-        if (filter === "") return true
-        var tokens = filter.split(" ")
-        for (var t = 0; t < tokens.length; t++) {
-            if (tokens[t] === "") continue
-            if (name.toLowerCase().indexOf(tokens[t].toLowerCase()) === -1)
-                return false
-        }
-        return true
+        channelFilterText = ""
+        activate()
     }
 
     ColumnLayout {
@@ -42,14 +38,14 @@ Rectangle {
 
         GroupSearchBar {
             id: groupBar
-            drillMode: currentGroup !== ""
-            groupName: currentGroup
-            countText: currentGroup !== ""
+            drillMode: root.currentGroup !== ""
+            groupName: root.currentGroup
+            countText: root.currentGroup !== ""
                 ? ChannelListModel.count + " " + qsTr("channels")
                 : groupListModel.count + " " + qsTr("groups")
-            onBackRequested: backToGroups()
-            onSearchChanged: {
-                groupFilterText = text
+            onBackRequested: root.backToGroups()
+            onSearchChanged: function(text) {
+                root.groupFilterText = text
                 groupListModel.build()
             }
         }
@@ -59,24 +55,26 @@ Rectangle {
         StackLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            currentIndex: currentGroup === "" ? 0 : 1
+            currentIndex: root.currentGroup === "" ? 0 : 1
 
             GroupGrid {
                 id: groupsGrid
                 model: groupListModel
-                onGroupSelected: (groupName) => openGroup(groupName)
+                onGroupSelected: (groupName) => root.openGroup(groupName)
             }
 
             ColumnLayout {
                 spacing: 8
 
                 ChannelSearchBar {
-                    visible: currentGroup !== ""
+                    visible: root.currentGroup !== ""
                     searchPlaceholder: qsTr("Search in group...")
                     countText: ""
-                    onSearchChanged: {
-                        if (currentGroup !== "")
+                    onSearchChanged: function(text) {
+                        if (root.currentGroup !== "") {
+                            root.channelFilterText = text
                             ChannelListModel.filterText = text
+                        }
                     }
                 }
 
@@ -99,7 +97,7 @@ Rectangle {
             var groups = ChannelListModel.groups
             for (var i = 0; i < groups.length; i++) {
                 if (groups[i] === "") continue
-                if (root.matchesFilter(groups[i], root.groupFilterText))
+                if (ChannelListModel.matchesFilter(groups[i], root.groupFilterText))
                     append({ name: groups[i] })
             }
         }
@@ -112,9 +110,5 @@ Rectangle {
         }
     }
 
-    Component.onCompleted: {
-        groupListModel.build()
-        ChannelListModel.filterGroup = ""
-        ChannelListModel.filterText = ""
-    }
+    Component.onCompleted: groupListModel.build()
 }

@@ -9,6 +9,7 @@
 #include <mpv/render_gl.h>
 #include <QMutex>
 #include <QQueue>
+#include <memory>
 #endif
 
 class MpvRenderer;
@@ -72,8 +73,16 @@ public:
     Q_INVOKABLE void setVideoTrack(int trackId);
     Q_INVOKABLE void setHwdec(const QString &hwdec);
 
+#if HAS_MPV
+    // File de commandes rejouee par MpvRenderer sur le thread de rendu.
     void enqueueCommand(std::function<void(mpv_handle *)> cmd);
     bool dequeueCommand(std::function<void(mpv_handle *)> &cmd);
+
+    // Le renderer partage la propriete du handle : libmpv impose de liberer le
+    // mpv_render_context (detruit avec le renderer, sur le thread de rendu)
+    // avant de detruire le handle. Le dernier des deux qui meurt le libere.
+    std::shared_ptr<mpv_handle> mpvHandleRef() const { return m_mpvOwner; }
+#endif
 
 signals:
     void sourceChanged();
@@ -113,7 +122,8 @@ private:
     QVariantList m_videoTracks;
 
 #if HAS_MPV
-    mpv_handle *m_mpv = nullptr;
+    std::shared_ptr<mpv_handle> m_mpvOwner;
+    mpv_handle *m_mpv = nullptr; // raccourci non proprietaire vers m_mpvOwner
     mutable QMutex m_mutex;
     QQueue<std::function<void(mpv_handle *)>> m_commandQueue;
 

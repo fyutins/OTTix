@@ -1,4 +1,5 @@
 #include "DatabaseManager.h"
+#include "../utils/Logging.h"
 
 #include <QJSEngine>
 
@@ -42,12 +43,13 @@ bool DatabaseManager::initialize(const QString &path)
     m_db.setDatabaseName(dbPath);
 
     if (!m_db.open()) {
-        qWarning() << "Failed to open database:" << m_db.lastError().text();
+        qCWarning(logDb) << "Failed to open database:" << m_db.lastError().text();
         return false;
     }
 
-    qInfo() << "Database opened at:" << dbPath;
+    qCInfo(logDb) << "Database opened at:" << dbPath;
     createTables();
+    migrateSettingsFromCache();
     return true;
 }
 
@@ -109,6 +111,13 @@ void DatabaseManager::createTables()
         )
     )");
 
+    q.exec(R"(
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )
+    )");
+
     q.exec("CREATE INDEX IF NOT EXISTS idx_channels_playlist ON channels(playlist_id)");
     q.exec("CREATE INDEX IF NOT EXISTS idx_channels_name ON channels(name)");
     q.exec("CREATE INDEX IF NOT EXISTS idx_watch_history_watched ON watch_history(watched_at)");
@@ -128,7 +137,7 @@ int DatabaseManager::addPlaylist(const PlaylistInfo &playlist)
     q.bindValue(":password", playlist.password);
 
     if (!q.exec()) {
-        qWarning() << "Failed to add playlist:" << q.lastError().text();
+        qCWarning(logDb) << "Failed to add playlist:" << q.lastError().text();
         return -1;
     }
     return q.lastInsertId().toInt();
@@ -162,7 +171,7 @@ QList<PlaylistInfo> DatabaseManager::getPlaylists()
     QSqlQuery q(m_db);
 
     if (!q.exec("SELECT p.*, (SELECT COUNT(*) FROM channels c WHERE c.playlist_id = p.id) AS channel_count FROM playlists p ORDER BY p.created_at DESC")) {
-        qWarning() << "Failed to get playlists:" << q.lastError().text();
+        qCWarning(logDb) << "Failed to get playlists:" << q.lastError().text();
         return result;
     }
 
@@ -216,7 +225,7 @@ int DatabaseManager::addChannel(const ChannelInfo &channel)
     q.bindValue(":stream_type", channel.streamType);
 
     if (!q.exec()) {
-        qWarning() << "Failed to add channel:" << q.lastError().text();
+        qCWarning(logDb) << "Failed to add channel:" << q.lastError().text();
         return -1;
     }
     return q.lastInsertId().toInt();
@@ -238,7 +247,7 @@ bool DatabaseManager::addChannels(const QList<ChannelInfo> &channels)
         q.bindValue(":channel_id", ch.channelId);
         q.bindValue(":stream_type", ch.streamType);
         if (!q.exec()) {
-            qWarning() << "Failed to add channel:" << q.lastError().text();
+            qCWarning(logDb) << "Failed to add channel:" << q.lastError().text();
             m_db.rollback();
             return false;
         }
@@ -271,7 +280,7 @@ bool DatabaseManager::replaceChannels(int playlistId, const QList<ChannelInfo> &
     q.prepare("DELETE FROM channels WHERE playlist_id = :id");
     q.bindValue(":id", playlistId);
     if (!q.exec()) {
-        qWarning() << "Failed to remove old channels:" << q.lastError().text();
+        qCWarning(logDb) << "Failed to remove old channels:" << q.lastError().text();
         m_db.rollback();
         return false;
     }
@@ -291,7 +300,7 @@ bool DatabaseManager::replaceChannels(int playlistId, const QList<ChannelInfo> &
         q.bindValue(":channel_id", ch.channelId);
         q.bindValue(":stream_type", ch.streamType);
         if (!q.exec()) {
-            qWarning() << "Failed to add channel:" << q.lastError().text();
+            qCWarning(logDb) << "Failed to add channel:" << q.lastError().text();
             m_db.rollback();
             return false;
         }
@@ -303,7 +312,7 @@ bool DatabaseManager::replaceChannels(int playlistId, const QList<ChannelInfo> &
         if (favChannelIds.contains(channels[i].channelId)) {
             q.bindValue(":id", newIds[i]);
             if (!q.exec()) {
-                qWarning() << "Failed to restore favorite:" << q.lastError().text();
+                qCWarning(logDb) << "Failed to restore favorite:" << q.lastError().text();
                 m_db.rollback();
                 return false;
             }
@@ -315,45 +324,23 @@ bool DatabaseManager::replaceChannels(int playlistId, const QList<ChannelInfo> &
 
 QList<ChannelInfo> DatabaseManager::getChannels(int playlistId)
 {
-    qDebug() << "[DB] getChannels: start playlistId=" << playlistId;
-
     QList<ChannelInfo> result;
 
-    qDebug() << "[DB] getChannels: db open?" << m_db.isOpen()
-             << "| db name:" << m_db.databaseName()
-             << "| connection name:" << m_db.connectionName();
+    const QList<int> favIdsList = getFavoriteIds();
+    const QSet<int> favIds(favIdsList.begin(), favIdsList.end());
 
-    qDebug() << "[DB] getChannels: calling getFavoriteIds...";
-    QList<int> favIdsList = getFavoriteIds();
-    QSet<int> favIds(favIdsList.begin(), favIdsList.end());
-    qDebug() << "[DB] getChannels: getFavoriteIds returned" << favIdsList.size() << "favorites";
-
-    qDebug() << "[DB] getChannels: creating QSqlQuery...";
     QSqlQuery q(m_db);
-
-    qDebug() << "[DB] getChannels: preparing query...";
-    bool prepareOk = q.prepare("SELECT c.*, CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END AS is_fav "
+    q.prepare("SELECT c.*, CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END AS is_fav "
               "FROM channels c LEFT JOIN favorites f ON c.id = f.channel_id "
-               "WHERE c.playlist_id = :id ORDER BY c.name");
-    qDebug() << "[DB] getChannels: prepare ok?" << prepareOk
-             << "| last error:" << (prepareOk ? "none" : q.lastError().text());
-
-    qDebug() << "[DB] getChannels: binding playlistId...";
+              "WHERE c.playlist_id = :id ORDER BY c.name");
     q.bindValue(":id", playlistId);
 
-    qDebug() << "[DB] getChannels: executing query...";
-    bool execOk = q.exec();
-    qDebug() << "[DB] getChannels: exec ok?" << execOk;
-    if (!execOk) {
-        qWarning() << "[DB] getChannels: FAILED —" << q.lastError().text();
+    if (!q.exec()) {
+        qCWarning(logDb) << "getChannels failed:" << q.lastError().text();
         return result;
     }
 
-    qDebug() << "[DB] getChannels: query executed, fetching rows...";
-    int row = 0;
     while (q.next()) {
-        if (row % 5000 == 0)
-            qDebug() << "[DB] getChannels: fetching row" << row;
         ChannelInfo ch;
         ch.id = q.value("id").toInt();
         ch.playlistId = q.value("playlist_id").toInt();
@@ -365,12 +352,9 @@ QList<ChannelInfo> DatabaseManager::getChannels(int playlistId)
         ch.streamType = q.value("stream_type").toString();
         ch.isFavorite = favIds.contains(ch.id);
         result.append(ch);
-        row++;
     }
 
-    qDebug() << "[DB] getChannels: fetched" << row << "rows, result size=" << result.size();
-
-    qDebug() << "[DB] getChannels: returning result...";
+    qCDebug(logDb) << "getChannels: playlist" << playlistId << "->" << result.size() << "channels";
     return result;
 }
 
@@ -388,7 +372,7 @@ QList<ChannelInfo> DatabaseManager::searchChannels(const QString &query)
     q.bindValue(":q", "%" + query + "%");
 
     if (!q.exec()) {
-        qWarning() << "Failed to search channels:" << q.lastError().text();
+        qCWarning(logDb) << "Failed to search channels:" << q.lastError().text();
         return result;
     }
 
@@ -443,6 +427,37 @@ int DatabaseManager::channelCount(int playlistId)
     return 0;
 }
 
+// ── Synchronisation des playlists ──
+
+static QString syncKey(int playlistId)
+{
+    return QStringLiteral("playlist_%1_last_sync").arg(playlistId);
+}
+
+void DatabaseManager::markPlaylistSynced(int playlistId)
+{
+    setSetting(syncKey(playlistId), QDateTime::currentDateTimeUtc().toString(Qt::ISODate));
+}
+
+QString DatabaseManager::lastSync(int playlistId)
+{
+    return getSetting(syncKey(playlistId));
+}
+
+// Une playlist doit etre retelechargee si elle n'a aucune chaine en base
+// ou si sa derniere synchronisation date de plus de maxAgeHours.
+bool DatabaseManager::needsRefresh(int playlistId, int maxAgeHours)
+{
+    if (channelCount(playlistId) == 0)
+        return true;
+
+    const QDateTime synced = QDateTime::fromString(lastSync(playlistId), Qt::ISODate);
+    if (!synced.isValid())
+        return true;
+
+    return synced.secsTo(QDateTime::currentDateTimeUtc()) > qint64(maxAgeHours) * 3600;
+}
+
 bool DatabaseManager::addFavorite(int channelId)
 {
     QSqlQuery q(m_db);
@@ -484,7 +499,7 @@ QList<ChannelInfo> DatabaseManager::getFavorites()
               "ORDER BY f.created_at DESC");
 
     if (!q.exec()) {
-        qWarning() << "Failed to get favorites:" << q.lastError().text();
+        qCWarning(logDb) << "Failed to get favorites:" << q.lastError().text();
         return result;
     }
 
@@ -526,32 +541,17 @@ QVariantList DatabaseManager::getFavoritesVariant()
 
 QList<int> DatabaseManager::getFavoriteIds()
 {
-    qDebug() << "[DB] getFavoriteIds: start";
     QList<int> result;
-
-    qDebug() << "[DB] getFavoriteIds: db open?" << m_db.isOpen()
-             << "| db name:" << m_db.databaseName();
-
-    qDebug() << "[DB] getFavoriteIds: creating QSqlQuery...";
     QSqlQuery q(m_db);
 
-    qDebug() << "[DB] getFavoriteIds: executing query...";
-    bool execOk = q.exec("SELECT channel_id FROM favorites");
-    qDebug() << "[DB] getFavoriteIds: exec ok?" << execOk;
-    if (!execOk) {
-        qWarning() << "[DB] getFavoriteIds: FAILED —" << q.lastError().text();
+    if (!q.exec("SELECT channel_id FROM favorites")) {
+        qCWarning(logDb) << "getFavoriteIds failed:" << q.lastError().text();
         return result;
     }
 
-    qDebug() << "[DB] getFavoriteIds: iterating results...";
-    int row = 0;
-    while (q.next()) {
-        if (row % 5000 == 0)
-            qDebug() << "[DB] getFavoriteIds: row" << row;
+    while (q.next())
         result.append(q.value(0).toInt());
-        row++;
-    }
-    qDebug() << "[DB] getFavoriteIds: done, count=" << row;
+
     return result;
 }
 
@@ -563,7 +563,7 @@ void DatabaseManager::setCache(const QString &key, const QString &data)
     q.bindValue(":key", key);
     q.bindValue(":data", data);
     if (!q.exec())
-        qWarning() << "Failed to set cache:" << q.lastError().text();
+        qCWarning(logDb) << "Failed to set cache:" << q.lastError().text();
 }
 
 QString DatabaseManager::getCache(const QString &key)
@@ -584,6 +584,53 @@ void DatabaseManager::clearCache(int olderThanDays)
     q.exec();
 }
 
+// ── Settings ──
+
+void DatabaseManager::setSetting(const QString &key, const QString &value)
+{
+    QSqlQuery q(m_db);
+    q.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES (:key, :value)");
+    q.bindValue(":key", key);
+    q.bindValue(":value", value);
+    if (!q.exec())
+        qCWarning(logDb) << "Failed to set setting" << key << ":" << q.lastError().text();
+}
+
+QString DatabaseManager::getSetting(const QString &key, const QString &defaultValue)
+{
+    QSqlQuery q(m_db);
+    q.prepare("SELECT value FROM settings WHERE key = :key");
+    q.bindValue(":key", key);
+    if (q.exec() && q.next())
+        return q.value(0).toString();
+    return defaultValue;
+}
+
+// Les reglages utilisateur vivaient dans la table `cache`, que clearCache() purge.
+// Migration unique vers `settings` pour les bases existantes.
+void DatabaseManager::migrateSettingsFromCache()
+{
+    static const QStringList keys = {QStringLiteral("custom_suffixes")};
+
+    for (const QString &key : keys) {
+        QSqlQuery q(m_db);
+        q.prepare("SELECT data FROM cache WHERE key = :key");
+        q.bindValue(":key", key);
+        if (!q.exec() || !q.next())
+            continue;
+
+        const QString value = q.value(0).toString();
+        if (!value.isEmpty() && getSetting(key).isEmpty()) {
+            qCInfo(logDb) << "Migrating setting" << key << "from cache to settings";
+            setSetting(key, value);
+        }
+
+        q.prepare("DELETE FROM cache WHERE key = :key");
+        q.bindValue(":key", key);
+        q.exec();
+    }
+}
+
 // ── Watch History ──
 
 void DatabaseManager::addHistoryEntry(const QString &name, const QString &url,
@@ -598,10 +645,16 @@ void DatabaseManager::addHistoryEntry(const QString &name, const QString &url,
     q.bindValue(":url", url);
     q.bindValue(":logo", logo);
     q.bindValue(":group_name", group);
-    if (!q.exec())
-        qWarning() << "Failed to add history entry:" << q.lastError().text();
-    else
-        emit historyChanged();
+    if (!q.exec()) {
+        qCWarning(logDb) << "Failed to add history entry:" << q.lastError().text();
+        return;
+    }
+
+    // L'historique n'est jamais purge autrement : on garde les 500 dernieres.
+    q.exec("DELETE FROM watch_history WHERE id NOT IN ("
+           "SELECT id FROM watch_history ORDER BY watched_at DESC LIMIT 500)");
+
+    emit historyChanged();
 }
 
 QVariantList DatabaseManager::getHistoryVariant(int limit)
@@ -613,7 +666,7 @@ QVariantList DatabaseManager::getHistoryVariant(int limit)
     q.bindValue(":limit", limit);
 
     if (!q.exec()) {
-        qWarning() << "Failed to get history:" << q.lastError().text();
+        qCWarning(logDb) << "Failed to get history:" << q.lastError().text();
         return result;
     }
 
@@ -633,7 +686,7 @@ void DatabaseManager::clearHistory()
 {
     QSqlQuery q(m_db);
     if (!q.exec("DELETE FROM watch_history"))
-        qWarning() << "Failed to clear history:" << q.lastError().text();
+        qCWarning(logDb) << "Failed to clear history:" << q.lastError().text();
     else
         emit historyChanged();
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QPointer>
 #include <QQuickFramebufferObject>
 #include <QOpenGLFramebufferObject>
 
@@ -7,6 +8,7 @@
 #include <QOpenGLFunctions>
 #include <mpv/client.h>
 #include <mpv/render_gl.h>
+#include <memory>
 #endif
 
 class MpvObject;
@@ -25,8 +27,11 @@ public:
     void render() override;
 
 private:
-    MpvObject *m_obj;
+    // QPointer : le renderer est detruit par le scene graph, potentiellement
+    // apres l'item auquel il appartient.
+    QPointer<MpvObject> m_obj;
 #if HAS_MPV
+    std::shared_ptr<mpv_handle> m_mpvOwner;
     mpv_handle *m_mpv = nullptr;
     mpv_render_context *m_mpvGl = nullptr;
     bool m_initialized = false;

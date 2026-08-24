@@ -1,4 +1,5 @@
 #include "MpvRenderer.h"
+#include "../utils/Logging.h"
 #include "MpvObject.h"
 
 #include <QDebug>
@@ -9,7 +10,7 @@
 MpvRenderer::MpvRenderer(MpvObject *obj)
     : m_obj(obj)
 {
-    qDebug() << "[RENDERER] MpvRenderer created, obj:" << obj;
+    qCDebug(logRender) << "[RENDERER] MpvRenderer created, obj:" << obj;
 #if HAS_MPV
     initializeOpenGLFunctions();
 #endif
@@ -17,13 +18,17 @@ MpvRenderer::MpvRenderer(MpvObject *obj)
 
 MpvRenderer::~MpvRenderer()
 {
-    qDebug() << "[RENDERER] MpvRenderer destroyed";
+    qCDebug(logRender) << "[RENDERER] MpvRenderer destroyed";
 #if HAS_MPV
     if (m_mpvGl) {
-        qDebug() << "[RENDERER] Freeing mpv render context";
+        qCDebug(logRender) << "[RENDERER] Freeing mpv render context";
         mpv_render_context_free(m_mpvGl);
+        m_mpvGl = nullptr;
     }
-    // Don't destroy m_mpv here — MpvObject owns the handle
+    // Le contexte de rendu doit disparaitre avant le handle : on ne lache la
+    // reference partagee qu'ici, une fois mpv_render_context_free() passe.
+    m_mpv = nullptr;
+    m_mpvOwner.reset();
 #endif
 }
 
@@ -38,19 +43,22 @@ void MpvRenderer::synchronize(QQuickFramebufferObject *item)
     MpvObject *obj = static_cast<MpvObject *>(item);
 
     if (!m_initialized) {
-        qDebug() << "[RENDERER] synchronize: first call, initializing mpv render context";
-        m_mpv = obj->m_mpv;
-        qDebug() << "[RENDERER] mpv handle:" << m_mpv;
+        qCDebug(logRender) << "[RENDERER] synchronize: first call, initializing mpv render context";
+        m_mpvOwner = obj->mpvHandleRef();
+        m_mpv = m_mpvOwner.get();
+        qCDebug(logRender) << "[RENDERER] mpv handle:" << m_mpv;
+        if (!m_mpv)
+            return;
 
         mpv_opengl_init_params gl_init;
         gl_init.get_proc_address = [](void *ctx, const char *name) -> void * {
             QOpenGLContext *glctx = QOpenGLContext::currentContext();
             if (!glctx) {
-                qDebug() << "[RENDERER] No current OpenGL context!";
+                qCDebug(logRender) << "[RENDERER] No current OpenGL context!";
                 return nullptr;
             }
             void *addr = reinterpret_cast<void *>(glctx->getProcAddress(name));
-            qDebug() << "[RENDERER] getProcAddress(" << name << ") =" << addr;
+            qCDebug(logRender) << "[RENDERER] getProcAddress(" << name << ") =" << addr;
             return addr;
         };
         gl_init.get_proc_address_ctx = nullptr;
@@ -62,17 +70,17 @@ void MpvRenderer::synchronize(QQuickFramebufferObject *item)
         };
 
         int ret = mpv_render_context_create(&m_mpvGl, m_mpv, params);
-        qDebug() << "[RENDERER] mpv_render_context_create returned:" << ret;
+        qCDebug(logRender) << "[RENDERER] mpv_render_context_create returned:" << ret;
         if (ret < 0) {
-            qWarning() << "[RENDERER] Failed to create mpv render context:" << mpv_error_string(ret);
+            qCWarning(logRender) << "[RENDERER] Failed to create mpv render context:" << mpv_error_string(ret);
             return;
         }
-        qDebug() << "[RENDERER] mpv render context created:" << m_mpvGl;
+        qCDebug(logRender) << "[RENDERER] mpv render context created:" << m_mpvGl;
 
         mpv_render_context_set_update_callback(m_mpvGl, onUpdate, this);
         obj->updateProperties();
         m_initialized = true;
-        qDebug() << "[RENDERER] Mpv render initialized successfully";
+        qCDebug(logRender) << "[RENDERER] Mpv render initialized successfully";
     }
 
     std::function<void(mpv_handle *)> cmd;
@@ -84,7 +92,7 @@ void MpvRenderer::synchronize(QQuickFramebufferObject *item)
         }
     }
     if (cmdCount > 0)
-        qDebug() << "[RENDERER] Executed" << cmdCount << "queued commands";
+        qCDebug(logRender) << "[RENDERER] Executed" << cmdCount << "queued commands";
 
     m_clearFrame = obj->m_clearFrame;
 #else
@@ -98,13 +106,13 @@ void MpvRenderer::render()
     if (!m_mpvGl || !m_initialized) {
         static int skip = 0;
         if (++skip % 60 == 0)
-            qDebug() << "[RENDERER] render skipped: m_mpvGl=" << m_mpvGl << "m_initialized=" << m_initialized;
+            qCDebug(logRender) << "[RENDERER] render skipped: m_mpvGl=" << m_mpvGl << "m_initialized=" << m_initialized;
         return;
     }
 
     QOpenGLFramebufferObject *fbo = framebufferObject();
     if (!fbo) {
-        qDebug() << "[RENDERER] No FBO available";
+        qCDebug(logRender) << "[RENDERER] No FBO available";
         return;
     }
 
@@ -137,7 +145,7 @@ void MpvRenderer::render()
     if (ret < 0) {
         static int err_skip = 0;
         if (++err_skip % 60 == 0)
-            qDebug() << "[RENDERER] mpv_render_context_render returned:" << ret << mpv_error_string(ret);
+            qCDebug(logRender) << "[RENDERER] mpv_render_context_render returned:" << ret << mpv_error_string(ret);
     }
     fbo->release();
 #endif
@@ -147,10 +155,13 @@ void MpvRenderer::render()
 void MpvRenderer::onUpdate(void *ctx)
 {
     MpvRenderer *renderer = static_cast<MpvRenderer *>(ctx);
-    if (renderer && renderer->m_obj) {
-        QMetaObject::invokeMethod(renderer->m_obj, [renderer]() {
-            renderer->m_obj->update();
-        });
-    }
+    if (!renderer || !renderer->m_obj)
+        return;
+
+    QPointer<MpvObject> obj = renderer->m_obj;
+    QMetaObject::invokeMethod(obj, [obj]() {
+        if (obj)
+            obj->update();
+    });
 }
 #endif

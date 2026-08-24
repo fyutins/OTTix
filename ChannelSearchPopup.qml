@@ -71,7 +71,7 @@ Popup {
                 spacing: 8
 
                 Label {
-                    text: pickMode ? pickLabel : qsTr("Browse Channels")
+                    text: popup.pickMode ? popup.pickLabel : qsTr("Browse Channels")
                     color: "#e0e0e0"
                     font.pixelSize: 16
                     font.bold: true
@@ -148,7 +148,7 @@ Popup {
                         id: channelsSearchBar
                         searchPlaceholder: qsTr("Search channels...")
                         countText: ChannelListModel.count + " " + qsTr("channels")
-                        onSearchChanged: {
+                        onSearchChanged: function(text) {
                             if (tabBar.currentIndex === 1)
                                 ChannelListModel.filterText = text
                         }
@@ -169,13 +169,13 @@ Popup {
 
                     GroupSearchBar {
                         id: groupSearchBar
-                        drillMode: selectedGroup !== ""
-                        groupName: selectedGroup
-                        countText: selectedGroup !== ""
+                        drillMode: popup.selectedGroup !== ""
+                        groupName: popup.selectedGroup
+                        countText: popup.selectedGroup !== ""
                             ? ChannelListModel.count + " " + qsTr("channels")
                             : groupListModel.count + " " + qsTr("groups")
                         onBackRequested: {
-                            selectedGroup = ""
+                            popup.selectedGroup = ""
                             ChannelListModel.filterGroup = ""
                             ChannelListModel.filterText = ""
                         }
@@ -185,12 +185,12 @@ Popup {
                     StackLayout {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        currentIndex: selectedGroup === "" ? 0 : 1
+                        currentIndex: popup.selectedGroup === "" ? 0 : 1
 
                         GroupGrid {
                             model: groupListModel
                             onGroupSelected: (gName) => {
-                                selectedGroup = gName
+                                popup.selectedGroup = gName
                                 ChannelListModel.filterGroup = gName
                                 ChannelListModel.filterText = ""
                             }
@@ -203,8 +203,8 @@ Popup {
                                 id: groupChannelsBar
                                 searchPlaceholder: qsTr("Search in group...")
                                 countText: ""
-                                onSearchChanged: {
-                                    if (selectedGroup !== "")
+                                onSearchChanged: function(text) {
+                                    if (popup.selectedGroup !== "")
                                         ChannelListModel.filterText = text
                                 }
                             }
@@ -292,7 +292,7 @@ Popup {
             var idx = tabBar.currentIndex
             if (idx === 0)
                 favoritesModel.refresh()
-            else if (idx === 2 && selectedGroup === "")
+            else if (idx === 2 && popup.selectedGroup === "")
                 groupListModel.build()
             else if (idx === 3)
                 historyModel.refresh()
@@ -308,7 +308,7 @@ Popup {
     Connections {
         target: ChannelListModel
         function onGroupsChanged() {
-            if (tabBar.currentIndex === 2 && selectedGroup === "")
+            if (tabBar.currentIndex === 2 && popup.selectedGroup === "")
                 groupListModel.build()
         }
     }

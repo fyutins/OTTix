@@ -1,4 +1,5 @@
 #include "ChannelListModel.h"
+#include "../utils/Logging.h"
 #include "../utils/ChannelGrouper.h"
 
 #include <QtConcurrent/QtConcurrentRun>
@@ -8,7 +9,7 @@
 ChannelListModel::ChannelListModel(QObject *parent)
     : QAbstractListModel(parent)
 {
-    QString customData = DatabaseManager::instance().getCache("custom_suffixes");
+    QString customData = DatabaseManager::instance().getSetting("custom_suffixes");
     if (!customData.isEmpty())
         m_customSuffixes = customData.split(",", Qt::SkipEmptyParts);
 }
@@ -53,22 +54,52 @@ QHash<int, QByteArray> ChannelListModel::roleNames() const
     };
 }
 
+bool ChannelListModel::matchesFilter(const QString &name, const QString &filter) const
+{
+    if (filter.isEmpty())
+        return true;
+
+    const QStringList tokens = filter.split(u' ', Qt::SkipEmptyParts);
+    for (const QString &token : tokens) {
+        if (!name.contains(token, Qt::CaseInsensitive))
+            return false;
+    }
+    return true;
+}
+
+static QVariantMap channelToMap(const ChannelInfo &ch)
+{
+    return {
+        {"id", ch.id},
+        {"name", ch.name},
+        {"url", ch.url},
+        {"logo", ch.logo},
+        {"group", ch.group},
+        {"playlistId", ch.playlistId},
+        {"isFavorite", ch.isFavorite},
+        {"channelId", ch.channelId}
+    };
+}
+
 QVariantMap ChannelListModel::get(int index) const
 {
-    QVariantMap map;
     if (index < 0 || index >= m_filtered.size())
-        return map;
+        return {};
+    return channelToMap(m_filtered[index]);
+}
 
-    const auto &ch = m_filtered[index];
-    map["id"] = ch.id;
-    map["name"] = ch.name;
-    map["url"] = ch.url;
-    map["logo"] = ch.logo;
-    map["group"] = ch.group;
-    map["playlistId"] = ch.playlistId;
-    map["isFavorite"] = ch.isFavorite;
-    map["channelId"] = ch.channelId;
-    return map;
+QVariantMap ChannelListModel::channelAfter(const QString &url, int direction) const
+{
+    const int count = m_filtered.size();
+    if (count == 0 || direction == 0)
+        return {};
+
+    const int currentIdx = m_urlToFiltered.value(url, -1);
+    const int targetIdx = currentIdx < 0
+        ? (direction > 0 ? 0 : count - 1)
+        : ((currentIdx + direction) % count + count) % count;
+
+    return channelToMap(m_filtered[targetIdx]);
 }
 
 void ChannelListModel::refresh()
@@ -96,9 +127,11 @@ static ChannelListModel::GroupingResult buildGroupingResult(
             groupSet.insert(ch.group);
 
         auto info = ChannelGrouper::analyzeWithPattern(ch.name, pattern);
-        result.channelBaseName[i] = info.baseName;
+        // Clef repliee : "TF1 HD" et "tf1 FHD" appartiennent au meme groupe.
+        const QString key = info.baseName.toCaseFolded();
+        result.channelBaseName[i] = key;
         result.channelVariantLabel[i] = info.label;
-        result.baseNameToChannels[info.baseName].append(i);
+        result.baseNameToChannels[key].append(i);
     }
 
     for (auto it = result.baseNameToChannels.begin();
@@ -107,7 +140,7 @@ static ChannelListModel::GroupingResult buildGroupingResult(
             result.multiVariantBaseNames.insert(it.key());
     }
 
-    qDebug() << "[PERF] Grouping:" << timer.elapsed() << "ms for" << channels.size() << "channels"
+    qCDebug(logPerf) << "[PERF] Grouping:" << timer.elapsed() << "ms for" << channels.size() << "channels"
              << "-" << result.multiVariantBaseNames.size() << "multi-variant groups";
 
     result.groups = groupSet.values();
@@ -119,12 +152,12 @@ static ChannelListModel::GroupingResult buildGroupingResult(
 
 void ChannelListModel::setChannels(int playlistId)
 {
-    qDebug() << "[MODEL] setChannels(playlistId=" << playlistId << ") — querying DB";
+    qCDebug(logModel) << "[MODEL] setChannels(playlistId=" << playlistId << ") — querying DB";
     QElapsedTimer dbTimer;
     dbTimer.start();
     auto channels = DatabaseManager::instance().getChannels(playlistId);
-    qDebug() << "[PERF] DB query:" << dbTimer.elapsed() << "ms for" << channels.size() << "channels";
-    qDebug() << "[MODEL] DB returned" << channels.size() << "channels";
+    qCDebug(logPerf) << "[PERF] DB query:" << dbTimer.elapsed() << "ms for" << channels.size() << "channels";
+    qCDebug(logModel) << "[MODEL] DB returned" << channels.size() << "channels";
     setChannels(channels);
 }
 
@@ -132,6 +165,11 @@ void ChannelListModel::setChannels(const QList<ChannelInfo> &channels)
 {
     m_channels = channels;
     int gen = ++m_loadGeneration;
+
+    m_urlToChannel.clear();
+    m_urlToChannel.reserve(m_channels.size());
+    for (int i = 0; i < m_channels.size(); ++i)
+        m_urlToChannel.insert(m_channels[i].url, i);
 
     // Populate view immediately (filter doesn't depend on grouping)
     applyFilter();
@@ -145,12 +183,12 @@ void ChannelListModel::setChannels(const QList<ChannelInfo> &channels)
         watcher->deleteLater();
 
         if (gen != m_loadGeneration) {
-            qDebug() << "[MODEL] ignoring stale load (gen" << gen << "!= current" << m_loadGeneration << ")";
+            qCDebug(logModel) << "[MODEL] ignoring stale load (gen" << gen << "!= current" << m_loadGeneration << ")";
             return;
         }
 
         applyGrouping(result);
-        qDebug() << "[PERF] Apply grouping to model:" << applyTimer.elapsed() << "ms";
+        qCDebug(logPerf) << "[PERF] Apply grouping to model:" << applyTimer.elapsed() << "ms";
     });
 
     QList<ChannelInfo> channelsCopy = m_channels;
@@ -234,19 +272,15 @@ void ChannelListModel::applyFilter()
 {
     beginResetModel();
     m_filtered.clear();
+    m_urlToFiltered.clear();
 
     for (const auto &ch : m_channels) {
-        bool matchGroup = m_filterGroup.isEmpty() || ch.group == m_filterGroup;
-        bool matchText = m_filterText.isEmpty();
-        if (!matchText) {
-            const QStringList tokens = m_filterText.split(' ', Qt::SkipEmptyParts);
-            matchText = true;
-            for (const auto &token : tokens)
-                matchText &= ch.name.contains(token, Qt::CaseInsensitive);
-        }
+        const bool matchGroup = m_filterGroup.isEmpty() || ch.group == m_filterGroup;
 
-        if (matchGroup && matchText)
+        if (matchGroup && matchesFilter(ch.name, m_filterText)) {
+            m_urlToFiltered.insert(ch.url, m_filtered.size());
             m_filtered.append(ch);
+        }
     }
 
     endResetModel();
@@ -263,13 +297,7 @@ void ChannelListModel::rebuildGroups()
 
 QVariantList ChannelListModel::getVariantsForUrl(const QString &url) const
 {
-    int channelIdx = -1;
-    for (int i = 0; i < m_channels.size(); ++i) {
-        if (m_channels[i].url == url) {
-            channelIdx = i;
-            break;
-        }
-    }
+    const int channelIdx = m_urlToChannel.value(url, -1);
     if (channelIdx < 0)
         return {};
 
@@ -295,22 +323,18 @@ QVariantList ChannelListModel::getVariantsForUrl(const QString &url) const
 
 QString ChannelListModel::getVariantLabelForUrl(const QString &url) const
 {
-    for (int i = 0; i < m_channels.size(); ++i) {
-        if (m_channels[i].url == url)
-            return m_channelVariantLabel.value(i, "");
-    }
-    return "";
+    const int idx = m_urlToChannel.value(url, -1);
+    return idx < 0 ? QString() : m_channelVariantLabel.value(idx, QString());
 }
 
 bool ChannelListModel::channelHasVariants(const QString &url) const
 {
-    for (int i = 0; i < m_channels.size(); ++i) {
-        if (m_channels[i].url == url) {
-            QString baseName = m_channelBaseName.value(i);
-            return !baseName.isEmpty() && m_multiVariantBaseNames.contains(baseName);
-        }
-    }
-    return false;
+    const int idx = m_urlToChannel.value(url, -1);
+    if (idx < 0)
+        return false;
+
+    const QString baseName = m_channelBaseName.value(idx);
+    return !baseName.isEmpty() && m_multiVariantBaseNames.contains(baseName);
 }
 
 void ChannelListModel::setCustomSuffixes(const QStringList &suffixes)
@@ -318,7 +342,7 @@ void ChannelListModel::setCustomSuffixes(const QStringList &suffixes)
     if (m_customSuffixes == suffixes)
         return;
     m_customSuffixes = suffixes;
-    DatabaseManager::instance().setCache("custom_suffixes", suffixes.join(","));
+    DatabaseManager::instance().setSetting("custom_suffixes", suffixes.join(","));
     rebuildGroups();
     emit customSuffixesChanged();
 }

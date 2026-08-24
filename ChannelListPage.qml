@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 
 Rectangle {
@@ -8,6 +7,15 @@ Rectangle {
 
     signal channelSelected(string name, string url, string logo, string group)
 
+    property string searchText: ""
+
+    // ChannelListModel est partage par les onglets : chaque page reapplique son
+    // propre filtre quand elle redevient visible.
+    function activate() {
+        ChannelListModel.filterGroup = ""
+        ChannelListModel.filterText = searchText
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
@@ -15,7 +23,10 @@ Rectangle {
         ChannelSearchBar {
             searchPlaceholder: qsTr("Search channels...")
             countText: ChannelListModel.count + " " + qsTr("channels")
-            onSearchChanged: ChannelListModel.filterText = text
+            onSearchChanged: function(text) {
+                root.searchText = text
+                ChannelListModel.filterText = text
+            }
         }
 
         Item { Layout.preferredHeight: 8 }
@@ -29,8 +40,5 @@ Rectangle {
         }
     }
 
-    Component.onCompleted: {
-        ChannelListModel.filterGroup = ""
-        ChannelListModel.refresh()
-    }
+    Component.onCompleted: activate()
 }

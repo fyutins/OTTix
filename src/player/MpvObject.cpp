@@ -1,10 +1,13 @@
 #include "MpvObject.h"
+#include "../utils/Logging.h"
 #include "MpvRenderer.h"
+#include "../utils/LogUtils.h"
 
 #include <QDebug>
 #include <QDateTime>
 #include <QTimerEvent>
 
+#if HAS_MPV
 static const char *mpvEventName(mpv_event_id id)
 {
     switch (id) {
@@ -24,6 +27,7 @@ static const char *mpvEventName(mpv_event_id id)
     default: return "UNKNOWN";
     }
 }
+#endif
 
 MpvObject::MpvObject(QQuickItem *parent)
     : QQuickFramebufferObject(parent)
@@ -31,13 +35,17 @@ MpvObject::MpvObject(QQuickItem *parent)
 #if HAS_MPV
     setMirrorVertically(true);
 
-    qDebug() << "[MPV] Creating mpv handle...";
+    qCDebug(logMpv) << "[MPV] Creating mpv handle...";
     m_mpv = mpv_create();
     if (!m_mpv) {
         qFatal("[MPV] Failed to create mpv handle");
         return;
     }
-    qDebug() << "[MPV] mpv handle created:" << m_mpv;
+    m_mpvOwner = std::shared_ptr<mpv_handle>(m_mpv, [](mpv_handle *handle) {
+        if (handle)
+            mpv_terminate_destroy(handle);
+    });
+    qCDebug(logMpv) << "[MPV] mpv handle created:" << m_mpv;
 
     mpv_set_option_string(m_mpv, "vo", "libmpv");
     mpv_set_option_string(m_mpv, "hwdec", m_hwdec.toUtf8().constData());
@@ -52,7 +60,7 @@ MpvObject::MpvObject(QQuickItem *parent)
         qFatal("[MPV] mpv_initialize failed");
         return;
     }
-    qDebug() << "[MPV] mpv initialized successfully";
+    qCDebug(logMpv) << "[MPV] mpv initialized successfully";
 
     mpv_set_wakeup_callback(m_mpv, onMpvWakeup, this);
     updateProperties();
@@ -66,12 +74,17 @@ MpvObject::MpvObject(QQuickItem *parent)
 MpvObject::~MpvObject()
 {
 #if HAS_MPV
-    qDebug() << "[MPV] Destroying MpvObject";
+    qCDebug(logMpv) << "[MPV] Destroying MpvObject";
     if (m_mpv) {
+        // Plus personne ne doit rappeler cet objet apres sa destruction.
+        mpv_set_wakeup_callback(m_mpv, nullptr, nullptr);
         const char *stop_cmd[] = {"stop", nullptr};
         mpv_command(m_mpv, stop_cmd);
-        mpv_terminate_destroy(m_mpv);
+        m_mpv = nullptr;
     }
+    // Le handle n'est reellement detruit que quand le renderer a lache sa
+    // reference, donc apres mpv_render_context_free().
+    m_mpvOwner.reset();
 #endif
 }
 
@@ -86,9 +99,10 @@ QQuickFramebufferObject::Renderer *MpvObject::createRenderer() const
 
 void MpvObject::setSource(const QString &source)
 {
-    qDebug() << "[MPV] setSource:" << source << "(current:" << m_source << ")";
+    qCDebug(logMpv) << "[MPV] setSource:" << LogUtils::scrubUrl(source)
+             << "(current:" << LogUtils::scrubUrl(m_source) << ")";
     if (m_source == source) {
-        qDebug() << "[MPV] setSource: same source, forcing reload";
+        qCDebug(logMpv) << "[MPV] setSource: same source, forcing reload";
         loadUrl(source);
         return;
     }
@@ -100,41 +114,41 @@ void MpvObject::setSource(const QString &source)
 
 void MpvObject::play()
 {
-    qDebug() << "[MPV] play()";
+    qCDebug(logMpv) << "[MPV] play()";
     m_lastTickTime = QDateTime::currentMSecsSinceEpoch();
 #if HAS_MPV
     int flag = 0;
     int r = mpv_set_property(m_mpv, "pause", MPV_FORMAT_FLAG, &flag);
-    qDebug() << "[MPV] mpv_set_property(pause=0) returned:" << r;
-    if (r < 0) qDebug() << "[MPV] ERROR:" << mpv_error_string(r);
+    qCDebug(logMpv) << "[MPV] mpv_set_property(pause=0) returned:" << r;
+    if (r < 0) qCDebug(logMpv) << "[MPV] ERROR:" << mpv_error_string(r);
 #endif
 }
 
 void MpvObject::pause()
 {
-    qDebug() << "[MPV] pause()";
+    qCDebug(logMpv) << "[MPV] pause()";
 #if HAS_MPV
     int flag = 1;
     int r = mpv_set_property(m_mpv, "pause", MPV_FORMAT_FLAG, &flag);
-    qDebug() << "[MPV] mpv_set_property(pause=1) returned:" << r;
-    if (r < 0) qDebug() << "[MPV] ERROR:" << mpv_error_string(r);
+    qCDebug(logMpv) << "[MPV] mpv_set_property(pause=1) returned:" << r;
+    if (r < 0) qCDebug(logMpv) << "[MPV] ERROR:" << mpv_error_string(r);
 #endif
 }
 
 void MpvObject::stop()
 {
-    qDebug() << "[MPV] stop()";
+    qCDebug(logMpv) << "[MPV] stop()";
 #if HAS_MPV
     const char *stop_cmd[] = {"stop", nullptr};
     int r = mpv_command(m_mpv, stop_cmd);
-    qDebug() << "[MPV] mpv_command(stop) returned:" << r;
-    if (r < 0) qDebug() << "[MPV] ERROR:" << mpv_error_string(r);
+    qCDebug(logMpv) << "[MPV] mpv_command(stop) returned:" << r;
+    if (r < 0) qCDebug(logMpv) << "[MPV] ERROR:" << mpv_error_string(r);
 #endif
 }
 
 void MpvObject::seek(double position)
 {
-    qDebug() << "[MPV] seek() called with position =" << position
+    qCDebug(logMpv) << "[MPV] seek() called with position =" << position
              << "| sessionDuration =" << m_sessionDuration
              << "| sessionPosition (current) =" << m_sessionPosition
              << "| m_position (mpv time-pos) =" << m_position;
@@ -144,13 +158,13 @@ void MpvObject::seek(double position)
     m_lastTickTime = QDateTime::currentMSecsSinceEpoch();
     emit sessionPositionChanged(sessionTarget);
 #if HAS_MPV
-    qDebug() << "[MPV] seek -> sessionTarget =" << sessionTarget
+    qCDebug(logMpv) << "[MPV] seek -> sessionTarget =" << sessionTarget
              << "| delta (relative) =" << delta;
     QString cmd = QString::number(delta);
     QByteArray ba = cmd.toUtf8();
     const char *args[] = {"seek", ba.constData(), "relative", nullptr};
     int r = mpv_command(m_mpv, args);
-    qDebug() << "[MPV] seek mpv_command returned:" << r
+    qCDebug(logMpv) << "[MPV] seek mpv_command returned:" << r
              << (r < 0 ? mpv_error_string(r) : "");
 #else
     Q_UNUSED(position)
@@ -188,15 +202,15 @@ void MpvObject::setPlaybackSpeed(double speed)
 
 void MpvObject::loadFile(const QString &path)
 {
-    qDebug() << "[MPV] loadFile:" << path;
+    qCDebug(logMpv) << "[MPV] loadFile:" << LogUtils::scrubUrl(path);
     m_source = path;
     emit sourceChanged();
 #if HAS_MPV
     QByteArray ba = path.toUtf8();
     const char *args[] = {"loadfile", ba.constData(), nullptr};
     int r = mpv_command(m_mpv, args);
-    qDebug() << "[MPV] mpv_command(loadfile) returned:" << r;
-    if (r < 0) qDebug() << "[MPV] ERROR:" << mpv_error_string(r);
+    qCDebug(logMpv) << "[MPV] mpv_command(loadfile) returned:" << r;
+    if (r < 0) qCDebug(logMpv) << "[MPV] ERROR:" << mpv_error_string(r);
 #else
     Q_UNUSED(path)
 #endif
@@ -204,15 +218,15 @@ void MpvObject::loadFile(const QString &path)
 
 void MpvObject::loadUrl(const QString &url)
 {
-    qDebug() << "[MPV] loadUrl:" << url;
+    qCDebug(logMpv) << "[MPV] loadUrl:" << LogUtils::scrubUrl(url);
     m_source = url;
     emit sourceChanged();
 #if HAS_MPV
     QByteArray ba = url.toUtf8();
     const char *args[] = {"loadfile", ba.constData(), nullptr};
     int r = mpv_command(m_mpv, args);
-    qDebug() << "[MPV] mpv_command(loadfile) returned:" << r;
-    if (r < 0) qDebug() << "[MPV] ERROR:" << mpv_error_string(r);
+    qCDebug(logMpv) << "[MPV] mpv_command(loadfile) returned:" << r;
+    if (r < 0) qCDebug(logMpv) << "[MPV] ERROR:" << mpv_error_string(r);
 #else
     Q_UNUSED(url)
 #endif
@@ -220,13 +234,13 @@ void MpvObject::loadUrl(const QString &url)
 
 void MpvObject::clearVideo()
 {
-    qDebug() << "[MPV] clearVideo - clearing frame buffer";
+    qCDebug(logMpv) << "[MPV] clearVideo - clearing frame buffer";
     m_clearFrame = true;
 }
 
 void MpvObject::reload()
 {
-    qDebug() << "[MPV] reload() - restarting current stream:" << m_source;
+    qCDebug(logMpv) << "[MPV] reload() - restarting current stream:" << LogUtils::scrubUrl(m_source);
 #if HAS_MPV
     if (!m_mpv || m_source.isEmpty())
         return;
@@ -239,29 +253,22 @@ void MpvObject::reload()
 #endif
 }
 
+#if HAS_MPV
 void MpvObject::enqueueCommand(std::function<void(mpv_handle *)> cmd)
 {
-#if HAS_MPV
     QMutexLocker lock(&m_mutex);
     m_commandQueue.enqueue(std::move(cmd));
-#else
-    Q_UNUSED(cmd)
-#endif
 }
 
 bool MpvObject::dequeueCommand(std::function<void(mpv_handle *)> &cmd)
 {
-#if HAS_MPV
     QMutexLocker lock(&m_mutex);
     if (m_commandQueue.isEmpty())
         return false;
     cmd = m_commandQueue.dequeue();
     return true;
-#else
-    Q_UNUSED(cmd)
-    return false;
-#endif
 }
+#endif
 
 #if HAS_MPV
 void MpvObject::onMpvWakeup(void *ctx)
@@ -273,7 +280,7 @@ void MpvObject::onMpvWakeup(void *ctx)
 void MpvObject::handleMpvEvents()
 {
     if (!m_mpv) {
-        qDebug() << "[MPV] handleMpvEvents: m_mpv is null, returning";
+        qCDebug(logMpv) << "[MPV] handleMpvEvents: m_mpv is null, returning";
         return;
     }
 
@@ -291,16 +298,16 @@ void MpvObject::onMpvEvent(mpv_event *event)
 {
     switch (event->event_id) {
     case MPV_EVENT_SHUTDOWN:
-        qDebug() << "[MPV] SHUTDOWN received";
+        qCDebug(logMpv) << "[MPV] SHUTDOWN received";
         break;
     case MPV_EVENT_START_FILE: {
-        qDebug() << "[MPV] START_FILE - mpv started loading file";
+        qCDebug(logMpv) << "[MPV] START_FILE - mpv started loading file";
         m_loading = true;
         emit loadingChanged();
         break;
     }
     case MPV_EVENT_FILE_LOADED: {
-        qDebug() << "[MPV] FILE_LOADED - file loaded successfully";
+        qCDebug(logMpv) << "[MPV] FILE_LOADED - file loaded successfully";
         m_loading = false;
         m_playing = true;
         m_clearFrame = false;
@@ -317,17 +324,17 @@ void MpvObject::onMpvEvent(mpv_event *event)
     }
 
     case MPV_EVENT_PLAYBACK_RESTART:
-        qDebug() << "[MPV] PLAYBACK_RESTART - playback started/resumed"
+        qCDebug(logMpv) << "[MPV] PLAYBACK_RESTART - playback started/resumed"
                  << "| m_position =" << m_position
                  << "| sessionPosition =" << m_sessionPosition;
         m_playing = true;
         emit playingChanged();
         break;
     case MPV_EVENT_VIDEO_RECONFIG:
-        qDebug() << "[MPV] VIDEO_RECONFIG - video parameters changed";
+        qCDebug(logMpv) << "[MPV] VIDEO_RECONFIG - video parameters changed";
         break;
     case MPV_EVENT_AUDIO_RECONFIG:
-        qDebug() << "[MPV] AUDIO_RECONFIG - audio parameters changed";
+        qCDebug(logMpv) << "[MPV] AUDIO_RECONFIG - audio parameters changed";
         break;
     case MPV_EVENT_END_FILE: {
         m_playing = false;
@@ -335,7 +342,7 @@ void MpvObject::onMpvEvent(mpv_event *event)
         emit playingChanged();
         emit loadingChanged();
         mpv_event_end_file *ef = (mpv_event_end_file *)event->data;
-        qDebug() << "[MPV] END_FILE reason:" << ef->reason << "error:" << ef->error;
+        qCDebug(logMpv) << "[MPV] END_FILE reason:" << ef->reason << "error:" << ef->error;
         if (ef->reason == MPV_END_FILE_REASON_ERROR)
             emit errorOccurred(tr("Playback error: %1").arg(ef->error));
         else
@@ -344,20 +351,6 @@ void MpvObject::onMpvEvent(mpv_event *event)
     }
     case MPV_EVENT_PROPERTY_CHANGE: {
         mpv_event_property *prop = (mpv_event_property *)event->data;
-        QString val;
-        if (prop->data) {
-            if (prop->format == MPV_FORMAT_DOUBLE)
-                val = QString::number(*(double *)prop->data);
-            else if (prop->format == MPV_FORMAT_FLAG)
-                val = *(int *)prop->data ? "true" : "false";
-            else if (prop->format == MPV_FORMAT_STRING)
-                val = *(const char **)prop->data;
-            else
-                val = "(format:" + QString::number(prop->format) + ")";
-        } else {
-            val = "(null)";
-        }
-
         if (strcmp(prop->name, "time-pos") == 0 && prop->format == MPV_FORMAT_DOUBLE && prop->data) {
             m_position = *(double *)prop->data;
             emit positionChanged(m_position);
@@ -372,7 +365,7 @@ void MpvObject::onMpvEvent(mpv_event *event)
             emit mutedChanged(m_muted);
         } else if (strcmp(prop->name, "pause") == 0 && prop->format == MPV_FORMAT_FLAG && prop->data) {
             m_playing = !*(int *)prop->data;
-            qDebug() << "[MPV] pause changed, playing now:" << m_playing;
+            qCDebug(logMpv) << "[MPV] pause changed, playing now:" << m_playing;
             emit playingChanged();
         } else if (strcmp(prop->name, "speed") == 0 && prop->format == MPV_FORMAT_DOUBLE && prop->data) {
             m_speed = *(double *)prop->data;
@@ -383,14 +376,14 @@ void MpvObject::onMpvEvent(mpv_event *event)
         break;
     }
     default:
-        qDebug() << "[MPV] Unhandled event:" << mpvEventName(event->event_id);
+        qCDebug(logMpv) << "[MPV] Unhandled event:" << mpvEventName(event->event_id);
         break;
     }
 }
 
 void MpvObject::updateProperties()
 {
-    qDebug() << "[MPV] updateProperties: observing properties";
+    qCDebug(logMpv) << "[MPV] updateProperties: observing properties";
     mpv_observe_property(m_mpv, 0, "time-pos", MPV_FORMAT_DOUBLE);
     mpv_observe_property(m_mpv, 0, "duration", MPV_FORMAT_DOUBLE);
     mpv_observe_property(m_mpv, 0, "volume", MPV_FORMAT_DOUBLE);
@@ -403,7 +396,7 @@ void MpvObject::updateProperties()
     mpv_get_property(m_mpv, "volume", MPV_FORMAT_DOUBLE, &vol);
     m_volume = static_cast<int>(vol);
     emit volumeChanged(m_volume);
-    qDebug() << "[MPV] Initial volume:" << m_volume;
+    qCDebug(logMpv) << "[MPV] Initial volume:" << m_volume;
 }
 
 void MpvObject::updateTrackList()
@@ -470,16 +463,21 @@ void MpvObject::updateTrackList()
 
 void MpvObject::setAudioTrack(int trackId)
 {
-    qDebug() << "[MPV] setAudioTrack:" << trackId;
+    qCDebug(logMpv) << "[MPV] setAudioTrack:" << trackId;
+#if HAS_MPV
     enqueueCommand([trackId](mpv_handle *mpv) {
         int64_t id = trackId;
         mpv_set_property(mpv, "audio", MPV_FORMAT_INT64, &id);
     });
+#else
+    Q_UNUSED(trackId)
+#endif
 }
 
 void MpvObject::setSubtitleTrack(int trackId)
 {
-    qDebug() << "[MPV] setSubtitleTrack:" << trackId;
+    qCDebug(logMpv) << "[MPV] setSubtitleTrack:" << trackId;
+#if HAS_MPV
     enqueueCommand([trackId](mpv_handle *mpv) {
         if (trackId < 0) {
             const char *args[] = {"set", "sub", "no", nullptr};
@@ -489,15 +487,22 @@ void MpvObject::setSubtitleTrack(int trackId)
             mpv_set_property(mpv, "sub", MPV_FORMAT_INT64, &id);
         }
     });
+#else
+    Q_UNUSED(trackId)
+#endif
 }
 
 void MpvObject::setVideoTrack(int trackId)
 {
-    qDebug() << "[MPV] setVideoTrack:" << trackId;
+    qCDebug(logMpv) << "[MPV] setVideoTrack:" << trackId;
+#if HAS_MPV
     enqueueCommand([trackId](mpv_handle *mpv) {
         int64_t id = trackId;
         mpv_set_property(mpv, "video", MPV_FORMAT_INT64, &id);
     });
+#else
+    Q_UNUSED(trackId)
+#endif
 }
 
 void MpvObject::setHwdec(const QString &hwdec)
@@ -510,7 +515,7 @@ void MpvObject::setHwdec(const QString &hwdec)
     QByteArray ba = hwdec.toUtf8();
     int r = mpv_set_property_string(m_mpv, "hwdec", ba.constData());
     if (r < 0)
-        qDebug() << "[MPV] setHwdec error:" << mpv_error_string(r);
+        qCDebug(logMpv) << "[MPV] setHwdec error:" << mpv_error_string(r);
 #endif
 }
 

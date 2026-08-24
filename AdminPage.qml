@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -119,6 +120,10 @@ Rectangle {
                         id: playlistDelegate
 
                         Rectangle {
+                            id: playlistRow
+
+                            required property var model
+
                             width: ListView.view.width
                             height: 60
                             color: "#16213e"
@@ -135,14 +140,14 @@ Rectangle {
                                     spacing: 4
 
                                     Label {
-                                        text: model.name
+                                        text: playlistRow.model.name
                                         color: "#e0e0e0"
                                         font.pixelSize: 16
                                         font.bold: true
                                     }
 
                                     Label {
-                                        text: model.type + " \u00B7 " + model.channelCount + " " + qsTr("channels")
+                                        text: playlistRow.model.type + " \u00B7 " + playlistRow.model.channelCount + " " + qsTr("channels")
                                         color: "#a0a0a0"
                                         font.pixelSize: 12
                                     }
@@ -151,27 +156,27 @@ Rectangle {
                                 Button {
                                     text: qsTr("Load")
                                     onClicked: {
-                                        if (model.type === "m3u")
-                                            loader.loadM3U(model.playlistId, model.url)
-                                        else if (model.type === "xtream")
-                                            loader.loadXtream(model.playlistId, model.url,
-                                                               model.username, model.password)
+                                        if (playlistRow.model.type === "m3u")
+                                            loader.loadM3U(playlistRow.model.playlistId, playlistRow.model.url)
+                                        else if (playlistRow.model.type === "xtream")
+                                            loader.loadXtream(playlistRow.model.playlistId, playlistRow.model.url,
+                                                               playlistRow.model.username, playlistRow.model.password)
                                     }
                                 }
 
                                 Button {
                                     text: qsTr("Edit")
                                     onClicked: {
-                                        playlistDialog.openForEdit(model.playlistId,
-                                            model.name, model.url, model.type,
-                                            model.username, model.password)
+                                        playlistDialog.openForEdit(playlistRow.model.playlistId,
+                                            playlistRow.model.name, playlistRow.model.url, playlistRow.model.type,
+                                            playlistRow.model.username, playlistRow.model.password)
                                     }
                                 }
 
                                 Button {
                                     text: qsTr("Delete")
                                     onClicked: {
-                                        PlaylistModel.removePlaylist(model.playlistId)
+                                        PlaylistModel.removePlaylist(playlistRow.model.playlistId)
                                     }
                                 }
                             }
@@ -193,10 +198,11 @@ Rectangle {
                     spacing: 16
 
                     GroupBox {
+                        id: dbGroup
                         title: qsTr("Database")
                         Layout.fillWidth: true
                         label: Label {
-                            text: parent.title
+                            text: dbGroup.title
                             color: "#e0e0e0"
                             font.bold: true
                         }
@@ -223,10 +229,11 @@ Rectangle {
                     }
 
                     GroupBox {
+                        id: suffixGroup
                         title: qsTr("Quality Suffixes")
                         Layout.fillWidth: true
                         label: Label {
-                            text: parent.title
+                            text: suffixGroup.title
                             color: "#e0e0e0"
                             font.bold: true
                         }
@@ -253,6 +260,11 @@ Rectangle {
                                 visible: suffixListModel.count > 0
 
                                 delegate: Rectangle {
+                                    id: suffixRow
+
+                                    required property string suffix
+                                    required property int index
+
                                     width: suffixListView.width
                                     height: 28
                                     color: "transparent"
@@ -264,7 +276,7 @@ Rectangle {
                                         spacing: 8
 
                                         Text {
-                                            text: modelData
+                                            text: suffixRow.suffix
                                             color: "#e0e0e0"
                                             font.pixelSize: 12
                                             font.bold: true
@@ -294,9 +306,9 @@ Rectangle {
                                                 cursorShape: Qt.PointingHandCursor
                                                 onClicked: {
                                                     var arr = ChannelListModel.customSuffixes
-                                                    arr.splice(index, 1)
+                                                    arr.splice(suffixRow.index, 1)
                                                     ChannelListModel.customSuffixes = arr
-                                                    refreshSuffixList()
+                                                    suffixGroup.refreshSuffixList()
                                                 }
                                             }
                                         }
@@ -326,13 +338,13 @@ Rectangle {
                                         border.color: suffixInput.activeFocus ? "#4a90d9" : "#0f3460"
                                         border.width: 1
                                     }
-                                    onAccepted: addSuffix()
+                                    onAccepted: suffixGroup.addSuffix()
                                 }
 
                                 Button {
                                     text: qsTr("Add")
                                     enabled: suffixInput.text.trim().length > 0
-                                    onClicked: addSuffix()
+                                    onClicked: suffixGroup.addSuffix()
                                 }
                             }
 
@@ -348,26 +360,27 @@ Rectangle {
                                 ChannelListModel.customSuffixes = arr
                             }
                             suffixInput.text = ""
-                            refreshSuffixList()
+                            suffixGroup.refreshSuffixList()
                         }
 
                         function refreshSuffixList() {
                             suffixListModel.clear()
                             var arr = ChannelListModel.customSuffixes
                             for (var i = 0; i < arr.length; i++)
-                                suffixListModel.append({})
+                                suffixListModel.append({ suffix: arr[i] })
                         }
 
                         ListModel { id: suffixListModel }
 
-                        Component.onCompleted: refreshSuffixList()
+                        Component.onCompleted: suffixGroup.refreshSuffixList()
                     }
 
                     GroupBox {
+                        id: aboutGroup
                         title: qsTr("About")
                         Layout.fillWidth: true
                         label: Label {
-                            text: parent.title
+                            text: aboutGroup.title
                             color: "#e0e0e0"
                             font.bold: true
                         }

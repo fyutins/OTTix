@@ -22,4 +22,7 @@ private:
 
     QTimer m_refreshTimer;
     bool m_inhibited = false;
+#ifdef HAS_DBUS
+    quint32 m_cookie = 0;
+#endif
 };

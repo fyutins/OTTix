@@ -14,6 +14,9 @@ Window {
     property bool showPlayer: false
     property bool showAdmin: false
 
+    property int activePlaylistId: -1
+    property bool refreshing: false
+
     property int multiplexMode: 1
     property int activeAudioSlot: 0
     property int pendingPickSlot: -1
@@ -68,29 +71,12 @@ Window {
     }
 
     function navigateChannel(direction) {
-        var slot = activeAudioSlot
-        var url = slotChannels[slot].url
+        var url = slotChannels[activeAudioSlot].url
         if (!url) return
 
-        var count = ChannelListModel.count
-        if (count === 0) return
+        var next = ChannelListModel.channelAfter(url, direction)
+        if (!next || !next.url) return
 
-        var currentIdx = -1
-        for (var i = 0; i < count; i++) {
-            var ch = ChannelListModel.get(i)
-            if (ch.url === url) {
-                currentIdx = i
-                break
-            }
-        }
-
-        var targetIdx
-        if (currentIdx < 0)
-            targetIdx = direction > 0 ? 0 : count - 1
-        else
-            targetIdx = (currentIdx + direction + count) % count
-
-        var next = ChannelListModel.get(targetIdx)
         handleChannelSelected(next.name, next.url, next.logo, next.group)
     }
 
@@ -106,11 +92,38 @@ Window {
     PlaylistLoader {
         id: loader
         onLoadComplete: (playlistId, channelCount) => {
+            window.refreshing = false
             ChannelListModel.setChannels(playlistId)
-            tabBar.currentIndex = 0
         }
         onLoadError: (playlistId, error) => {
-            console.log("Playlist load error:", error)
+            window.refreshing = false
+            // Les chaines deja en base restent affichees : un refresh rate
+            // n'est pas bloquant.
+            console.warn("Playlist refresh failed:", error)
+        }
+    }
+
+    // Recharge une playlist depuis le reseau. Les chaines de la base restent
+    // affichees pendant l'operation.
+    function refreshPlaylist(playlist) {
+        if (!playlist || refreshing)
+            return
+        refreshing = true
+        if (playlist.type === "xtream")
+            loader.loadXtream(playlist.id, playlist.url, playlist.username, playlist.password)
+        else
+            loader.loadM3U(playlist.id, playlist.url)
+    }
+
+    function refreshActivePlaylist() {
+        if (activePlaylistId < 0)
+            return
+        for (var i = 0; i < PlaylistModel.count; i++) {
+            var pl = PlaylistModel.get(i)
+            if (pl && pl.id === activePlaylistId) {
+                refreshPlaylist(pl)
+                return
+            }
         }
     }
 
@@ -119,10 +132,10 @@ Window {
         onActivated: {
             if (window.visibility === Window.FullScreen) {
                 window.visibility = Window.Windowed
-                isFullScreen = false
+                window.isFullScreen = false
             } else {
                 window.visibility = Window.FullScreen
-                isFullScreen = true
+                window.isFullScreen = true
             }
         }
     }
@@ -130,11 +143,11 @@ Window {
     Shortcut {
         sequence: "Escape"
         onActivated: {
-            if (pendingPickSlot >= 0) {
-                pendingPickSlot = -1
+            if (window.pendingPickSlot >= 0) {
+                window.pendingPickSlot = -1
             } else if (window.visibility === Window.FullScreen) {
                 window.visibility = Window.Windowed
-                isFullScreen = false
+                window.isFullScreen = false
             }
         }
     }
@@ -142,7 +155,7 @@ Window {
     Shortcut {
         sequence: "Space"
         onActivated: {
-            if (showPlayer && playerPage.activeSlotItem) {
+            if (window.showPlayer && playerPage.activeSlotItem) {
                 var p = playerPage.activeSlotItem
                 if (p.mpvPlaying)
                     p.doPause()
@@ -154,23 +167,23 @@ Window {
 
     Shortcut {
         sequence: "Left"
-        onActivated: { if (showPlayer) navigateChannel(-1) }
+        onActivated: { if (window.showPlayer) window.navigateChannel(-1) }
     }
 
     Shortcut {
         sequence: "Right"
-        onActivated: { if (showPlayer) navigateChannel(1) }
+        onActivated: { if (window.showPlayer) window.navigateChannel(1) }
     }
 
     // ── Navigation layer ──
     Rectangle {
         anchors.fill: parent
         color: "#1a1a2e"
-        visible: !showPlayer
+        visible: !window.showPlayer
 
         StackLayout {
             anchors.fill: parent
-            currentIndex: showAdmin ? 1 : 0
+            currentIndex: window.showAdmin ? 1 : 0
 
             // Page 0: Main navigation
             ColumnLayout {
@@ -196,6 +209,41 @@ Window {
 
                         Item { Layout.fillWidth: true }
 
+                        Label {
+                            text: qsTr("Updating\u2026")
+                            color: "#a0a0a0"
+                            font.pixelSize: 12
+                            visible: window.refreshing
+                        }
+
+                        Button {
+                            text: "\u21BB"
+                            flat: true
+                            enabled: !window.refreshing && window.activePlaylistId >= 0
+                            implicitWidth: 36
+                            implicitHeight: 36
+                            contentItem: Text {
+                                text: "\u21BB"
+                                color: parent.enabled ? "#e0e0e0" : "#606060"
+                                font.pixelSize: 18
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                            background: Rectangle {
+                                radius: 6
+                                color: refreshBtnMouse.containsMouse ? Qt.rgba(1,1,1,0.1) : "transparent"
+                            }
+                            MouseArea {
+                                id: refreshBtnMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: window.refreshActivePlaylist()
+                            }
+                            ToolTip.visible: refreshBtnMouse.containsMouse
+                            ToolTip.text: qsTr("Refresh the playlist")
+                        }
+
                         Button {
                             text: "\u2699"
                             flat: true
@@ -217,7 +265,7 @@ Window {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: showAdmin = true
+                                onClicked: window.showAdmin = true
                             }
                         }
                     }
@@ -226,8 +274,8 @@ Window {
                 // Pick mode banner
                 Rectangle {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: pendingPickSlot >= 0 ? 40 : 0
-                    visible: pendingPickSlot >= 0
+                    Layout.preferredHeight: window.pendingPickSlot >= 0 ? 40 : 0
+                    visible: window.pendingPickSlot >= 0
                     color: "#0f3460"
                     clip: true
 
@@ -241,7 +289,7 @@ Window {
                         spacing: 8
 
                         Label {
-                            text: qsTr("Select a channel for Player %1").arg(pendingPickSlot + 1)
+                            text: qsTr("Select a channel for Player %1").arg(window.pendingPickSlot + 1)
                             color: "white"
                             font.pixelSize: 13
                             font.bold: true
@@ -262,7 +310,7 @@ Window {
                                 border.width: 1
                                 radius: 4
                             }
-                            onClicked: pendingPickSlot = -1
+                            onClicked: window.pendingPickSlot = -1
                         }
                     }
                 }
@@ -284,27 +332,38 @@ Window {
                     Layout.fillHeight: true
                     currentIndex: tabBar.currentIndex
 
+                    // ChannelListModel etant partage, l'onglet qui devient
+                    // visible reapplique son propre filtre.
+                    onCurrentIndexChanged: {
+                        if (currentIndex === 1)
+                            allChannelsPage.activate()
+                        else if (currentIndex === 2)
+                            groupsPage.activate()
+                    }
+
                     FavoritesPage {
-                        onChannelSelected: (name, url, logo, group) => handleChannelSelected(name, url, logo, group)
+                        onChannelSelected: (name, url, logo, group) => window.handleChannelSelected(name, url, logo, group)
                     }
 
                     ChannelListPage {
-                        onChannelSelected: (name, url, logo, group) => handleChannelSelected(name, url, logo, group)
+                        id: allChannelsPage
+                        onChannelSelected: (name, url, logo, group) => window.handleChannelSelected(name, url, logo, group)
                     }
 
                     GroupsPage {
-                        onChannelSelected: (name, url, logo, group) => handleChannelSelected(name, url, logo, group)
+                        id: groupsPage
+                        onChannelSelected: (name, url, logo, group) => window.handleChannelSelected(name, url, logo, group)
                     }
 
                     HistoryPage {
-                        onChannelSelected: (name, url, logo, group) => handleChannelSelected(name, url, logo, group)
+                        onChannelSelected: (name, url, logo, group) => window.handleChannelSelected(name, url, logo, group)
                     }
                 }
             }
 
             // Page 1: Admin page
             AdminPage {
-                onBackRequested: showAdmin = false
+                onBackRequested: window.showAdmin = false
             }
         }
     }
@@ -313,7 +372,7 @@ Window {
     PlayerPage {
         id: playerPage
         anchors.fill: parent
-        visible: showPlayer
+        visible: window.showPlayer
 
         multiplexMode: window.multiplexMode
         activeAudioSlot: window.activeAudioSlot
@@ -331,21 +390,21 @@ Window {
         onActiveAudioSlotChangeRequested: (slot) => { window.activeAudioSlot = slot }
         onPendingPickSlotChangeRequested: (slot) => { window.pendingPickSlot = slot }
 
-        onCloseRequested: stopPlayback()
-        onNavigateRequested: openChannelSearch()
-        onPrevChannelRequested: navigateChannel(-1)
-        onNextChannelRequested: navigateChannel(1)
+        onCloseRequested: window.stopPlayback()
+        onNavigateRequested: window.openChannelSearch()
+        onPrevChannelRequested: window.navigateChannel(-1)
+        onNextChannelRequested: window.navigateChannel(1)
         onVariantSwitchRequested: (slotIndex, url, name, logo) => {
-            setSlotChannel(slotIndex, name, url, logo, slotChannels[slotIndex].group)
-            DatabaseManager.addHistoryEntry(name, url, logo, slotChannels[slotIndex].group)
+            window.setSlotChannel(slotIndex, name, url, logo, window.slotChannels[slotIndex].group)
+            DatabaseManager.addHistoryEntry(name, url, logo, window.slotChannels[slotIndex].group)
         }
         onToggleFullscreenRequested: {
             if (window.visibility === Window.FullScreen) {
                 window.visibility = Window.Windowed
-                isFullScreen = false
+                window.isFullScreen = false
             } else {
                 window.visibility = Window.FullScreen
-                isFullScreen = true
+                window.isFullScreen = true
             }
         }
     }
@@ -353,21 +412,27 @@ Window {
     // ── Channel search popup ──
     ChannelSearchPopup {
         id: channelSearchPopup
-        onChannelSelected: (name, url, logo, group) => handleChannelSelected(name, url, logo, group)
+        onChannelSelected: (name, url, logo, group) => window.handleChannelSelected(name, url, logo, group)
     }
 
     // ── Initial load ──
+    // DB-first : les chaines deja en base s'affichent immediatement (donc aussi
+    // hors ligne), et le retelechargement n'a lieu que si la playlist est vide
+    // ou perimee.
     Component.onCompleted: {
         PlaylistModel.refresh()
 
-        if (PlaylistModel.count > 0) {
-            var first = PlaylistModel.get(0)
-            if (first) {
-                if (first.type === "xtream")
-                    loader.loadXtream(first.id, first.url, first.username, first.password)
-                else
-                    loader.loadM3U(first.id, first.url)
-            }
-        }
+        if (PlaylistModel.count === 0)
+            return
+
+        var first = PlaylistModel.get(0)
+        if (!first)
+            return
+
+        activePlaylistId = first.id
+        ChannelListModel.setChannels(first.id)
+
+        if (DatabaseManager.needsRefresh(first.id, 24))
+            refreshPlaylist(first)
     }
 }

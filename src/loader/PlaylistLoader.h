@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QtQml/qqmlregistration.h>
+#include <QFutureWatcher>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include "../parser/M3UParser.h"
@@ -40,6 +41,7 @@ private:
     M3UParser *m_m3uParser;
     XtreamApi *m_xtreamApi;
     QNetworkReply *m_currentReply = nullptr;
+    QFutureWatcher<QList<ChannelInfo>> *m_parseWatcher = nullptr;
 
     int m_currentPlaylistId = -1;
     QString m_currentType;

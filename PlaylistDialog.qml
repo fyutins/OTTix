@@ -65,7 +65,7 @@ Dialog {
             Layout.fillWidth: true
             model: ["M3U URL", "XTREAM API"]
             onCurrentIndexChanged: {
-                playlistType = currentIndex === 0 ? "m3u" : "xtream"
+                dialog.playlistType = currentIndex === 0 ? "m3u" : "xtream"
                 xtreamFields.visible = currentIndex === 1
             }
         }

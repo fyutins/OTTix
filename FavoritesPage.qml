@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 
 Rectangle {
@@ -10,17 +9,6 @@ Rectangle {
 
     property string filterText: ""
 
-    function matchesFilter(name, filter) {
-        if (filter === "") return true
-        var tokens = filter.split(" ")
-        for (var t = 0; t < tokens.length; t++) {
-            if (tokens[t] === "") continue
-            if (name.toLowerCase().indexOf(tokens[t].toLowerCase()) === -1)
-                return false
-        }
-        return true
-    }
-
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
@@ -28,10 +16,10 @@ Rectangle {
         ChannelSearchBar {
             id: searchBar
             searchPlaceholder: qsTr("Search favorites...")
-            countText: displayCount + " " + qsTr("favorites")
-            onSearchChanged: {
-                filterText = text
-                refresh()
+            countText: root.displayCount + " " + qsTr("favorites")
+            onSearchChanged: function(text) {
+                root.filterText = text
+                root.refresh()
             }
         }
 
@@ -60,7 +48,7 @@ Rectangle {
         var count = 0
         var favs = DatabaseManager.getFavoritesVariant()
         for (var i = 0; i < favs.length; i++) {
-            if (root.matchesFilter(favs[i].name, root.filterText)) {
+            if (ChannelListModel.matchesFilter(favs[i].name, root.filterText)) {
                 listModel.append(favs[i])
                 count++
             }

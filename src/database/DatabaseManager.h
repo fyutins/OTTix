@@ -120,7 +120,12 @@ public:
     QList<ChannelInfo> getChannels(int playlistId);
     QList<ChannelInfo> searchChannels(const QString &query);
     ChannelInfo getChannel(int id);
-    int channelCount(int playlistId);
+    Q_INVOKABLE int channelCount(int playlistId);
+
+    // Synchronisation des playlists (chargement DB-first)
+    void markPlaylistSynced(int playlistId);
+    Q_INVOKABLE bool needsRefresh(int playlistId, int maxAgeHours = 24);
+    Q_INVOKABLE QString lastSync(int playlistId);
 
     // Favorites
     Q_INVOKABLE bool addFavorite(int channelId);
@@ -142,10 +147,14 @@ signals:
     void databasePathChanged();
 
 public:
-    // Cache
+    // Cache (donnees regenerables uniquement — purgeables a tout moment)
     void setCache(const QString &key, const QString &data);
     QString getCache(const QString &key);
-    void clearCache(int olderThanDays = 7);
+    Q_INVOKABLE void clearCache(int olderThanDays = 7);
+
+    // Settings (reglages utilisateur — jamais purges par clearCache)
+    Q_INVOKABLE void setSetting(const QString &key, const QString &value);
+    Q_INVOKABLE QString getSetting(const QString &key, const QString &defaultValue = QString());
 
 private:
     DatabaseManager();
@@ -154,5 +163,6 @@ private:
     DatabaseManager &operator=(const DatabaseManager &) = delete;
 
     void createTables();
+    void migrateSettingsFromCache();
     QSqlDatabase m_db;
 };

@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 
@@ -12,6 +13,10 @@ GridView {
     signal groupSelected(string groupName)
 
     delegate: Rectangle {
+        id: groupCell
+
+        required property var model
+
         width: root.cellWidth - 12
         height: root.cellHeight - 12
         x: 6
@@ -25,14 +30,14 @@ GridView {
             id: mouseArea
             anchors.fill: parent
             hoverEnabled: true
-            onClicked: root.groupSelected(gName)
+            onClicked: root.groupSelected(groupCell.gName)
         }
 
         Label {
             anchors.left: parent.left
             anchors.leftMargin: 12
             anchors.verticalCenter: parent.verticalCenter
-            text: gName
+            text: groupCell.gName
             color: "#e0e0e0"
             font.pixelSize: 14
             font.bold: true
@@ -55,6 +60,6 @@ GridView {
         text: qsTr("No groups found")
         color: "#808080"
         font.pixelSize: 16
-        visible: parent.count === 0
+        visible: root.count === 0
     }
 }

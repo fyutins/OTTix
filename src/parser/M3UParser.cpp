@@ -1,144 +1,37 @@
 #include "M3UParser.h"
 
 #include <QFile>
-#include <QTextStream>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QEventLoop>
 #include <QRegularExpression>
-#include <QUrlQuery>
-#include <QDebug>
+#include <QTextStream>
 
-M3UParser::M3UParser(QObject *parent)
-    : QObject(parent)
+namespace {
+
+// Le nom de la chaine suit la virgule qui termine la liste d'attributs. Les
+// attributs pouvant contenir des virgules (group-title="Sport, Info"), on
+// cherche la premiere virgule situee apres le dernier guillemet.
+int nameSeparatorIndex(const QString &extinf)
 {
+    const int lastQuote = extinf.lastIndexOf(u'"');
+    const int from = lastQuote >= 0 ? lastQuote + 1 : 0;
+    return extinf.indexOf(u',', from);
 }
 
-QList<ChannelInfo> M3UParser::parse(const QString &filePath)
+ChannelInfo parseExtInf(const QString &extinf, const QString &url)
 {
-    QList<ChannelInfo> channels;
-    QFile file(filePath);
+    static const QRegularExpression logoRegex(QStringLiteral(R"re(tvg-logo="([^"]*)")re"));
+    static const QRegularExpression groupRegex(QStringLiteral(R"re(group-title="([^"]*)")re"));
+    static const QRegularExpression tvgNameRegex(QStringLiteral(R"re(tvg-name="([^"]*)")re"));
+    static const QRegularExpression tvgIdRegex(QStringLiteral(R"re(tvg-id="([^"]*)")re"));
 
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        emit parseError("Cannot open file: " + filePath);
-        return channels;
-    }
-
-    QTextStream stream(&file);
-    stream.setEncoding(QStringConverter::Utf8);
-
-    QString line = stream.readLine().trimmed();
-    if (!line.startsWith("#EXTM3U")) {
-        emit parseError("Invalid M3U file: missing #EXTM3U header");
-        return channels;
-    }
-
-    QString extinfLine;
-    int lineNum = 0;
-
-    while (!stream.atEnd()) {
-        QString line = stream.readLine().trimmed();
-        lineNum++;
-
-        if (line.isEmpty())
-            continue;
-
-        if (line.startsWith("#EXTINF:")) {
-            extinfLine = line;
-        } else if (!line.startsWith("#")) {
-            if (!extinfLine.isEmpty()) {
-                ChannelInfo ch = parseExtInf(extinfLine, line);
-                if (!ch.name.isEmpty()) {
-                    channels.append(ch);
-                }
-                extinfLine.clear();
-            }
-        }
-
-        if (lineNum % 100 == 0)
-            emit parseProgress(channels.size(), 0);
-    }
-
-    file.close();
-    emit parseProgress(channels.size(), channels.size());
-    return channels;
-}
-
-QList<ChannelInfo> M3UParser::parseFromUrl(const QString &url)
-{
-    QList<ChannelInfo> channels;
-    QNetworkAccessManager manager;
-    QNetworkRequest request(url);
-    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-                         QNetworkRequest::NoLessSafeRedirectPolicy);
-
-    QNetworkReply *reply = manager.get(request);
-    QEventLoop loop;
-    QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-    loop.exec();
-
-    if (reply->error() != QNetworkReply::NoError) {
-        emit parseError("Network error: " + reply->errorString());
-        reply->deleteLater();
-        return channels;
-    }
-
-    QByteArray data = reply->readAll();
-    reply->deleteLater();
-
-    QTextStream stream(&data);
-    stream.setEncoding(QStringConverter::Utf8);
-
-    if (stream.readLine().trimmed() != "#EXTM3U") {
-        emit parseError("Invalid M3U data: missing #EXTM3U header");
-        return channels;
-    }
-
-    QString extinfLine;
-
-    while (!stream.atEnd()) {
-        QString line = stream.readLine().trimmed();
-
-        if (line.isEmpty())
-            continue;
-
-        if (line.startsWith("#EXTINF:")) {
-            extinfLine = line;
-        } else if (!line.startsWith("#")) {
-            if (!extinfLine.isEmpty()) {
-                ChannelInfo ch = parseExtInf(extinfLine, line);
-                if (!ch.name.isEmpty()) {
-                    channels.append(ch);
-                }
-                extinfLine.clear();
-            }
-        }
-    }
-
-    emit parseProgress(channels.size(), channels.size());
-    return channels;
-}
-
-ChannelInfo M3UParser::parseExtInf(const QString &extinf, const QString &url)
-{
     ChannelInfo ch;
     ch.url = url;
 
-    // #EXTINF:-1 tvg-id="channel.id" tvg-name="Channel Name" tvg-logo="http://logo.url" group-title="Group",Channel Name
-    static QRegularExpression nameRegex(QStringLiteral(R"delim(,\s*(.+)\s*$)delim"));
-    static QRegularExpression logoRegex(QStringLiteral(R"delim(tvg-logo="([^"]*)")delim"));
-    static QRegularExpression groupRegex(QStringLiteral(R"delim(group-title="([^"]*)")delim"));
-    static QRegularExpression tvgNameRegex(QStringLiteral(R"delim(tvg-name="([^"]*)")delim"));
-    static QRegularExpression tvgIdRegex(QStringLiteral(R"delim(tvg-id="([^"]*)")delim"));
+    const int sep = nameSeparatorIndex(extinf);
+    if (sep >= 0)
+        ch.name = extinf.mid(sep + 1).trimmed();
 
-    QRegularExpressionMatch match;
-
-    match = nameRegex.match(extinf);
-    if (match.hasMatch())
-        ch.name = match.captured(1).trimmed();
-
-    match = tvgNameRegex.match(extinf);
-    if (match.hasMatch())
+    QRegularExpressionMatch match = tvgNameRegex.match(extinf);
+    if (match.hasMatch() && !match.captured(1).trimmed().isEmpty())
         ch.name = match.captured(1).trimmed();
 
     match = logoRegex.match(extinf);
@@ -154,4 +47,58 @@ ChannelInfo M3UParser::parseExtInf(const QString &extinf, const QString &url)
         ch.channelId = match.captured(1);
 
     return ch;
+}
+
+} // namespace
+
+M3UParser::M3UParser(QObject *parent)
+    : QObject(parent)
+{
+}
+
+QList<ChannelInfo> M3UParser::parseBuffer(const QByteArray &data, QString *error)
+{
+    QList<ChannelInfo> channels;
+
+    QTextStream stream(data);
+    stream.setEncoding(QStringConverter::Utf8);
+
+    if (!stream.readLine().trimmed().startsWith("#EXTM3U")) {
+        if (error)
+            *error = QStringLiteral("Invalid M3U data: missing #EXTM3U header");
+        return channels;
+    }
+
+    QString extinfLine;
+    while (!stream.atEnd()) {
+        const QString line = stream.readLine().trimmed();
+        if (line.isEmpty())
+            continue;
+
+        if (line.startsWith("#EXTINF:")) {
+            extinfLine = line;
+        } else if (!line.startsWith("#") && !extinfLine.isEmpty()) {
+            ChannelInfo ch = parseExtInf(extinfLine, line);
+            if (!ch.name.isEmpty())
+                channels.append(ch);
+            extinfLine.clear();
+        }
+    }
+
+    return channels;
+}
+
+QList<ChannelInfo> M3UParser::parse(const QString &filePath)
+{
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        emit parseError("Cannot open file: " + filePath);
+        return {};
+    }
+
+    QString error;
+    QList<ChannelInfo> channels = parseBuffer(file.readAll(), &error);
+    if (!error.isEmpty())
+        emit parseError(error);
+    return channels;
 }

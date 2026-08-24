@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -68,9 +69,9 @@ Rectangle {
         interval: 3000
         onTriggered: {
             if (root.channelUrl !== "") {
-                controlsOpacity = 0.0
-                overlayActive = false
-                hideBlockedUntil = Date.now() + 500
+                root.controlsOpacity = 0.0
+                root.overlayActive = false
+                root.hideBlockedUntil = Date.now() + 500
             }
         }
     }
@@ -97,19 +98,19 @@ Rectangle {
         target: mpvItem
         function onTracksChanged() {
             var at = mpvItem.audioTracks
-            currentAudioTrackLabel = ""
+            root.currentAudioTrackLabel = ""
             for (var i = 0; i < at.length; i++) {
                 if (at[i].selected) {
-                    currentAudioTrackLabel = at[i].lang || at[i].label || ""
+                    root.currentAudioTrackLabel = at[i].lang || at[i].label || ""
                     break
                 }
             }
 
             var st = mpvItem.subtitleTracks
-            currentSubtitleTrackLabel = ""
+            root.currentSubtitleTrackLabel = ""
             for (var j = 0; j < st.length; j++) {
                 if (st[j].selected) {
-                    currentSubtitleTrackLabel = st[j].lang || st[j].label || ""
+                    root.currentSubtitleTrackLabel = st[j].lang || st[j].label || ""
                     break
                 }
             }
@@ -118,7 +119,7 @@ Rectangle {
 
     Item {
         anchors.fill: parent
-        opacity: controlsOpacity
+        opacity: root.controlsOpacity
         enabled: opacity > 0.5
         Behavior on opacity { NumberAnimation { duration: 300 } }
 
@@ -163,7 +164,7 @@ Rectangle {
                 Rectangle {
                     id: qualityBadge
                     implicitWidth: qualityLabel.implicitWidth + 12
-                    height: 20
+                    Layout.preferredHeight: 20
                     radius: 4
                     color: Qt.rgba(1,1,1,0.15)
                     border.color: "#888"
@@ -207,8 +208,8 @@ Rectangle {
 
                 // Reload
                 Rectangle {
-                    width: 22
-                    height: 22
+                    Layout.preferredWidth: 22
+                    Layout.preferredHeight: 22
                     radius: 11
                     color: Qt.rgba(1,1,1,0.2)
                     border.color: "#888"
@@ -227,8 +228,8 @@ Rectangle {
 
                 // ── Audio slot mute toggle ──
                 Rectangle {
-                    width: 22
-                    height: 22
+                    Layout.preferredWidth: 22
+                    Layout.preferredHeight: 22
                     radius: 11
                     color: root.isActiveAudio ? "#4a90d9" : Qt.rgba(1,1,1,0.2)
                     border.color: root.isActiveAudio ? "#4a90d9" : "#888"
@@ -261,8 +262,8 @@ Rectangle {
                 // ≡ (pick) — centered above play/pause
                 Rectangle {
                     Layout.alignment: Qt.AlignHCenter
-                    width: 40
-                    height: 40
+                    Layout.preferredWidth: 40
+                    Layout.preferredHeight: 40
                     radius: 20
                     color: Qt.rgba(0, 0, 0, 0.7)
                     Text {
@@ -284,8 +285,8 @@ Rectangle {
 
                     // ◀ Prev
                     Rectangle {
-                        width: 44
-                        height: 44
+                        Layout.preferredWidth: 44
+                        Layout.preferredHeight: 44
                         radius: 22
                         color: Qt.rgba(0, 0, 0, 0.65)
                         Text {
@@ -302,8 +303,8 @@ Rectangle {
 
                     // Play / Pause
                     Rectangle {
-                        width: 48
-                        height: 48
+                        Layout.preferredWidth: 48
+                        Layout.preferredHeight: 48
                         radius: 24
                         color: Qt.rgba(0, 0, 0, 0.65)
                         Text {
@@ -323,8 +324,8 @@ Rectangle {
 
                     // ▶ Next
                     Rectangle {
-                        width: 44
-                        height: 44
+                        Layout.preferredWidth: 44
+                        Layout.preferredHeight: 44
                         radius: 22
                         color: Qt.rgba(0, 0, 0, 0.65)
                         Text {
@@ -353,8 +354,8 @@ Rectangle {
 
             // -15s
             Rectangle {
-                width: 44
-                height: 44
+                Layout.preferredWidth: 44
+                Layout.preferredHeight: 44
                 radius: 22
                 color: Qt.rgba(0, 0, 0, 0.65)
                 Text {
@@ -378,7 +379,7 @@ Rectangle {
                 Rectangle {
                     id: liveBtn
                     Layout.alignment: Qt.AlignHCenter
-                    height: 24
+                    Layout.preferredHeight: 24
                     implicitWidth: liveLabel.implicitWidth + 16
                     radius: 4
                     color: isLive ? "#d32f2f" : Qt.rgba(1, 1, 1, 0.25)
@@ -423,8 +424,8 @@ Rectangle {
 
             // +15s (opacity hide/show to keep layout fixed)
             Rectangle {
-                width: 44
-                height: 44
+                Layout.preferredWidth: 44
+                Layout.preferredHeight: 44
                 radius: 22
                 color: Qt.rgba(0, 0, 0, 0.65)
                 opacity: liveBtn.isLive ? 0.0 : 1.0
@@ -451,13 +452,13 @@ Rectangle {
         Menu {
             id: audioTrackMenu
             title: qsTr("Audio Track")
-            onAboutToShow: buildTrackMenu(audioTrackMenu, mpvItem.audioTracks, true)
+            onAboutToShow: root.buildTrackMenu(audioTrackMenu, mpvItem.audioTracks, true)
         }
 
         Menu {
             id: subtitleTrackMenu
             title: qsTr("Subtitle Track")
-            onAboutToShow: buildTrackMenu(subtitleTrackMenu, mpvItem.subtitleTracks, false)
+            onAboutToShow: root.buildTrackMenu(subtitleTrackMenu, mpvItem.subtitleTracks, false)
         }
 
         MenuSeparator {}
@@ -515,7 +516,7 @@ Rectangle {
             menu.removeItem(menu.itemAt(0))
 
         if (!isAudio) {
-            var offItem = trackItemComponent.createObject(menu, { text: qsTr("Off") })
+            var offItem = trackItemComponent.createObject(menu, { text: qsTr("Off") }) as MenuItem
             offItem.checked = (root.currentSubtitleTrackLabel === "")
             offItem.triggered.connect(function() { mpvItem.setSubtitleTrack(-1) })
             menu.addItem(offItem)
@@ -527,7 +528,7 @@ Rectangle {
             var label = track.label
             if (label === undefined || label === null || label === "")
                 label = (tid !== undefined && tid !== null) ? qsTr("Track %1").arg(tid) : qsTr("Unknown")
-            var item = trackItemComponent.createObject(menu, { text: label })
+            var item = trackItemComponent.createObject(menu, { text: label }) as MenuItem
             item.checked = !!track.selected
             if (isAudio)
                 item.triggered.connect(function() { mpvItem.setAudioTrack(tid) })
@@ -567,7 +568,7 @@ Rectangle {
                 font.bold: true
             }
 
-            Rectangle { height: 1; color: "#0f3460"; Layout.fillWidth: true }
+            Rectangle { Layout.preferredHeight: 1; color: "#0f3460"; Layout.fillWidth: true }
 
             RowLayout {
                 spacing: 8
@@ -587,7 +588,7 @@ Rectangle {
 
                 Rectangle {
                     Layout.fillWidth: true
-                    height: 28
+                    Layout.preferredHeight: 28
                     color: "#0f3460"
                     radius: 4
 
@@ -608,8 +609,8 @@ Rectangle {
                         }
 
                         Rectangle {
-                            width: 20
-                            height: 20
+                            Layout.preferredWidth: 20
+                            Layout.preferredHeight: 20
                             radius: 4
                             color: Qt.rgba(1,1,1,0.15)
                             Text {
@@ -700,7 +701,7 @@ Rectangle {
             }
 
             Rectangle {
-                height: 1
+                Layout.preferredHeight: 1
                 color: "#0f3460"
                 Layout.fillWidth: true
             }
@@ -713,6 +714,10 @@ Rectangle {
                 clip: true
                 model: ListModel { id: qualityListModel }
                 delegate: Rectangle {
+                    id: variantRow
+
+                    required property var model
+
                     width: qualityListView.width
                     height: 44
                     radius: 4
@@ -729,15 +734,15 @@ Rectangle {
                             spacing: 6
 
                             Text {
-                                text: model.label
-                                color: model.isCurrent ? "#4a90d9" : "#e0e0e0"
+                                text: variantRow.model.label
+                                color: variantRow.model.isCurrent ? "#4a90d9" : "#e0e0e0"
                                 font.pixelSize: 12
-                                font.bold: model.isCurrent
+                                font.bold: variantRow.model.isCurrent
                                 Layout.minimumWidth: implicitWidth
                             }
 
                             Text {
-                                text: model.name
+                                text: variantRow.model.name
                                 color: "#a0a0a0"
                                 font.pixelSize: 10
                                 elide: Text.ElideRight
@@ -745,20 +750,20 @@ Rectangle {
                             }
 
                             Text {
-                                text: model.isCurrent ? "\u2713" : ""
+                                text: variantRow.model.isCurrent ? "\u2713" : ""
                                 color: "#4a90d9"
                                 font.pixelSize: 13
-                                visible: model.isCurrent
+                                visible: variantRow.model.isCurrent
                             }
                         }
 
                         Text {
-                            text: model.group || ""
+                            text: variantRow.model.group || ""
                             color: "#606060"
                             font.pixelSize: 10
                             elide: Text.ElideRight
                             Layout.fillWidth: true
-                            visible: (model.group || "") !== ""
+                            visible: (variantRow.model.group || "") !== ""
                         }
                     }
 
@@ -768,11 +773,11 @@ Rectangle {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            if (!model.isCurrent) {
-                                root.channelUrl = model.url
-                                root.channelName = model.name
-                                root.channelLogo = model.logo
-                                root.variantSwitchRequested(model.url, model.name, model.logo)
+                            if (!variantRow.model.isCurrent) {
+                                root.channelUrl = variantRow.model.url
+                                root.channelName = variantRow.model.name
+                                root.channelLogo = variantRow.model.logo
+                                root.variantSwitchRequested(variantRow.model.url, variantRow.model.name, variantRow.model.logo)
                             }
                             qualityPopup.close()
                         }
@@ -790,7 +795,7 @@ Rectangle {
         propagateComposedEvents: true
         cursorShape: Qt.PointingHandCursor
         onPositionChanged: {
-            if (controlsOpacity < 0.5)
+            if (root.controlsOpacity < 0.5)
                 root.showControls()
         }
         onDoubleClicked: root.doubleClickRequested()

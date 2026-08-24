@@ -3,6 +3,7 @@
 #include <QAbstractListModel>
 #include <QtQml/qqmlregistration.h>
 #include <QStringList>
+#include <QHash>
 #include <QMap>
 #include <QSet>
 #include "../database/DatabaseManager.h"
@@ -36,7 +37,15 @@ public:
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     QHash<int, QByteArray> roleNames() const override;
 
+    // Filtre texte partage par le modele et les listes construites en QML
+    // (favoris, groupes) : une seule semantique de recherche multi-tokens.
+    Q_INVOKABLE bool matchesFilter(const QString &name, const QString &filter) const;
+
     Q_INVOKABLE QVariantMap get(int index) const;
+
+    // Chaine suivante (direction > 0) ou precedente dans la liste filtree,
+    // avec bouclage. Map vide si la liste est vide.
+    Q_INVOKABLE QVariantMap channelAfter(const QString &url, int direction) const;
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void setChannels(int playlistId);
     Q_INVOKABLE void setFavorites();
@@ -79,6 +88,8 @@ private:
 
     QList<ChannelInfo> m_channels;
     QList<ChannelInfo> m_filtered;
+    QHash<QString, int> m_urlToChannel;   // url -> index dans m_channels
+    QHash<QString, int> m_urlToFiltered;  // url -> index dans m_filtered
     QStringList m_groups;
     QString m_filterGroup;
     QString m_filterText;

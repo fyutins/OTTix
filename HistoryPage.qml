@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 
 Rectangle {
@@ -28,10 +27,10 @@ Rectangle {
         ChannelSearchBar {
             id: searchBar
             searchPlaceholder: qsTr("Search history...")
-            countText: displayCount + " " + qsTr("channels")
-            onSearchChanged: {
-                filterText = text
-                refresh()
+            countText: root.displayCount + " " + qsTr("channels")
+            onSearchChanged: function(text) {
+                root.filterText = text
+                root.refresh()
             }
         }
 

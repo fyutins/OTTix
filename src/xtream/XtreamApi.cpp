@@ -1,4 +1,5 @@
 #include "XtreamApi.h"
+#include "../utils/Logging.h"
 
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -65,6 +66,39 @@ QNetworkReply *XtreamApi::get(const QString &url)
     return m_nam->get(request);
 }
 
+QJsonArray XtreamApi::asArray(const QJsonDocument &doc)
+{
+    if (doc.isArray())
+        return doc.array();
+
+    if (doc.isObject()) {
+        const QJsonObject obj = doc.object();
+        for (const QString &key : obj.keys()) {
+            if (obj[key].isArray())
+                return obj[key].toArray();
+        }
+    }
+    return {};
+}
+
+void XtreamApi::request(const QString &action, const QUrlQuery &extra, const QString &context,
+                        std::function<void(const QJsonDocument &)> onSuccess)
+{
+    QNetworkReply *reply = get(buildUrl(action, extra));
+
+    connect(reply, &QNetworkReply::finished, this,
+            [this, reply, context, onSuccess = std::move(onSuccess)]() {
+        reply->deleteLater();
+
+        if (reply->error() != QNetworkReply::NoError) {
+            emit apiError(context + ": " + reply->errorString());
+            return;
+        }
+
+        onSuccess(QJsonDocument::fromJson(reply->readAll()));
+    });
+}
+
 void XtreamApi::authenticate()
 {
     QString url = buildUrl(QString());
@@ -112,33 +146,9 @@ void XtreamApi::getUserInfo()
 
 void XtreamApi::getLiveCategories()
 {
-    QString url = buildUrl("get_live_categories");
-    QNetworkReply *reply = get(url);
-
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        reply->deleteLater();
-
-        if (reply->error() != QNetworkReply::NoError) {
-            emit apiError("Failed to load live categories: " + reply->errorString());
-            return;
-        }
-
-        QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-        QJsonArray arr;
-
-        if (doc.isArray()) {
-            arr = doc.array();
-        } else if (doc.isObject()) {
-            QJsonObject obj = doc.object();
-            for (const auto &key : obj.keys()) {
-                if (obj[key].isArray()) {
-                    arr = obj[key].toArray();
-                    break;
-                }
-            }
-        }
-
-        emit liveCategoriesLoaded(parseCategories(arr));
+    request("get_live_categories", {}, "Failed to load live categories",
+            [this](const QJsonDocument &doc) {
+        emit liveCategoriesLoaded(parseCategories(asArray(doc)));
     });
 }
 
@@ -148,67 +158,19 @@ void XtreamApi::getLiveStreams(const QString &categoryId)
     if (!categoryId.isEmpty())
         extra.addQueryItem("category_id", categoryId);
 
-    QString url = buildUrl("get_live_streams", extra);
-    QNetworkReply *reply = get(url);
-
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        reply->deleteLater();
-
-        if (reply->error() != QNetworkReply::NoError) {
-            emit apiError("Failed to load live streams: " + reply->errorString());
-            return;
-        }
-
-        QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-        QJsonArray arr;
-
-        if (doc.isArray()) {
-            arr = doc.array();
-        } else if (doc.isObject()) {
-            QJsonObject obj = doc.object();
-            for (const auto &key : obj.keys()) {
-                if (obj[key].isArray()) {
-                    arr = obj[key].toArray();
-                    break;
-                }
-            }
-        }
-
-        auto parsed = parseLiveStreams(arr);
-        qDebug() << "[XAPI] Emitting liveStreamsLoaded with" << parsed.size() << "channels";
+    request("get_live_streams", extra, "Failed to load live streams",
+            [this](const QJsonDocument &doc) {
+        const auto parsed = parseLiveStreams(asArray(doc));
+        qCDebug(logXtream) << "Emitting liveStreamsLoaded with" << parsed.size() << "channels";
         emit liveStreamsLoaded(parsed);
     });
 }
 
 void XtreamApi::getVodCategories()
 {
-    QString url = buildUrl("get_vod_categories");
-    QNetworkReply *reply = get(url);
-
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        reply->deleteLater();
-
-        if (reply->error() != QNetworkReply::NoError) {
-            emit apiError("Failed to load VOD categories: " + reply->errorString());
-            return;
-        }
-
-        QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-        QJsonArray arr;
-
-        if (doc.isArray()) {
-            arr = doc.array();
-        } else if (doc.isObject()) {
-            QJsonObject obj = doc.object();
-            for (const auto &key : obj.keys()) {
-                if (obj[key].isArray()) {
-                    arr = obj[key].toArray();
-                    break;
-                }
-            }
-        }
-
-        emit vodCategoriesLoaded(parseCategories(arr));
+    request("get_vod_categories", {}, "Failed to load VOD categories",
+            [this](const QJsonDocument &doc) {
+        emit vodCategoriesLoaded(parseCategories(asArray(doc)));
     });
 }
 
@@ -218,87 +180,17 @@ void XtreamApi::getVodStreams(const QString &categoryId)
     if (!categoryId.isEmpty())
         extra.addQueryItem("category_id", categoryId);
 
-    QString url = buildUrl("get_vod_streams", extra);
-    QNetworkReply *reply = get(url);
-
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        reply->deleteLater();
-
-        if (reply->error() != QNetworkReply::NoError) {
-            emit apiError("Failed to load VOD streams: " + reply->errorString());
-            return;
-        }
-
-        QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-        QJsonArray arr;
-
-        if (doc.isArray()) {
-            arr = doc.array();
-        } else if (doc.isObject()) {
-            QJsonObject obj = doc.object();
-            for (const auto &key : obj.keys()) {
-                if (obj[key].isArray()) {
-                    arr = obj[key].toArray();
-                    break;
-                }
-            }
-        }
-        QList<XtreamChannel> channels;
-
-        for (const auto &val : arr) {
-            QJsonObject s = val.toObject();
-            XtreamChannel ch;
-            ch.id = s["stream_id"].toVariant().toString();
-            ch.name = s["name"].toString().trimmed();
-            ch.streamType = "vod";
-            ch.streamUrl = parseStreamUrl(ch.id, s["container_extension"].toString());
-            ch.logo = s["stream_icon"].toString();
-            ch.group = s["category_name"].toString();
-            ch.categoryId = s["category_id"].toVariant().toString();
-            ch.epgChannelId = s["epg_channel_id"].toString();
-
-            if (ch.name.isEmpty()) {
-                qWarning() << "Skipping VOD stream with empty name, id:" << ch.id;
-                continue;
-            }
-
-            channels.append(ch);
-        }
-
-        qDebug() << "Parsed" << channels.size() << "VOD streams";
-        emit vodStreamsLoaded(channels);
+    request("get_vod_streams", extra, "Failed to load VOD streams",
+            [this](const QJsonDocument &doc) {
+        emit vodStreamsLoaded(parseVodStreams(asArray(doc)));
     });
 }
 
 void XtreamApi::getSeriesCategories()
 {
-    QString url = buildUrl("get_series_categories");
-    QNetworkReply *reply = get(url);
-
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        reply->deleteLater();
-
-        if (reply->error() != QNetworkReply::NoError) {
-            emit apiError("Failed to load series categories: " + reply->errorString());
-            return;
-        }
-
-        QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-        QJsonArray arr;
-
-        if (doc.isArray()) {
-            arr = doc.array();
-        } else if (doc.isObject()) {
-            QJsonObject obj = doc.object();
-            for (const auto &key : obj.keys()) {
-                if (obj[key].isArray()) {
-                    arr = obj[key].toArray();
-                    break;
-                }
-            }
-        }
-
-        emit liveCategoriesLoaded(parseCategories(arr));
+    request("get_series_categories", {}, "Failed to load series categories",
+            [this](const QJsonDocument &doc) {
+        emit seriesCategoriesLoaded(parseCategories(asArray(doc)));
     });
 }
 
@@ -308,33 +200,9 @@ void XtreamApi::getSeriesStreams(const QString &categoryId)
     if (!categoryId.isEmpty())
         extra.addQueryItem("category_id", categoryId);
 
-    QString url = buildUrl("get_series", extra);
-    QNetworkReply *reply = get(url);
-
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        reply->deleteLater();
-
-        if (reply->error() != QNetworkReply::NoError) {
-            emit apiError("Failed to load series: " + reply->errorString());
-            return;
-        }
-
-        QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-        QJsonArray arr;
-
-        if (doc.isArray()) {
-            arr = doc.array();
-        } else if (doc.isObject()) {
-            QJsonObject obj = doc.object();
-            for (const auto &key : obj.keys()) {
-                if (obj[key].isArray()) {
-                    arr = obj[key].toArray();
-                    break;
-                }
-            }
-        }
-
-        emit liveStreamsLoaded(parseLiveStreams(arr));
+    request("get_series", extra, "Failed to load series",
+            [this](const QJsonDocument &doc) {
+        emit seriesLoaded(parseLiveStreams(asArray(doc)));
     });
 }
 
@@ -344,19 +212,8 @@ void XtreamApi::getEpg(const QString &streamId, int limit)
     extra.addQueryItem("stream_id", streamId);
     extra.addQueryItem("limit", QString::number(limit));
 
-    QString url = buildUrl("get_simple_data_table", extra);
-    QNetworkReply *reply = get(url);
-
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        reply->deleteLater();
-
-        if (reply->error() != QNetworkReply::NoError) {
-            emit apiError("Failed to load EPG: " + reply->errorString());
-            return;
-        }
-
-        QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-
+    request("get_simple_data_table", extra, "Failed to load EPG",
+            [this](const QJsonDocument &doc) {
         if (doc.isArray())
             emit epgLoaded(doc.array());
         else if (doc.isObject())
@@ -368,24 +225,38 @@ void XtreamApi::getEpg(const QString &streamId, int limit)
 
 void XtreamApi::getShortEpg()
 {
-    QString url = buildUrl("get_short_epg");
-    QNetworkReply *reply = get(url);
+    request("get_short_epg", {}, "Failed to load short EPG",
+            [this](const QJsonDocument &doc) {
+        emit shortEpgLoaded(doc.isObject() ? doc.object() : QJsonObject());
+    });
+}
 
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        reply->deleteLater();
+QList<XtreamChannel> XtreamApi::parseVodStreams(const QJsonArray &data)
+{
+    QList<XtreamChannel> channels;
 
-        if (reply->error() != QNetworkReply::NoError) {
-            emit apiError("Failed to load short EPG: " + reply->errorString());
-            return;
+    for (const auto &val : data) {
+        const QJsonObject s = val.toObject();
+        XtreamChannel ch;
+        ch.id = s["stream_id"].toVariant().toString();
+        ch.name = s["name"].toString().trimmed();
+        ch.streamType = "vod";
+        ch.streamUrl = parseStreamUrl(ch.id, s["container_extension"].toString());
+        ch.logo = s["stream_icon"].toString();
+        ch.group = s["category_name"].toString();
+        ch.categoryId = s["category_id"].toVariant().toString();
+        ch.epgChannelId = s["epg_channel_id"].toString();
+
+        if (ch.name.isEmpty()) {
+            qCWarning(logXtream) << "Skipping VOD stream with empty name, id:" << ch.id;
+            continue;
         }
 
-        QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+        channels.append(ch);
+    }
 
-        if (doc.isObject())
-            emit shortEpgLoaded(doc.object());
-        else
-            emit shortEpgLoaded(QJsonObject());
-    });
+    qCDebug(logXtream) << "Parsed" << channels.size() << "VOD streams";
+    return channels;
 }
 
 QList<ChannelInfo> XtreamApi::toChannelInfoList(const QList<XtreamChannel> &xtreamChannels, int playlistId)
@@ -473,21 +344,21 @@ QList<XtreamChannel> XtreamApi::parseLiveStreams(const QJsonArray &data)
         ch.epgChannelId = s["epg_channel_id"].toString();
 
         if (i < 5 || (i % 5000 == 0)) {
-            qDebug() << "[XAPI] Stream" << i
+            qCDebug(logXtream) << "[XAPI] Stream" << i
                      << "| name:" << ch.name
                      << "| category_name:" << ch.group
                      << "| category_id:" << ch.categoryId;
         }
 
         if (ch.name.isEmpty()) {
-            qWarning() << "[XAPI] Skipping live stream with empty name, id:" << ch.id;
+            qCWarning(logXtream) << "[XAPI] Skipping live stream with empty name, id:" << ch.id;
             skipped++;
             continue;
         }
 
         channels.append(ch);
     }
-    qDebug() << "[XAPI] Parsed" << channels.size() << "live streams from" << data.size()
+    qCDebug(logXtream) << "[XAPI] Parsed" << channels.size() << "live streams from" << data.size()
              << "entries (skipped" << skipped << ")";
     return channels;
 }

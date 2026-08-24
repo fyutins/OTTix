@@ -6,7 +6,9 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QNetworkAccessManager>
+#include <QJsonDocument>
 #include <QList>
+#include <functional>
 #include "../database/DatabaseManager.h"
 
 struct XtreamCategory {
@@ -75,6 +77,8 @@ signals:
     void liveStreamsLoaded(const QList<XtreamChannel> &channels);
     void vodCategoriesLoaded(const QList<XtreamCategory> &categories);
     void vodStreamsLoaded(const QList<XtreamChannel> &channels);
+    void seriesCategoriesLoaded(const QList<XtreamCategory> &categories);
+    void seriesLoaded(const QList<XtreamChannel> &series);
     void epgLoaded(const QJsonArray &epgData);
     void shortEpgLoaded(const QJsonObject &epgData);
     void apiError(const QString &error);
@@ -82,6 +86,17 @@ signals:
 private:
     QString buildUrl(const QString &action, const QUrlQuery &extra = QUrlQuery()) const;
     QNetworkReply *get(const QString &url);
+
+    // Envoie une requete player_api et remet le JSON au callback ; toute erreur
+    // reseau est convertie en apiError("<context>: ...").
+    void request(const QString &action, const QUrlQuery &extra, const QString &context,
+                 std::function<void(const QJsonDocument &)> onSuccess);
+
+    // Un serveur Xtream repond tantot par un tableau, tantot par un objet qui
+    // contient le tableau.
+    static QJsonArray asArray(const QJsonDocument &doc);
+
+    QList<XtreamChannel> parseVodStreams(const QJsonArray &data);
     QList<XtreamCategory> parseCategories(const QJsonArray &data);
     QList<XtreamChannel> parseLiveStreams(const QJsonArray &data);
     QString parseStreamUrl(const QString &streamId, const QString &extension = QString()) const;

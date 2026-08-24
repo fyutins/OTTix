@@ -82,6 +82,10 @@ qt_add_executable(appIptvPlayer
     src/loader/PlaylistLoader.cpp
     src/utils/ClipboardHelper.h
     src/utils/ClipboardHelper.cpp
+    src/utils/LogUtils.h
+    src/utils/LogUtils.cpp
+    src/utils/Logging.h
+    src/utils/Logging.cpp
     src/utils/SleepInhibitor.h
     src/utils/SleepInhibitor.cpp
     src/utils/ChannelGrouper.h
@@ -134,6 +138,18 @@ set_target_properties(appIptvPlayer PROPERTIES
 target_link_libraries(appIptvPlayer
     PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Sql Qt6::Network Qt6::OpenGL Qt6::Concurrent
 )
+
+# Inhibition de la veille sous Linux : org.freedesktop.ScreenSaver via D-Bus.
+if(UNIX AND NOT APPLE)
+    find_package(Qt6 QUIET COMPONENTS DBus)
+    if(Qt6DBus_FOUND)
+        target_link_libraries(appIptvPlayer PRIVATE Qt6::DBus)
+        target_compile_definitions(appIptvPlayer PRIVATE HAS_DBUS)
+        message(STATUS "D-Bus screensaver inhibition enabled")
+    else()
+        message(STATUS "Qt6 DBus not found - screensaver inhibition disabled")
+    endif()
+endif()
 
 if(MPV_INCLUDE_DIR)
     target_include_directories(appIptvPlayer PRIVATE ${MPV_INCLUDE_DIR})
