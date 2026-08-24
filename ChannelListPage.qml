@@ -1,9 +1,8 @@
 import QtQuick
 import QtQuick.Layouts
 
-Rectangle {
+Item {
     id: root
-    color: "transparent"
 
     signal channelSelected(string name, string url, string logo, string group)
 
@@ -16,11 +15,15 @@ Rectangle {
         ChannelListModel.filterText = searchText
     }
 
+    function focusSearch() { searchBar.focusSearch() }
+
     ColumnLayout {
         anchors.fill: parent
-        spacing: 0
+        anchors.margins: Theme.spacingMd
+        spacing: Theme.spacingSm
 
         ChannelSearchBar {
+            id: searchBar
             searchPlaceholder: qsTr("Search channels...")
             countText: ChannelListModel.count + " " + qsTr("channels")
             onSearchChanged: function(text) {
@@ -28,8 +31,6 @@ Rectangle {
                 ChannelListModel.filterText = text
             }
         }
-
-        Item { Layout.preferredHeight: 8 }
 
         ChannelGrid {
             Layout.fillWidth: true

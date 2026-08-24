@@ -1,13 +1,9 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 
-Rectangle {
+// Barre de recherche des grilles de chaines : champ + compteur de resultats.
+Item {
     id: root
-    color: "#16213e"
-    radius: 8
-    Layout.fillWidth: true
-    implicitHeight: 48
 
     property alias searchText: searchField.text
     property alias countText: countLabel.text
@@ -16,27 +12,37 @@ Rectangle {
 
     function focusSearch() { searchField.forceActiveFocus() }
 
+    Layout.fillWidth: true
+    implicitHeight: Theme.controlMd + Theme.spacingSm
+
     RowLayout {
         anchors.fill: parent
-        anchors.margins: 8
-        spacing: 8
+        anchors.topMargin: Theme.spacingXs
+        anchors.bottomMargin: Theme.spacingXs
+        spacing: Theme.spacingSm
 
-        TextField {
+        SearchField {
             id: searchField
             Layout.fillWidth: true
-            color: "#e0e0e0"
-            placeholderTextColor: "#808080"
-            background: Rectangle {
-                color: "#0f3460"
-                radius: 6
-            }
+            Layout.maximumWidth: 460
             onTextChanged: root.searchChanged(text)
         }
 
-        Label {
-            id: countLabel
-            color: "#a0a0a0"
-            font.pixelSize: 12
+        Item { Layout.fillWidth: true }
+
+        Rectangle {
+            Layout.preferredWidth: countLabel.implicitWidth + Theme.spacingMd
+            Layout.preferredHeight: Theme.controlSm
+            visible: countLabel.text !== ""
+            radius: Theme.radiusPill
+            color: Theme.surfaceAlt
+
+            Text {
+                id: countLabel
+                anchors.centerIn: parent
+                color: Theme.textMuted
+                font.pixelSize: Theme.fontSm
+            }
         }
     }
 }

@@ -5,58 +5,58 @@ import QtQuick.Layouts
 
 Rectangle {
     id: root
-    color: "#1a1a2e"
+    color: Theme.bg
 
     signal backRequested()
+    signal playlistsChanged()
+
+    property int pendingDeleteId: -1
+    property string pendingDeleteName: ""
 
     PlaylistLoader {
         id: loader
         onLoadComplete: (playlistId, channelCount) => {
+            root.loadingPlaylistId = -1
             ChannelListModel.setChannels(playlistId)
+            PlaylistModel.refresh()
+            root.playlistsChanged()
         }
         onLoadError: (playlistId, error) => {
-            console.log("Playlist load error:", error)
+            root.loadingPlaylistId = -1
+            root.errorText = error
         }
     }
+
+    property int loadingPlaylistId: -1
+    property string errorText: ""
 
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
 
-        // Header
+        // ── En-tete ──
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 44
-            color: "#16213e"
+            Layout.preferredHeight: Theme.toolbarHeight
+            color: Theme.surface
 
             RowLayout {
                 anchors.fill: parent
-                anchors.margins: 8
-                spacing: 8
+                anchors.leftMargin: Theme.spacingSm
+                anchors.rightMargin: Theme.spacingSm
+                spacing: Theme.spacingSm
 
-                Button {
-                    text: "\u2190"
-                    flat: true
-                    implicitWidth: 32
-                    implicitHeight: 32
-                    contentItem: Text {
-                        text: "\u2190"
-                        color: "#4a90d9"
-                        font.pixelSize: 18
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                    background: Rectangle {
-                        color: "transparent"
-                        radius: 4
-                    }
+                IconButton {
+                    glyph: Mdi.arrowLeft
+                    glyphColor: Theme.accent
+                    tooltip: qsTr("Back")
                     onClicked: root.backRequested()
                 }
 
                 Label {
                     text: qsTr("Administration")
-                    color: "#e0e0e0"
-                    font.pixelSize: 16
+                    color: Theme.text
+                    font.pixelSize: Theme.fontLg
                     font.bold: true
                 }
 
@@ -64,37 +64,84 @@ Rectangle {
             }
         }
 
-        // Tabs
-        TabBar {
+        // ── Onglets ──
+        AppTabBar {
             id: adminTabBar
             Layout.fillWidth: true
 
-            TabButton { text: qsTr("Playlists") }
-            TabButton { text: qsTr("Settings") }
+            AppTabButton { text: qsTr("Playlists"); glyph: Mdi.playlistPlay }
+            AppTabButton { text: qsTr("Settings"); glyph: Mdi.cogOutline }
         }
 
-        // Content
+        // Bandeau d'erreur du dernier chargement
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: root.errorText !== "" ? Theme.controlLg : 0
+            visible: root.errorText !== ""
+            color: Theme.dangerSoft
+            clip: true
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: Theme.spacingMd
+                anchors.rightMargin: Theme.spacingSm
+                spacing: Theme.spacingSm
+
+                MdiIcon {
+                    glyph: Mdi.alert
+                    font.pixelSize: Theme.iconSm
+                    color: Theme.danger
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: root.errorText
+                    color: Theme.danger
+                    font.pixelSize: Theme.fontMd
+                    elide: Text.ElideRight
+                }
+
+                IconButton {
+                    implicitWidth: Theme.controlSm
+                    implicitHeight: Theme.controlSm
+                    glyph: Mdi.close
+                    glyphSize: Theme.iconSm
+                    glyphColor: Theme.danger
+                    onClicked: root.errorText = ""
+                }
+            }
+        }
+
+        // ── Contenu ──
         StackLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
             currentIndex: adminTabBar.currentIndex
 
-            // ── Playlists tab ──
+            // ── Onglet Playlists ──
             Item {
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 16
-                    spacing: 12
+                    anchors.margins: Theme.spacingLg
+                    spacing: Theme.spacingMd
 
                     RowLayout {
                         Layout.fillWidth: true
+                        spacing: Theme.spacingSm
 
-                        Button {
-                            text: qsTr("Add Playlist")
-                            onClicked: playlistDialog.open()
+                        Text {
+                            Layout.fillWidth: true
+                            text: qsTr("%1 playlist(s)").arg(PlaylistModel.count)
+                            color: Theme.textMuted
+                            font.pixelSize: Theme.fontMd
                         }
 
-                        Item { Layout.fillWidth: true }
+                        AppButton {
+                            text: qsTr("Add Playlist")
+                            glyph: Mdi.plus
+                            variant: AppButton.Primary
+                            onClicked: playlistDialog.open()
+                        }
                     }
 
                     ListView {
@@ -103,16 +150,18 @@ Rectangle {
                         Layout.fillHeight: true
                         model: PlaylistModel
                         delegate: playlistDelegate
+                        spacing: Theme.spacingSm
                         clip: true
+                        boundsBehavior: Flickable.StopAtBounds
 
-                        ScrollBar.vertical: ScrollBar {}
+                        ScrollBar.vertical: AppScrollBar {}
 
-                        Label {
+                        EmptyState {
                             anchors.centerIn: parent
-                            text: qsTr("No playlists yet")
-                            color: "#808080"
-                            font.pixelSize: 16
                             visible: playlistView.count === 0
+                            glyph: Mdi.playlistPlay
+                            title: qsTr("No playlists yet")
+                            subtitle: qsTr("Add an M3U or Xtream playlist to get started")
                         }
                     }
 
@@ -124,38 +173,97 @@ Rectangle {
 
                             required property var model
 
-                            width: ListView.view.width
-                            height: 60
-                            color: "#16213e"
-                            border.color: "#0f3460"
-                            radius: 8
+                            readonly property bool isLoading: root.loadingPlaylistId === playlistRow.model.playlistId
+
+                            width: ListView.view ? ListView.view.width : implicitWidth
+                            height: 72
+                            color: rowHover.hovered ? Theme.surfaceHi : Theme.surfaceAlt
+                            border.color: rowHover.hovered ? Theme.borderStrong : Theme.border
+                            border.width: 1
+                            radius: Theme.radiusMd
+
+                            Behavior on color { ColorAnimation { duration: Theme.durFast } }
+
+                            HoverHandler { id: rowHover }
 
                             RowLayout {
                                 anchors.fill: parent
-                                anchors.margins: 12
-                                spacing: 12
+                                anchors.leftMargin: Theme.spacingMd
+                                anchors.rightMargin: Theme.spacingSm
+                                spacing: Theme.spacingMd
 
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 4
+                                Rectangle {
+                                    Layout.preferredWidth: Theme.controlLg
+                                    Layout.preferredHeight: Theme.controlLg
+                                    radius: Theme.radiusSm
+                                    color: Theme.bg
 
-                                    Label {
-                                        text: playlistRow.model.name
-                                        color: "#e0e0e0"
-                                        font.pixelSize: 16
-                                        font.bold: true
-                                    }
-
-                                    Label {
-                                        text: playlistRow.model.type + " \u00B7 " + playlistRow.model.channelCount + " " + qsTr("channels")
-                                        color: "#a0a0a0"
-                                        font.pixelSize: 12
+                                    MdiIcon {
+                                        anchors.centerIn: parent
+                                        glyph: playlistRow.model.type === "xtream" ? Mdi.server : Mdi.link
+                                        font.pixelSize: Theme.iconMd
+                                        color: Theme.accent
                                     }
                                 }
 
-                                Button {
-                                    text: qsTr("Load")
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+
+                                    Label {
+                                        Layout.fillWidth: true
+                                        text: playlistRow.model.name
+                                        color: Theme.text
+                                        font.pixelSize: Theme.fontLg
+                                        font.bold: true
+                                        elide: Text.ElideRight
+                                    }
+
+                                    RowLayout {
+                                        spacing: Theme.spacingSm
+
+                                        Rectangle {
+                                            Layout.preferredWidth: typeLabel.implicitWidth + Theme.spacingSm
+                                            Layout.preferredHeight: 18
+                                            radius: Theme.radiusPill
+                                            color: Theme.surface
+
+                                            Text {
+                                                id: typeLabel
+                                                anchors.centerIn: parent
+                                                text: playlistRow.model.type.toUpperCase()
+                                                color: Theme.textMuted
+                                                font.pixelSize: Theme.fontXs
+                                                font.bold: true
+                                            }
+                                        }
+
+                                        Label {
+                                            text: playlistRow.model.channelCount + " " + qsTr("channels")
+                                            color: Theme.textMuted
+                                            font.pixelSize: Theme.fontSm
+                                        }
+                                    }
+                                }
+
+                                BusyIndicator {
+                                    Layout.preferredWidth: Theme.controlSm
+                                    Layout.preferredHeight: Theme.controlSm
+                                    running: playlistRow.isLoading
+                                    visible: running
+                                    palette {
+                                        dark: Theme.text
+                                        mid: Theme.accent
+                                    }
+                                }
+
+                                IconButton {
+                                    glyph: Mdi.download
+                                    enabled: root.loadingPlaylistId < 0
+                                    tooltip: qsTr("Reload from the source")
                                     onClicked: {
+                                        root.errorText = ""
+                                        root.loadingPlaylistId = playlistRow.model.playlistId
                                         if (playlistRow.model.type === "m3u")
                                             loader.loadM3U(playlistRow.model.playlistId, playlistRow.model.url)
                                         else if (playlistRow.model.type === "xtream")
@@ -164,8 +272,9 @@ Rectangle {
                                     }
                                 }
 
-                                Button {
-                                    text: qsTr("Edit")
+                                IconButton {
+                                    glyph: Mdi.pencil
+                                    tooltip: qsTr("Edit")
                                     onClicked: {
                                         playlistDialog.openForEdit(playlistRow.model.playlistId,
                                             playlistRow.model.name, playlistRow.model.url, playlistRow.model.type,
@@ -173,10 +282,15 @@ Rectangle {
                                     }
                                 }
 
-                                Button {
-                                    text: qsTr("Delete")
+                                IconButton {
+                                    glyph: Mdi.trash
+                                    danger: true
+                                    glyphColor: Theme.danger
+                                    tooltip: qsTr("Delete")
                                     onClicked: {
-                                        PlaylistModel.removePlaylist(playlistRow.model.playlistId)
+                                        root.pendingDeleteId = playlistRow.model.playlistId
+                                        root.pendingDeleteName = playlistRow.model.name
+                                        deleteDialog.open()
                                     }
                                 }
                             }
@@ -185,171 +299,79 @@ Rectangle {
                 }
             }
 
-            // ── Settings tab ──
+            // ── Onglet Reglages ──
             Flickable {
-                contentHeight: settingsColumn.height
+                contentHeight: settingsColumn.implicitHeight + Theme.spacingXl * 2
                 clip: true
-                ScrollBar.vertical: ScrollBar {}
+                boundsBehavior: Flickable.StopAtBounds
+
+                ScrollBar.vertical: AppScrollBar {}
 
                 ColumnLayout {
                     id: settingsColumn
-                    width: parent.width
-                    anchors.margins: 24
-                    spacing: 16
+                    x: Theme.spacingXl
+                    y: Theme.spacingXl
+                    width: Math.min(parent.width - Theme.spacingXl * 2, 900)
+                    spacing: Theme.spacingLg
 
-                    GroupBox {
-                        id: dbGroup
-                        title: qsTr("Database")
+                    // ── Base de donnees ──
+                    SettingsCard {
                         Layout.fillWidth: true
-                        label: Label {
-                            text: dbGroup.title
-                            color: "#e0e0e0"
-                            font.bold: true
-                        }
+                        glyph: Mdi.database
+                        title: qsTr("Database")
 
                         ColumnLayout {
-                            width: parent.width
-                            spacing: 12
+                            Layout.fillWidth: true
+                            spacing: Theme.spacingSm
 
-                            Button {
-                                text: qsTr("Clear Cache")
-                                onClicked: {
-                                    DatabaseManager.clearCache(0)
-                                }
+                            Text {
+                                Layout.fillWidth: true
+                                text: qsTr("Cached channel data can be cleared without losing your playlists, favorites or settings.")
+                                color: Theme.textMuted
+                                font.pixelSize: Theme.fontMd
+                                wrapMode: Text.WordWrap
                             }
 
-                            Label {
-                                text: qsTr("Database location: ") + DatabaseManager.databasePath
-                                color: "#808080"
-                                font.pixelSize: 11
-                                wrapMode: Text.WordWrap
+                            RowLayout {
                                 Layout.fillWidth: true
+                                spacing: Theme.spacingSm
+
+                                AppButton {
+                                    text: qsTr("Clear Cache")
+                                    glyph: Mdi.broom
+                                    onClicked: DatabaseManager.clearCache(0)
+                                }
+
+                                Item { Layout.fillWidth: true }
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.spacingXs
+
+                                Text {
+                                    text: qsTr("Location:")
+                                    color: Theme.textDim
+                                    font.pixelSize: Theme.fontSm
+                                }
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: DatabaseManager.databasePath
+                                    color: Theme.textDim
+                                    font.pixelSize: Theme.fontSm
+                                    wrapMode: Text.WrapAnywhere
+                                }
                             }
                         }
                     }
 
-                    GroupBox {
-                        id: suffixGroup
-                        title: qsTr("Quality Suffixes")
+                    // ── Suffixes de qualite ──
+                    SettingsCard {
+                        id: suffixCard
                         Layout.fillWidth: true
-                        label: Label {
-                            text: suffixGroup.title
-                            color: "#e0e0e0"
-                            font.bold: true
-                        }
-
-                        ColumnLayout {
-                            width: parent.width
-                            spacing: 8
-
-                            Text {
-                                text: qsTr("Custom quality suffixes used to group channel variants (HD, FHD, SD...)")
-                                color: "#808080"
-                                font.pixelSize: 11
-                                wrapMode: Text.WordWrap
-                                Layout.fillWidth: true
-                            }
-
-                            ListView {
-                                id: suffixListView
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: Math.min(contentHeight, 200)
-                                interactive: contentHeight > 200
-                                clip: true
-                                model: suffixListModel
-                                visible: suffixListModel.count > 0
-
-                                delegate: Rectangle {
-                                    id: suffixRow
-
-                                    required property string suffix
-                                    required property int index
-
-                                    width: suffixListView.width
-                                    height: 28
-                                    color: "transparent"
-                                    radius: 4
-
-                                    RowLayout {
-                                        anchors.fill: parent
-                                        anchors.leftMargin: 4
-                                        spacing: 8
-
-                                        Text {
-                                            text: suffixRow.suffix
-                                            color: "#e0e0e0"
-                                            font.pixelSize: 12
-                                            font.bold: true
-                                            Layout.fillWidth: true
-                                        }
-
-                                        Button {
-                                            text: qsTr("×")
-                                            flat: true
-                                            implicitWidth: 24
-                                            implicitHeight: 24
-                                            contentItem: Text {
-                                                text: qsTr("×")
-                                                color: "#e57373"
-                                                font.pixelSize: 14
-                                                horizontalAlignment: Text.AlignHCenter
-                                                verticalAlignment: Text.AlignVCenter
-                                            }
-                                            background: Rectangle {
-                                                color: mouseArea.containsMouse ? Qt.rgba(1,0,0,0.2) : "transparent"
-                                                radius: 4
-                                            }
-                                            MouseArea {
-                                                id: mouseArea
-                                                anchors.fill: parent
-                                                hoverEnabled: true
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: {
-                                                    var arr = ChannelListModel.customSuffixes
-                                                    arr.splice(suffixRow.index, 1)
-                                                    ChannelListModel.customSuffixes = arr
-                                                    suffixGroup.refreshSuffixList()
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            Text {
-                                text: qsTr("No custom suffixes added")
-                                color: "#808080"
-                                font.pixelSize: 11
-                                visible: suffixListModel.count === 0
-                            }
-
-                            RowLayout {
-                                spacing: 8
-
-                                TextField {
-                                    id: suffixInput
-                                    Layout.fillWidth: true
-                                    placeholderText: qsTr("e.g. HQ, LQ, 4K")
-                                    color: "#e0e0e0"
-                                    font.pixelSize: 12
-                                    background: Rectangle {
-                                        color: "#16213e"
-                                        radius: 4
-                                        border.color: suffixInput.activeFocus ? "#4a90d9" : "#0f3460"
-                                        border.width: 1
-                                    }
-                                    onAccepted: suffixGroup.addSuffix()
-                                }
-
-                                Button {
-                                    text: qsTr("Add")
-                                    enabled: suffixInput.text.trim().length > 0
-                                    onClicked: suffixGroup.addSuffix()
-                                }
-                            }
-
-                            Item { Layout.preferredHeight: 4 }
-                        }
+                        glyph: Mdi.label
+                        title: qsTr("Quality Suffixes")
 
                         function addSuffix() {
                             var val = suffixInput.text.trim()
@@ -360,7 +382,7 @@ Rectangle {
                                 ChannelListModel.customSuffixes = arr
                             }
                             suffixInput.text = ""
-                            suffixGroup.refreshSuffixList()
+                            suffixCard.refreshSuffixList()
                         }
 
                         function refreshSuffixList() {
@@ -370,38 +392,150 @@ Rectangle {
                                 suffixListModel.append({ suffix: arr[i] })
                         }
 
-                        ListModel { id: suffixListModel }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.spacingSm
 
-                        Component.onCompleted: suffixGroup.refreshSuffixList()
-                    }
+                            Text {
+                                Layout.fillWidth: true
+                                text: qsTr("Custom quality suffixes used to group channel variants (HD, FHD, SD...)")
+                                color: Theme.textMuted
+                                font.pixelSize: Theme.fontMd
+                                wrapMode: Text.WordWrap
+                            }
 
-                    GroupBox {
-                        id: aboutGroup
-                        title: qsTr("About")
-                        Layout.fillWidth: true
-                        label: Label {
-                            text: aboutGroup.title
-                            color: "#e0e0e0"
-                            font.bold: true
+                            Flow {
+                                Layout.fillWidth: true
+                                spacing: Theme.spacingSm
+                                visible: suffixListModel.count > 0
+
+                                Repeater {
+                                    model: ListModel { id: suffixListModel }
+
+                                    delegate: Rectangle {
+                                        id: suffixChip
+
+                                        required property string suffix
+                                        required property int index
+
+                                        width: chipRow.implicitWidth + Theme.spacingMd
+                                        height: Theme.controlSm
+                                        radius: Theme.radiusPill
+                                        color: Theme.surfaceAlt
+                                        border.width: 1
+                                        border.color: Theme.border
+
+                                        Row {
+                                            id: chipRow
+                                            anchors.centerIn: parent
+                                            spacing: Theme.spacingXs
+
+                                            Text {
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                text: suffixChip.suffix
+                                                color: Theme.text
+                                                font.pixelSize: Theme.fontSm
+                                                font.bold: true
+                                            }
+
+                                            IconButton {
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                implicitWidth: Theme.iconMd
+                                                implicitHeight: Theme.iconMd
+                                                round: true
+                                                danger: true
+                                                glyph: Mdi.close
+                                                glyphSize: Theme.iconXs
+                                                glyphColor: Theme.textMuted
+                                                tooltip: qsTr("Remove")
+                                                onClicked: {
+                                                    var arr = ChannelListModel.customSuffixes
+                                                    arr.splice(suffixChip.index, 1)
+                                                    ChannelListModel.customSuffixes = arr
+                                                    suffixCard.refreshSuffixList()
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            Text {
+                                text: qsTr("No custom suffixes added")
+                                color: Theme.textDim
+                                font.pixelSize: Theme.fontMd
+                                visible: suffixListModel.count === 0
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.spacingSm
+
+                                TextField {
+                                    id: suffixInput
+                                    Layout.fillWidth: true
+                                    Layout.maximumWidth: 260
+                                    implicitHeight: Theme.controlMd
+                                    leftPadding: Theme.spacingMd
+                                    placeholderText: qsTr("e.g. HQ, LQ, 4K")
+                                    placeholderTextColor: Theme.textDim
+                                    color: Theme.text
+                                    font.pixelSize: Theme.fontMd
+                                    selectByMouse: true
+                                    background: Rectangle {
+                                        color: Theme.surfaceAlt
+                                        radius: Theme.radiusSm
+                                        border.color: suffixInput.activeFocus ? Theme.accent : Theme.border
+                                        border.width: 1
+
+                                        Behavior on border.color { ColorAnimation { duration: Theme.durFast } }
+                                    }
+                                    onAccepted: suffixCard.addSuffix()
+                                }
+
+                                AppButton {
+                                    text: qsTr("Add")
+                                    glyph: Mdi.plus
+                                    enabled: suffixInput.text.trim().length > 0
+                                    onClicked: suffixCard.addSuffix()
+                                }
+
+                                Item { Layout.fillWidth: true }
+                            }
                         }
 
+                        Component.onCompleted: suffixCard.refreshSuffixList()
+                    }
+
+                    // ── A propos ──
+                    SettingsCard {
+                        Layout.fillWidth: true
+                        glyph: Mdi.information
+                        title: qsTr("About")
+
                         ColumnLayout {
-                            width: parent.width
-                            spacing: 8
+                            Layout.fillWidth: true
+                            spacing: Theme.spacingXs
 
                             Label {
                                 text: qsTr("IPTV Player v0.1")
-                                color: "#e0e0e0"
+                                color: Theme.text
+                                font.pixelSize: Theme.fontMd
                             }
 
                             Label {
                                 text: qsTr("Supports M3U playlists and XTREAM API")
-                                color: "#a0a0a0"
+                                color: Theme.textMuted
+                                font.pixelSize: Theme.fontMd
+                            }
+
+                            Label {
+                                text: qsTr("Icons: Material Design Icons (Pictogrammers)")
+                                color: Theme.textDim
+                                font.pixelSize: Theme.fontSm
                             }
                         }
                     }
-
-                    Item { Layout.preferredHeight: 24 }
                 }
             }
         }
@@ -411,9 +545,24 @@ Rectangle {
         id: playlistDialog
         onPlaylistAdded: (name, url, type, username, password) => {
             PlaylistModel.addPlaylist(name, url, type, username, password)
+            root.playlistsChanged()
         }
         onPlaylistEdited: (id, name, url, type, username, password) => {
             PlaylistModel.updatePlaylist(id, name, url, type, username, password)
+            root.playlistsChanged()
+        }
+    }
+
+    ConfirmDialog {
+        id: deleteDialog
+        glyph: Mdi.trash
+        title: qsTr("Delete playlist")
+        message: qsTr("Delete “%1” and all its channels? This cannot be undone.").arg(root.pendingDeleteName)
+        confirmText: qsTr("Delete")
+        onConfirmed: {
+            PlaylistModel.removePlaylist(root.pendingDeleteId)
+            root.pendingDeleteId = -1
+            root.playlistsChanged()
         }
     }
 

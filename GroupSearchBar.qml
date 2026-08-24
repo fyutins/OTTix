@@ -1,13 +1,9 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 
-Rectangle {
+// Barre de la page Groupes : recherche a la racine, fil d'Ariane en drill-down.
+Item {
     id: root
-    color: "#16213e"
-    radius: 8
-    Layout.fillWidth: true
-    implicitHeight: 48
 
     property bool drillMode: false
     property string groupName: ""
@@ -16,55 +12,71 @@ Rectangle {
     signal backRequested()
     signal searchChanged(string text)
 
+    function focusSearch() { searchField.forceActiveFocus() }
+
+    Layout.fillWidth: true
+    implicitHeight: Theme.controlMd + Theme.spacingSm
+
     RowLayout {
         anchors.fill: parent
-        anchors.margins: 8
-        spacing: 8
+        anchors.topMargin: Theme.spacingXs
+        anchors.bottomMargin: Theme.spacingXs
+        spacing: Theme.spacingSm
 
-        Button {
-            flat: true
-            implicitWidth: 32
-            implicitHeight: 32
+        IconButton {
             visible: root.drillMode
-            contentItem: Text {
-                text: "\u2190"
-                color: "#4a90d9"
-                font.pixelSize: 18
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-            }
-            background: Rectangle { color: "transparent"; radius: 4 }
+            glyph: Mdi.arrowLeft
+            glyphColor: Theme.accent
+            tooltip: qsTr("Back to groups")
             onClicked: root.backRequested()
         }
 
-        TextField {
+        SearchField {
             id: searchField
             Layout.fillWidth: true
+            Layout.maximumWidth: 460
             visible: !root.drillMode
             placeholderText: qsTr("Search groups...")
-            color: "#e0e0e0"
-            placeholderTextColor: "#808080"
-            background: Rectangle {
-                color: "#0f3460"
-                radius: 6
-            }
             onTextChanged: root.searchChanged(text)
         }
 
-        Label {
-            visible: root.drillMode
-            text: root.groupName
-            color: "#e0e0e0"
-            font.pixelSize: 16
-            font.bold: true
+        Item { Layout.fillWidth: true; visible: !root.drillMode }
+
+        RowLayout {
             Layout.fillWidth: true
-            elide: Text.ElideRight
+            visible: root.drillMode
+            spacing: Theme.spacingSm
+
+            MdiIcon {
+                glyph: Mdi.folderMultiple
+                font.pixelSize: Theme.iconSm
+                color: Theme.textMuted
+            }
+
+            Text {
+                Layout.fillWidth: true
+                text: root.groupName
+                color: Theme.text
+                font.pixelSize: Theme.fontLg
+                font.bold: true
+                elide: Text.ElideRight
+            }
         }
 
-        Label {
-            text: root.countText
-            color: "#a0a0a0"
-            font.pixelSize: 12
+        Rectangle {
+            Layout.preferredWidth: countLabel.implicitWidth + Theme.spacingMd
+            Layout.preferredHeight: Theme.controlSm
+            visible: root.countText !== ""
+            radius: Theme.radiusPill
+            color: Theme.surfaceAlt
+
+            Text {
+                id: countLabel
+                anchors.centerIn: parent
+                text: root.countText
+                color: Theme.textMuted
+                font.pixelSize: Theme.fontSm
+            }
         }
     }
 }

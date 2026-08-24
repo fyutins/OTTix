@@ -1,17 +1,33 @@
 import QtQuick
 import QtQuick.Layouts
 
-Rectangle {
+Item {
     id: root
-    color: "transparent"
 
     signal channelSelected(string name, string url, string logo, string group)
 
     property string filterText: ""
+    property int displayCount: 0
+
+    function focusSearch() { searchBar.focusSearch() }
+
+    function refresh() {
+        listModel.clear()
+        var count = 0
+        var favs = DatabaseManager.getFavoritesVariant()
+        for (var i = 0; i < favs.length; i++) {
+            if (ChannelListModel.matchesFilter(favs[i].name, root.filterText)) {
+                listModel.append(favs[i])
+                count++
+            }
+        }
+        displayCount = count
+    }
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: 0
+        anchors.margins: Theme.spacingMd
+        spacing: Theme.spacingSm
 
         ChannelSearchBar {
             id: searchBar
@@ -22,8 +38,6 @@ Rectangle {
                 root.refresh()
             }
         }
-
-        Item { Layout.preferredHeight: 8 }
 
         ChannelGrid {
             id: favoritesGrid
@@ -39,22 +53,7 @@ Rectangle {
         }
     }
 
-    property int displayCount: 0
-
     ListModel { id: listModel }
-
-    function refresh() {
-        listModel.clear()
-        var count = 0
-        var favs = DatabaseManager.getFavoritesVariant()
-        for (var i = 0; i < favs.length; i++) {
-            if (ChannelListModel.matchesFilter(favs[i].name, root.filterText)) {
-                listModel.append(favs[i])
-                count++
-            }
-        }
-        displayCount = count
-    }
 
     Component.onCompleted: {
         refresh()

@@ -106,25 +106,49 @@ target_include_directories(appIptvPlayer PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/xtream
 )
 
+# Singletons QML du design system (jetons de style + jeu d'icones).
+# Doit preceder qt_add_qml_module().
+set_source_files_properties(Theme.qml Mdi.qml
+    PROPERTIES QT_QML_SINGLETON_TYPE TRUE
+)
+
 qt_add_qml_module(appIptvPlayer
     URI IptvPlayer
     VERSION 1.0
     QML_FILES
         Main.qml
         AdminPage.qml
+        AppButton.qml
+        AppComboBox.qml
+        AppMenu.qml
+        AppMenuItem.qml
+        AppScrollBar.qml
+        AppTabBar.qml
+        AppTabButton.qml
         ChannelDelegate.qml
         ChannelGrid.qml
         ChannelListPage.qml
         ChannelSearchBar.qml
         ChannelSearchPopup.qml
+        ConfirmDialog.qml
+        EmptyState.qml
         FavoritesPage.qml
         GroupGrid.qml
-        HistoryPage.qml
         GroupSearchBar.qml
         GroupsPage.qml
+        HistoryPage.qml
+        IconButton.qml
+        Mdi.qml
+        MdiIcon.qml
         PlayerPage.qml
         PlayerSlot.qml
         PlaylistDialog.qml
+        SearchField.qml
+        SettingsCard.qml
+        Theme.qml
+        Tip.qml
+    RESOURCES
+        fonts/materialdesignicons-webfont.ttf
 )
 
 set_target_properties(appIptvPlayer PROPERTIES

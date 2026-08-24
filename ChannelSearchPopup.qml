@@ -6,9 +6,11 @@ Popup {
     id: popup
     modal: true
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+    parent: Overlay.overlay
     anchors.centerIn: Overlay.overlay
-    width: 700
-    height: 550
+    width: Math.min(popup.parent ? popup.parent.width - Theme.spacingXl * 2 : 860, 900)
+    height: Math.min(popup.parent ? popup.parent.height - Theme.spacingXl * 2 : 620, 660)
+    padding: 0
 
     property bool pickMode: false
     property string pickLabel: ""
@@ -40,204 +42,197 @@ Popup {
             popup.close()
     }
 
-    function matchesFilter(name, filter) {
-        if (filter === "") return true
-        var tokens = filter.split(" ")
-        for (var t = 0; t < tokens.length; t++) {
-            if (tokens[t] === "") continue
-            if (name.toLowerCase().indexOf(tokens[t].toLowerCase()) === -1)
-                return false
-        }
-        return true
+    Overlay.modal: Rectangle {
+        color: Qt.rgba(0, 0, 0, 0.6)
     }
 
     background: Rectangle {
-        color: Qt.rgba(0, 0, 0, 0.85)
-        radius: 12
+        color: Theme.bg
+        radius: Theme.radiusLg
+        border.width: 1
+        border.color: Theme.border
     }
 
-    contentItem: Rectangle {
-        color: "#1a1a2e"
-        radius: 12
+    contentItem: ColumnLayout {
+        spacing: 0
 
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: 12
-            spacing: 8
+        // ── En-tete ──
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: Theme.toolbarHeight
+            color: Theme.surface
+            topLeftRadius: Theme.radiusLg
+            topRightRadius: Theme.radiusLg
 
-            // ── Header ──
             RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
+                anchors.fill: parent
+                anchors.leftMargin: Theme.spacingMd
+                anchors.rightMargin: Theme.spacingSm
+                spacing: Theme.spacingSm
+
+                MdiIcon {
+                    glyph: popup.pickMode ? Mdi.plusCircle : Mdi.magnify
+                    font.pixelSize: Theme.iconMd
+                    color: popup.pickMode ? Theme.accent : Theme.textMuted
+                }
 
                 Label {
                     text: popup.pickMode ? popup.pickLabel : qsTr("Browse Channels")
-                    color: "#e0e0e0"
-                    font.pixelSize: 16
+                    color: Theme.text
+                    font.pixelSize: Theme.fontLg
                     font.bold: true
                     Layout.fillWidth: true
                     elide: Text.ElideRight
                 }
 
-                Button {
-                    text: "\u2715"
-                    flat: true
-                    implicitWidth: 28
-                    implicitHeight: 28
-                    contentItem: Text {
-                        text: "\u2715"
-                        color: "#e0e0e0"
-                        font.pixelSize: 14
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                    background: Rectangle {
-                        color: "transparent"
-                        radius: 4
-                    }
+                IconButton {
+                    glyph: Mdi.close
+                    glyphColor: Theme.textMuted
+                    tooltip: qsTr("Close (Esc)")
                     onClicked: popup.close()
                 }
             }
+        }
 
-            // ── Tabs ──
-            TabBar {
-                id: tabBar
-                Layout.fillWidth: true
+        // ── Onglets ──
+        AppTabBar {
+            id: tabBar
+            Layout.fillWidth: true
 
-                TabButton { text: qsTr("Favorites") }
-                TabButton { text: qsTr("All Channels") }
-                TabButton { text: qsTr("Groups") }
-                TabButton { text: qsTr("History") }
+            AppTabButton { text: qsTr("Favorites"); glyph: Mdi.star }
+            AppTabButton { text: qsTr("All Channels"); glyph: Mdi.television }
+            AppTabButton { text: qsTr("Groups"); glyph: Mdi.folderMultiple }
+            AppTabButton { text: qsTr("History"); glyph: Mdi.history }
+        }
+
+        // ── Contenu ──
+        StackLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.margins: Theme.spacingMd
+            currentIndex: tabBar.currentIndex
+
+            // ── Tab 0: Favorites ──
+            ColumnLayout {
+                spacing: Theme.spacingSm
+
+                ChannelSearchBar {
+                    id: favoritesSearchBar
+                    searchPlaceholder: qsTr("Search favorites...")
+                    countText: favoritesModel.count + " " + qsTr("favorites")
+                    onSearchChanged: favoritesModel.refresh()
+                }
+
+                ChannelGrid {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    isFavoritesModel: true
+                    model: favoritesModel
+                    onPlayRequested: (name, url, logo, group) => popup.handlePick(name, url, logo, group)
+                    onFavoriteToggled: (id) => {
+                        DatabaseManager.removeFavorite(id)
+                        favoritesModel.refresh()
+                    }
+                }
             }
 
-            // ── Content ──
-            StackLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                currentIndex: tabBar.currentIndex
+            // ── Tab 1: All Channels ──
+            ColumnLayout {
+                spacing: Theme.spacingSm
 
-                // ── Tab 0: Favorites ──
-                ColumnLayout {
-                    spacing: 8
-
-                    ChannelSearchBar {
-                        id: favoritesSearchBar
-                        searchPlaceholder: qsTr("Search favorites...")
-                        countText: favoritesModel.count + " " + qsTr("favorites")
-                        onSearchChanged: favoritesModel.refresh()
-                    }
-
-                    ChannelGrid {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        isFavoritesModel: true
-                        model: favoritesModel
-                        onPlayRequested: (name, url, logo, group) => popup.handlePick(name, url, logo, group)
-                        onFavoriteToggled: (id) => {
-                            DatabaseManager.removeFavorite(id)
-                            favoritesModel.refresh()
-                        }
+                ChannelSearchBar {
+                    id: channelsSearchBar
+                    searchPlaceholder: qsTr("Search channels...")
+                    countText: ChannelListModel.count + " " + qsTr("channels")
+                    onSearchChanged: function(text) {
+                        if (tabBar.currentIndex === 1)
+                            ChannelListModel.filterText = text
                     }
                 }
 
-                // ── Tab 1: All Channels ──
-                ColumnLayout {
-                    spacing: 8
+                ChannelGrid {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    model: ChannelListModel
+                    onPlayRequested: (name, url, logo, group) => popup.handlePick(name, url, logo, group)
+                    onFavoriteToggled: (id) => ChannelListModel.toggleFavorite(id)
+                }
+            }
 
-                    ChannelSearchBar {
-                        id: channelsSearchBar
-                        searchPlaceholder: qsTr("Search channels...")
-                        countText: ChannelListModel.count + " " + qsTr("channels")
-                        onSearchChanged: function(text) {
-                            if (tabBar.currentIndex === 1)
-                                ChannelListModel.filterText = text
-                        }
-                    }
+            // ── Tab 2: Groups ──
+            ColumnLayout {
+                spacing: Theme.spacingSm
 
-                    ChannelGrid {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        model: ChannelListModel
-                        onPlayRequested: (name, url, logo, group) => popup.handlePick(name, url, logo, group)
-                        onFavoriteToggled: (id) => ChannelListModel.toggleFavorite(id)
+                GroupSearchBar {
+                    id: groupSearchBar
+                    drillMode: popup.selectedGroup !== ""
+                    groupName: popup.selectedGroup
+                    countText: popup.selectedGroup !== ""
+                        ? ChannelListModel.count + " " + qsTr("channels")
+                        : groupListModel.count + " " + qsTr("groups")
+                    onBackRequested: {
+                        popup.selectedGroup = ""
+                        ChannelListModel.filterGroup = ""
+                        ChannelListModel.filterText = ""
                     }
+                    onSearchChanged: groupListModel.build()
                 }
 
-                // ── Tab 2: Groups ──
-                ColumnLayout {
-                    spacing: 8
+                StackLayout {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    currentIndex: popup.selectedGroup === "" ? 0 : 1
 
-                    GroupSearchBar {
-                        id: groupSearchBar
-                        drillMode: popup.selectedGroup !== ""
-                        groupName: popup.selectedGroup
-                        countText: popup.selectedGroup !== ""
-                            ? ChannelListModel.count + " " + qsTr("channels")
-                            : groupListModel.count + " " + qsTr("groups")
-                        onBackRequested: {
-                            popup.selectedGroup = ""
-                            ChannelListModel.filterGroup = ""
+                    GroupGrid {
+                        model: groupListModel
+                        onGroupSelected: (gName) => {
+                            popup.selectedGroup = gName
+                            ChannelListModel.filterGroup = gName
                             ChannelListModel.filterText = ""
                         }
-                        onSearchChanged: groupListModel.build()
                     }
 
-                    StackLayout {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        currentIndex: popup.selectedGroup === "" ? 0 : 1
+                    ColumnLayout {
+                        spacing: Theme.spacingSm
 
-                        GroupGrid {
-                            model: groupListModel
-                            onGroupSelected: (gName) => {
-                                popup.selectedGroup = gName
-                                ChannelListModel.filterGroup = gName
-                                ChannelListModel.filterText = ""
+                        ChannelSearchBar {
+                            id: groupChannelsBar
+                            searchPlaceholder: qsTr("Search in group...")
+                            countText: ""
+                            onSearchChanged: function(text) {
+                                if (popup.selectedGroup !== "")
+                                    ChannelListModel.filterText = text
                             }
                         }
 
-                        ColumnLayout {
-                            spacing: 8
-
-                            ChannelSearchBar {
-                                id: groupChannelsBar
-                                searchPlaceholder: qsTr("Search in group...")
-                                countText: ""
-                                onSearchChanged: function(text) {
-                                    if (popup.selectedGroup !== "")
-                                        ChannelListModel.filterText = text
-                                }
-                            }
-
-                            ChannelGrid {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                model: ChannelListModel
-                                onPlayRequested: (name, url, logo, group) => popup.handlePick(name, url, logo, group)
-                                onFavoriteToggled: (id) => ChannelListModel.toggleFavorite(id)
-                            }
+                        ChannelGrid {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            model: ChannelListModel
+                            onPlayRequested: (name, url, logo, group) => popup.handlePick(name, url, logo, group)
+                            onFavoriteToggled: (id) => ChannelListModel.toggleFavorite(id)
                         }
                     }
                 }
+            }
 
-                // ── Tab 3: History ──
-                ColumnLayout {
-                    spacing: 8
+            // ── Tab 3: History ──
+            ColumnLayout {
+                spacing: Theme.spacingSm
 
-                    ChannelSearchBar {
-                        id: historySearchBar
-                        searchPlaceholder: qsTr("Search history...")
-                        countText: historyModel.count + " " + qsTr("channels")
-                        onSearchChanged: historyModel.refresh()
-                    }
+                ChannelSearchBar {
+                    id: historySearchBar
+                    searchPlaceholder: qsTr("Search history...")
+                    countText: historyModel.count + " " + qsTr("channels")
+                    onSearchChanged: historyModel.refresh()
+                }
 
-                    ChannelGrid {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        isHistoryModel: true
-                        model: historyModel
-                        onPlayRequested: (name, url, logo, group) => popup.handlePick(name, url, logo, group)
-                    }
+                ChannelGrid {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    isHistoryModel: true
+                    model: historyModel
+                    onPlayRequested: (name, url, logo, group) => popup.handlePick(name, url, logo, group)
                 }
             }
         }
@@ -252,7 +247,7 @@ Popup {
             var filter = groupSearchBar.searchText
             for (var i = 0; i < groups.length; i++) {
                 if (groups[i] === "") continue
-                if (filter === "" || popup.matchesFilter(groups[i], filter))
+                if (filter === "" || ChannelListModel.matchesFilter(groups[i], filter))
                     append({ name: groups[i] })
             }
         }
@@ -266,7 +261,7 @@ Popup {
             var favs = DatabaseManager.getFavoritesVariant()
             var filter = favoritesSearchBar.searchText
             for (var i = 0; i < favs.length; i++) {
-                if (filter === "" || popup.matchesFilter(favs[i].name, filter))
+                if (filter === "" || ChannelListModel.matchesFilter(favs[i].name, filter))
                     append(favs[i])
             }
         }
@@ -280,7 +275,7 @@ Popup {
             var entries = DatabaseManager.getHistoryVariant()
             var filter = historySearchBar.searchText
             for (var i = 0; i < entries.length; i++) {
-                if (filter === "" || popup.matchesFilter(entries[i].name, filter))
+                if (filter === "" || ChannelListModel.matchesFilter(entries[i].name, filter))
                     append(entries[i])
             }
         }
@@ -310,14 +305,6 @@ Popup {
         function onGroupsChanged() {
             if (tabBar.currentIndex === 2 && popup.selectedGroup === "")
                 groupListModel.build()
-        }
-    }
-
-    Connections {
-        target: DatabaseManager
-        function onHistoryChanged() {
-            if (tabBar.currentIndex === 3)
-                historyModel.refresh()
         }
     }
 

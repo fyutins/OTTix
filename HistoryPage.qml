@@ -1,28 +1,33 @@
 import QtQuick
 import QtQuick.Layouts
 
-Rectangle {
+Item {
     id: root
-    color: "transparent"
 
     signal channelSelected(string name, string url, string logo, string group)
 
     property string filterText: ""
+    property int displayCount: 0
 
-    function matchesFilter(name, filter) {
-        if (filter === "") return true
-        var tokens = filter.split(" ")
-        for (var t = 0; t < tokens.length; t++) {
-            if (tokens[t] === "") continue
-            if (name.toLowerCase().indexOf(tokens[t].toLowerCase()) === -1)
-                return false
+    function focusSearch() { searchBar.focusSearch() }
+
+    function refresh() {
+        listModel.clear()
+        var count = 0
+        var entries = DatabaseManager.getHistoryVariant()
+        for (var i = 0; i < entries.length; i++) {
+            if (ChannelListModel.matchesFilter(entries[i].name, root.filterText)) {
+                listModel.append(entries[i])
+                count++
+            }
         }
-        return true
+        displayCount = count
     }
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: 0
+        anchors.margins: Theme.spacingMd
+        spacing: Theme.spacingSm
 
         ChannelSearchBar {
             id: searchBar
@@ -34,8 +39,6 @@ Rectangle {
             }
         }
 
-        Item { Layout.preferredHeight: 8 }
-
         ChannelGrid {
             id: historyGrid
             Layout.fillWidth: true
@@ -46,22 +49,7 @@ Rectangle {
         }
     }
 
-    property int displayCount: 0
-
     ListModel { id: listModel }
-
-    function refresh() {
-        listModel.clear()
-        var count = 0
-        var entries = DatabaseManager.getHistoryVariant()
-        for (var i = 0; i < entries.length; i++) {
-            if (root.matchesFilter(entries[i].name, root.filterText)) {
-                listModel.append(entries[i])
-                count++
-            }
-        }
-        displayCount = count
-    }
 
     Component.onCompleted: {
         refresh()

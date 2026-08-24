@@ -14,6 +14,7 @@ Rectangle {
     property string channelLogo: ""
     property string channelGroup: ""
     property bool isActiveAudio: false
+    property bool multiplexed: false
     property bool pendingPick: false
     property int globalVolume: 100
 
@@ -38,6 +39,9 @@ Rectangle {
             hideTimer.restart()
     }
 
+    function doPlay() { mpvItem.play() }
+    function doPause() { mpvItem.pause() }
+
     MpvObject {
         id: mpvItem
         anchors.fill: parent
@@ -48,7 +52,7 @@ Rectangle {
 
     Rectangle {
         anchors.fill: parent
-        color: "black"
+        color: Theme.bg
         visible: root.channelUrl === ""
         z: 1
     }
@@ -56,10 +60,22 @@ Rectangle {
     BusyIndicator {
         anchors.centerIn: parent
         running: mpvItem.loading && root.channelUrl !== ""
+        z: 2
         palette {
-            dark: "#e0e0e0"
-            mid: "#4a90d9"
+            dark: Theme.text
+            mid: Theme.accent
         }
+    }
+
+    // Liseré sur le slot dont on entend le son (utile en multiplex).
+    Rectangle {
+        anchors.fill: parent
+        color: "transparent"
+        border.width: 2
+        border.color: Theme.accent
+        radius: 2
+        visible: root.multiplexed && root.isActiveAudio && root.channelUrl !== ""
+        z: 5
     }
 
     property real controlsOpacity: 1.0
@@ -68,6 +84,11 @@ Rectangle {
         id: hideTimer
         interval: 3000
         onTriggered: {
+            // Ne rien masquer tant qu'un menu ou une bulle est ouvert.
+            if (qualityPopup.opened || infoPopup.opened || contextMenu.opened) {
+                hideTimer.restart()
+                return
+            }
             if (root.channelUrl !== "") {
                 root.controlsOpacity = 0.0
                 root.overlayActive = false
@@ -121,30 +142,33 @@ Rectangle {
         anchors.fill: parent
         opacity: root.controlsOpacity
         enabled: opacity > 0.5
-        Behavior on opacity { NumberAnimation { duration: 300 } }
+        Behavior on opacity { NumberAnimation { duration: Theme.durSlow } }
 
-        // ── Bottom bar (logo, name, controls) ──
+        // ── Barre basse : logo, nom, qualite, rechargement, audio ──
         Rectangle {
             id: bottomBar
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            height: 36
-            color: Qt.rgba(0, 0, 0, 0.75)
+            height: 44
             visible: root.channelUrl !== ""
             z: 4
 
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 0.45; color: Theme.scrim }
+                GradientStop { position: 1.0; color: Theme.scrimStrong }
+            }
+
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 8
-                anchors.rightMargin: 6
-                anchors.topMargin: 0
-                anchors.bottomMargin: 0
-                spacing: 6
+                anchors.leftMargin: Theme.spacingMd
+                anchors.rightMargin: Theme.spacingSm
+                spacing: Theme.spacingSm
 
                 Image {
-                    Layout.preferredWidth: 16
-                    Layout.preferredHeight: 16
+                    Layout.preferredWidth: 18
+                    Layout.preferredHeight: 18
                     source: root.channelLogo || ""
                     asynchronous: true
                     fillMode: Image.PreserveAspectFit
@@ -153,36 +177,54 @@ Rectangle {
 
                 Text {
                     text: root.channelName
-                    color: "white"
-                    font.pixelSize: 11
+                    color: Theme.text
+                    font.pixelSize: Theme.fontSm
                     font.bold: true
                     elide: Text.ElideRight
                     Layout.fillWidth: true
                 }
 
-                // Quality badge
+                // ── Pastille de qualite (variantes) ──
                 Rectangle {
                     id: qualityBadge
-                    implicitWidth: qualityLabel.implicitWidth + 12
-                    Layout.preferredHeight: 20
-                    radius: 4
-                    color: Qt.rgba(1,1,1,0.15)
-                    border.color: "#888"
+                    Layout.preferredWidth: qualityRow.implicitWidth + Theme.spacingMd
+                    Layout.preferredHeight: Theme.controlXs
+                    radius: Theme.radiusSm
+                    color: qualityMouse.containsMouse ? Theme.glassHover : Theme.glass
                     border.width: 1
+                    border.color: qualityMouse.containsMouse ? Theme.accent : Theme.borderStrong
                     visible: root.channelUrl !== "" && ChannelListModel.channelHasVariants(root.channelUrl)
 
                     property string currentLabel: ""
 
-                    Text {
-                        id: qualityLabel
+                    Behavior on color { ColorAnimation { duration: Theme.durFast } }
+                    Behavior on border.color { ColorAnimation { duration: Theme.durFast } }
+
+                    Row {
+                        id: qualityRow
                         anchors.centerIn: parent
-                        text: qualityBadge.currentLabel.length > 0 ? qualityBadge.currentLabel : qsTr("SD")
-                        color: "white"
-                        font.pixelSize: 9
-                        font.bold: true
+                        spacing: Theme.spacingXs
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: qualityBadge.currentLabel.length > 0 ? qualityBadge.currentLabel : qsTr("SD")
+                            color: Theme.text
+                            font.pixelSize: Theme.fontXs
+                            font.bold: true
+                        }
+
+                        MdiIcon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            glyph: qualityPopup.opened ? Mdi.chevronDown : Mdi.chevronUp
+                            font.pixelSize: Theme.iconXs
+                            color: Theme.textMuted
+                        }
                     }
+
                     MouseArea {
+                        id: qualityMouse
                         anchors.fill: parent
+                        hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
                             qualityListModel.clear()
@@ -198,56 +240,45 @@ Rectangle {
                                     isCurrent: v.url === root.channelUrl
                                 })
                             }
-                            var pos = root.mapFromItem(qualityBadge, 0, 0)
-                            qualityPopup.x = pos.x + qualityBadge.width - qualityPopup.width
-                            qualityPopup.y = pos.y - qualityPopup.implicitHeight - 8
-                            qualityPopup.open()
+                            qualityPopup.showFrom(qualityBadge)
                         }
                     }
-                }
 
-                // Reload
-                Rectangle {
-                    Layout.preferredWidth: 22
-                    Layout.preferredHeight: 22
-                    radius: 11
-                    color: Qt.rgba(1,1,1,0.2)
-                    border.color: "#888"
-                    border.width: 1
-                    Text {
-                        anchors.centerIn: parent
-                        text: "\u21BB"
-                        font.pixelSize: 11
-                        color: "white"
-                    }
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: mpvItem.reload()
+                    Tip {
+                        visible: qualityMouse.containsMouse && !qualityPopup.opened
+                        text: qsTr("Quality variants")
                     }
                 }
 
-                // ── Audio slot mute toggle ──
-                Rectangle {
-                    Layout.preferredWidth: 22
-                    Layout.preferredHeight: 22
-                    radius: 11
-                    color: root.isActiveAudio ? "#4a90d9" : Qt.rgba(1,1,1,0.2)
-                    border.color: root.isActiveAudio ? "#4a90d9" : "#888"
-                    border.width: 1
-                    Text {
-                        anchors.centerIn: parent
-                        text: root.isActiveAudio ? "\uD83D\uDD0A" : "\uD83D\uDD07"
-                        font.pixelSize: 10
-                    }
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: root.audioToggleRequested(root.slotIndex)
-                    }
+                IconButton {
+                    implicitWidth: Theme.controlSm
+                    implicitHeight: Theme.controlSm
+                    round: true
+                    tinted: true
+                    glyph: Mdi.refresh
+                    glyphSize: Theme.iconSm
+                    tooltip: qsTr("Reload the stream")
+                    onClicked: mpvItem.reload()
+                }
+
+                IconButton {
+                    implicitWidth: Theme.controlSm
+                    implicitHeight: Theme.controlSm
+                    round: true
+                    tinted: true
+                    checkable: true
+                    checked: root.isActiveAudio
+                    glyph: root.isActiveAudio ? Mdi.volumeHigh : Mdi.volumeOff
+                    glyphSize: Theme.iconSm
+                    glyphColor: Theme.textMuted
+                    tooltip: root.isActiveAudio ? qsTr("Audio on this screen")
+                                                : qsTr("Listen to this screen")
+                    onClicked: root.audioToggleRequested(root.slotIndex)
                 }
             }
         }
 
-        // ── Center: ≡ (top) · ◀ ▶ Play/Pause (bottom) ──
+        // ── Centre : parcourir (haut) · precedent / lecture / suivant ──
         Item {
             anchors.centerIn: parent
             width: centerColumn.implicitWidth
@@ -256,122 +287,88 @@ Rectangle {
 
             ColumnLayout {
                 id: centerColumn
-                spacing: 12
+                spacing: Theme.spacingMd
                 visible: root.channelUrl !== ""
 
-                // ≡ (pick) — centered above play/pause
-                Rectangle {
+                IconButton {
                     Layout.alignment: Qt.AlignHCenter
-                    Layout.preferredWidth: 40
-                    Layout.preferredHeight: 40
-                    radius: 20
-                    color: Qt.rgba(0, 0, 0, 0.7)
-                    Text {
-                        anchors.centerIn: parent
-                        text: "\u2630"
-                        color: "white"
-                        font.pixelSize: 18
-                    }
-                    MouseArea {
-                        anchors.fill: parent
-                        onClicked: root.pickRequested(root.slotIndex)
-                    }
+                    implicitWidth: Theme.controlLg
+                    implicitHeight: Theme.controlLg
+                    round: true
+                    tinted: true
+                    dark: true
+                    glyph: Mdi.menu
+                    tooltip: qsTr("Change the channel on this screen")
+                    onClicked: root.pickRequested(root.slotIndex)
                 }
 
-                // ◀ · Play/Pause · ▶
                 RowLayout {
-                    spacing: 12
+                    spacing: Theme.spacingMd
                     Layout.alignment: Qt.AlignHCenter
 
-                    // ◀ Prev
-                    Rectangle {
-                        Layout.preferredWidth: 44
-                        Layout.preferredHeight: 44
-                        radius: 22
-                        color: Qt.rgba(0, 0, 0, 0.65)
-                        Text {
-                            anchors.centerIn: parent
-                            text: "\u25C0"
-                            color: "white"
-                            font.pixelSize: 18
-                        }
-                        MouseArea {
-                            anchors.fill: parent
-                            onClicked: root.prevRequested()
+                    IconButton {
+                        implicitWidth: 44
+                        implicitHeight: 44
+                        round: true
+                        tinted: true
+                        dark: true
+                        glyph: Mdi.skipPrevious
+                        glyphSize: Theme.iconLg
+                        tooltip: qsTr("Previous channel")
+                        onClicked: root.prevRequested()
+                    }
+
+                    IconButton {
+                        implicitWidth: 56
+                        implicitHeight: 56
+                        round: true
+                        tinted: true
+                        dark: true
+                        glyph: mpvItem.playing ? Mdi.pause : Mdi.play
+                        glyphSize: Theme.iconXl
+                        tooltip: mpvItem.playing ? qsTr("Pause (Space)") : qsTr("Play (Space)")
+                        onClicked: {
+                            if (mpvItem.playing) mpvItem.pause()
+                            else mpvItem.play()
                         }
                     }
 
-                    // Play / Pause
-                    Rectangle {
-                        Layout.preferredWidth: 48
-                        Layout.preferredHeight: 48
-                        radius: 24
-                        color: Qt.rgba(0, 0, 0, 0.65)
-                        Text {
-                            anchors.centerIn: parent
-                            text: mpvItem.playing ? "\u23F8" : "\u25B6"
-                            color: "white"
-                            font.pixelSize: 22
-                        }
-                        MouseArea {
-                            anchors.fill: parent
-                            onClicked: {
-                                if (mpvItem.playing) mpvItem.pause()
-                                else mpvItem.play()
-                            }
-                        }
-                    }
-
-                    // ▶ Next
-                    Rectangle {
-                        Layout.preferredWidth: 44
-                        Layout.preferredHeight: 44
-                        radius: 22
-                        color: Qt.rgba(0, 0, 0, 0.65)
-                        Text {
-                            anchors.centerIn: parent
-                            text: "\u25B6"
-                            color: "white"
-                            font.pixelSize: 18
-                        }
-                        MouseArea {
-                            anchors.fill: parent
-                            onClicked: root.nextRequested()
-                        }
+                    IconButton {
+                        implicitWidth: 44
+                        implicitHeight: 44
+                        round: true
+                        tinted: true
+                        dark: true
+                        glyph: Mdi.skipNext
+                        glyphSize: Theme.iconLg
+                        tooltip: qsTr("Next channel")
+                        onClicked: root.nextRequested()
                     }
                 }
             }
         }
 
-        // ── -15s · LIVE · +15s (above bottom bar) ──
+        // ── -15s · LIVE · +15s (au-dessus de la barre basse) ──
         RowLayout {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: bottomBar.top
-            anchors.bottomMargin: 12
-            spacing: 16
+            anchors.bottomMargin: Theme.spacingMd
+            spacing: Theme.spacingLg
             visible: root.channelUrl !== "" && mpvItem.sessionDuration > 0
             z: 3
 
-            // -15s
-            Rectangle {
-                Layout.preferredWidth: 44
-                Layout.preferredHeight: 44
-                radius: 22
-                color: Qt.rgba(0, 0, 0, 0.65)
-                Text {
-                    anchors.centerIn: parent
-                    text: "-15s"
-                    color: "white"
-                    font.pixelSize: 11
-                    font.bold: true
-                }
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: mpvItem.seek(mpvItem.sessionPosition - 15)
-                }
+            IconButton {
+                implicitWidth: 40
+                implicitHeight: 40
+                round: true
+                tinted: true
+                dark: true
+                glyph: Mdi.rewind15
+                glyphSize: Theme.iconLg
+                tooltip: qsTr("Back 15 seconds")
+                onClicked: mpvItem.seek(mpvItem.sessionPosition - 15)
             }
 
-            // LIVE + delay
             ColumnLayout {
                 spacing: 2
                 Layout.alignment: Qt.AlignVCenter
@@ -379,24 +376,48 @@ Rectangle {
                 Rectangle {
                     id: liveBtn
                     Layout.alignment: Qt.AlignHCenter
-                    Layout.preferredHeight: 24
-                    implicitWidth: liveLabel.implicitWidth + 16
-                    radius: 4
-                    color: isLive ? "#d32f2f" : Qt.rgba(1, 1, 1, 0.25)
+                    Layout.preferredHeight: Theme.controlXs
+                    implicitWidth: liveRow.implicitWidth + Theme.spacingMd
+                    radius: Theme.radiusSm
+                    color: isLive ? Theme.live : Theme.glassDark
                     property bool isLive: mpvItem.sessionDuration - mpvItem.sessionPosition < 5
-                    Text {
-                        id: liveLabel
+
+                    Behavior on color { ColorAnimation { duration: Theme.durNormal } }
+
+                    Row {
+                        id: liveRow
                         anchors.centerIn: parent
-                        text: qsTr("LIVE")
-                        color: parent.isLive ? "white" : Qt.rgba(1, 1, 1, 0.6)
-                        font.pixelSize: 11
-                        font.bold: true
+                        spacing: Theme.spacingXs
+
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 6
+                            height: 6
+                            radius: 3
+                            color: liveBtn.isLive ? Theme.textOnAccent : Theme.textDim
+                        }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: qsTr("LIVE")
+                            color: liveBtn.isLive ? Theme.textOnAccent : Theme.textMuted
+                            font.pixelSize: Theme.fontSm
+                            font.bold: true
+                        }
                     }
+
                     MouseArea {
                         anchors.fill: parent
                         enabled: !liveBtn.isLive
                         cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                         onClicked: mpvItem.reload()
+                    }
+
+                    HoverHandler { id: liveHover }
+
+                    Tip {
+                        visible: !liveBtn.isLive && liveHover.hovered
+                        text: qsTr("Back to live")
                     }
                 }
 
@@ -417,45 +438,39 @@ Rectangle {
                             return sign + m + ":" + (s < 10 ? "0" : "") + s
                         return sign + s + "s"
                     }
-                    color: Qt.rgba(1, 1, 1, 0.5)
-                    font.pixelSize: 10
+                    color: Theme.textMuted
+                    font.pixelSize: Theme.fontXs
                 }
             }
 
-            // +15s (opacity hide/show to keep layout fixed)
-            Rectangle {
-                Layout.preferredWidth: 44
-                Layout.preferredHeight: 44
-                radius: 22
-                color: Qt.rgba(0, 0, 0, 0.65)
+            // Masque par l'opacite pour garder la rangee stable en direct.
+            IconButton {
+                implicitWidth: 40
+                implicitHeight: 40
+                round: true
+                tinted: true
+                dark: true
+                glyph: Mdi.fastForward15
+                glyphSize: Theme.iconLg
                 opacity: liveBtn.isLive ? 0.0 : 1.0
                 enabled: !liveBtn.isLive
-                Text {
-                    anchors.centerIn: parent
-                    text: "+15s"
-                    color: "white"
-                    font.pixelSize: 11
-                    font.bold: true
-                }
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: mpvItem.seek(mpvItem.sessionPosition + 15)
-                }
+                tooltip: qsTr("Forward 15 seconds")
+                onClicked: mpvItem.seek(mpvItem.sessionPosition + 15)
             }
         }
     }
 
-    // ── Right-click context menu ──
-    Menu {
+    // ── Menu contextuel (clic droit) ──
+    AppMenu {
         id: contextMenu
 
-        Menu {
+        AppMenu {
             id: audioTrackMenu
             title: qsTr("Audio Track")
             onAboutToShow: root.buildTrackMenu(audioTrackMenu, mpvItem.audioTracks, true)
         }
 
-        Menu {
+        AppMenu {
             id: subtitleTrackMenu
             title: qsTr("Subtitle Track")
             onAboutToShow: root.buildTrackMenu(subtitleTrackMenu, mpvItem.subtitleTracks, false)
@@ -463,29 +478,29 @@ Rectangle {
 
         MenuSeparator {}
 
-        Menu {
+        AppMenu {
             id: hwdecMenu
             title: qsTr("Hardware Decoding")
 
-            MenuItem {
+            AppMenuItem {
                 text: "auto"
                 checkable: true
                 checked: mpvItem.hwdec === "auto"
                 onTriggered: root.hwdecChangeRequested("auto")
             }
-            MenuItem {
+            AppMenuItem {
                 text: "no"
                 checkable: true
                 checked: mpvItem.hwdec === "no"
                 onTriggered: root.hwdecChangeRequested("no")
             }
-            MenuItem {
+            AppMenuItem {
                 text: "d3d11va"
                 checkable: true
                 checked: mpvItem.hwdec === "d3d11va"
                 onTriggered: root.hwdecChangeRequested("d3d11va")
             }
-            MenuItem {
+            AppMenuItem {
                 text: "nvdec"
                 checkable: true
                 checked: mpvItem.hwdec === "nvdec"
@@ -495,15 +510,22 @@ Rectangle {
 
         MenuSeparator {}
 
-        MenuItem {
+        AppMenuItem {
+            text: qsTr("Reload the stream")
+            glyph: Mdi.refresh
+            onTriggered: mpvItem.reload()
+        }
+
+        AppMenuItem {
             text: qsTr("Info...")
+            glyph: Mdi.information
             onTriggered: infoPopup.open()
         }
     }
 
     Component {
         id: trackItemComponent
-        MenuItem { checkable: true }
+        AppMenuItem { checkable: true }
     }
 
     Component {
@@ -538,105 +560,140 @@ Rectangle {
         })
     }
 
-    // ── Info popup ──
+    // ── Informations sur la chaine ──
     Popup {
         id: infoPopup
         modal: true
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-        x: Math.round((root.width - width) / 2)
-        y: Math.round((root.height - height) / 2)
-        width: 280
-        height: infoColumn.implicitHeight + 40
-        padding: 16
+        parent: Overlay.overlay
+        anchors.centerIn: Overlay.overlay
+        width: 420
+        implicitHeight: infoColumn.implicitHeight + padding * 2
+        padding: Theme.spacingLg
 
         background: Rectangle {
-            color: "#1a1a2e"
-            radius: 8
-            border.color: "#0f3460"
+            color: Theme.surface
+            radius: Theme.radiusMd
+            border.color: Theme.border
             border.width: 1
         }
 
         ColumnLayout {
             id: infoColumn
             anchors.fill: parent
-            spacing: 8
-
-            Text {
-                text: qsTr("Channel Info")
-                color: "#e0e0e0"
-                font.pixelSize: 14
-                font.bold: true
-            }
-
-            Rectangle { Layout.preferredHeight: 1; color: "#0f3460"; Layout.fillWidth: true }
+            spacing: Theme.spacingSm
 
             RowLayout {
-                spacing: 8
-                Text { text: qsTr("Name:"); color: "#a0a0a0"; font.pixelSize: 11 }
-                Text { text: root.channelName; color: "#e0e0e0"; font.pixelSize: 11; Layout.fillWidth: true; elide: Text.ElideRight }
+                Layout.fillWidth: true
+                spacing: Theme.spacingSm
+
+                MdiIcon {
+                    glyph: Mdi.information
+                    font.pixelSize: Theme.iconMd
+                    color: Theme.accent
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: qsTr("Channel Info")
+                    color: Theme.text
+                    font.pixelSize: Theme.fontLg
+                    font.bold: true
+                }
+
+                IconButton {
+                    implicitWidth: Theme.controlSm
+                    implicitHeight: Theme.controlSm
+                    glyph: Mdi.close
+                    glyphSize: Theme.iconSm
+                    glyphColor: Theme.textMuted
+                    onClicked: infoPopup.close()
+                }
+            }
+
+            Rectangle { Layout.preferredHeight: 1; color: Theme.border; Layout.fillWidth: true }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.spacingSm
+                Text { text: qsTr("Name:"); color: Theme.textDim; font.pixelSize: Theme.fontMd }
+                Text {
+                    text: root.channelName; color: Theme.text; font.pixelSize: Theme.fontMd
+                    Layout.fillWidth: true; elide: Text.ElideRight
+                }
             }
 
             RowLayout {
-                spacing: 8
-                Text { text: qsTr("Group:"); color: "#a0a0a0"; font.pixelSize: 11 }
-                Text { text: root.channelGroup; color: "#e0e0e0"; font.pixelSize: 11; Layout.fillWidth: true; elide: Text.ElideRight }
+                Layout.fillWidth: true
+                spacing: Theme.spacingSm
+                Text { text: qsTr("Group:"); color: Theme.textDim; font.pixelSize: Theme.fontMd }
+                Text {
+                    text: root.channelGroup; color: Theme.text; font.pixelSize: Theme.fontMd
+                    Layout.fillWidth: true; elide: Text.ElideRight
+                }
             }
 
             ColumnLayout {
-                spacing: 4
-                Text { text: qsTr("URL:"); color: "#a0a0a0"; font.pixelSize: 11 }
+                Layout.fillWidth: true
+                spacing: Theme.spacingXs
+
+                Text { text: qsTr("URL:"); color: Theme.textDim; font.pixelSize: Theme.fontMd }
 
                 Rectangle {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 28
-                    color: "#0f3460"
-                    radius: 4
+                    Layout.preferredHeight: Theme.controlMd
+                    color: Theme.surfaceAlt
+                    radius: Theme.radiusSm
+                    border.width: 1
+                    border.color: Theme.border
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 6
-                        anchors.rightMargin: 4
-                        anchors.topMargin: 0
-                        anchors.bottomMargin: 0
-                        spacing: 4
+                        anchors.leftMargin: Theme.spacingSm
+                        anchors.rightMargin: Theme.spacingXs
+                        spacing: Theme.spacingXs
 
                         Text {
                             text: root.channelUrl
-                            color: "#4a90d9"
-                            font.pixelSize: 10
+                            color: Theme.accent
+                            font.pixelSize: Theme.fontSm
                             elide: Text.ElideRight
                             Layout.fillWidth: true
                         }
 
-                        Rectangle {
-                            Layout.preferredWidth: 20
-                            Layout.preferredHeight: 20
-                            radius: 4
-                            color: Qt.rgba(1,1,1,0.15)
-                            Text {
-                                anchors.centerIn: parent
-                                text: "\u2398"
-                                color: "white"
-                                font.pixelSize: 11
-                            }
-                            MouseArea {
-                                anchors.fill: parent
-                                onClicked: {
-                                    ClipboardHelper.copyText(root.channelUrl)
-                                    copyFeedback.visible = true
-                                    hideFeedback.restart()
-                                }
+                        IconButton {
+                            implicitWidth: Theme.controlSm
+                            implicitHeight: Theme.controlSm
+                            glyph: Mdi.copy
+                            glyphSize: Theme.iconSm
+                            glyphColor: Theme.textMuted
+                            tooltip: qsTr("Copy the URL")
+                            onClicked: {
+                                ClipboardHelper.copyText(root.channelUrl)
+                                copyFeedback.visible = true
+                                hideFeedback.restart()
                             }
                         }
                     }
                 }
 
-                Text {
-                    id: copyFeedback
-                    text: qsTr("Copied!")
-                    color: "#4a90d9"
-                    font.pixelSize: 10
-                    visible: false
+                RowLayout {
+                    spacing: Theme.spacingXs
+                    visible: copyFeedback.visible
+
+                    MdiIcon {
+                        glyph: Mdi.checkCircle
+                        font.pixelSize: Theme.iconXs
+                        color: Theme.success
+                    }
+
+                    Text {
+                        id: copyFeedback
+                        text: qsTr("Copied!")
+                        color: Theme.success
+                        font.pixelSize: Theme.fontSm
+                        visible: false
+                    }
                 }
 
                 Timer {
@@ -648,119 +705,203 @@ Rectangle {
         }
     }
 
+    // ── Slot vide : invite a choisir une chaine ──
     Rectangle {
         anchors.centerIn: parent
-        width: 56
-        height: 56
-        radius: 28
-        color: Qt.rgba(0, 0, 0, 0.7)
+        width: 200
+        height: 116
+        radius: Theme.radiusMd
+        color: emptyMouse.containsMouse ? Theme.surfaceAlt : Theme.surface
+        border.width: 1
+        border.color: emptyMouse.containsMouse ? Theme.accent : Theme.border
         visible: root.channelUrl === ""
         z: 2
 
-        Text {
+        Behavior on color { ColorAnimation { duration: Theme.durFast } }
+        Behavior on border.color { ColorAnimation { duration: Theme.durFast } }
+
+        ColumnLayout {
             anchors.centerIn: parent
-            text: "+"
-            color: "white"
-            font.pixelSize: 28
-            font.bold: true
+            spacing: Theme.spacingSm
+
+            MdiIcon {
+                Layout.alignment: Qt.AlignHCenter
+                glyph: Mdi.plusCircle
+                font.pixelSize: Theme.iconXl
+                color: emptyMouse.containsMouse ? Theme.accent : Theme.textMuted
+
+                Behavior on color { ColorAnimation { duration: Theme.durFast } }
+            }
+
+            Text {
+                Layout.alignment: Qt.AlignHCenter
+                text: qsTr("Choose a channel")
+                color: Theme.textMuted
+                font.pixelSize: Theme.fontMd
+            }
+
+            Text {
+                Layout.alignment: Qt.AlignHCenter
+                text: qsTr("Screen %1").arg(root.slotIndex + 1)
+                color: Theme.textDim
+                font.pixelSize: Theme.fontSm
+            }
         }
 
         MouseArea {
+            id: emptyMouse
             anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
             onClicked: root.pickRequested(root.slotIndex)
         }
     }
 
-    // ── Quality variant popup ──
+    // ── Variantes de qualite ──
+    // Positionnee dans l'overlay de la fenetre, jamais dans le slot : la bulle
+    // reste ainsi entierement visible meme quand le slot est petit ou colle a
+    // un bord. La hauteur est deduite du nombre d'items pour que le calcul de
+    // position soit juste des la premiere ouverture.
     Popup {
         id: qualityPopup
-        x: qualityBadge.x
-        y: qualityBadge.y - implicitHeight - 8
-        width: 280
-        implicitHeight: qualityListColumn.implicitHeight + 24
-        padding: 8
+        parent: Overlay.overlay
+        width: 320
+        padding: Theme.spacingSm
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
+        readonly property int rowHeight: 46
+        readonly property int listHeight: Math.min(qualityListModel.count * rowHeight, 276)
+
+        property point anchorPoint: Qt.point(0, 0)
+        property real anchorHeight: 0
+
+        implicitHeight: qualityHeader.implicitHeight + listHeight
+                        + Theme.spacingSm * 2 + padding * 2 + 1
+
+        function showFrom(item) {
+            var p = item.mapToItem(qualityPopup.parent, item.width, 0)
+            qualityPopup.anchorPoint = p
+            qualityPopup.anchorHeight = item.height
+            qualityPopup.open()
+            qualityPopup.reposition()
+        }
+
+        // Aligne le coin bas-droit sur le badge, bascule sous le badge s'il n'y
+        // a pas la place au-dessus, puis borne le tout a la fenetre.
+        function reposition() {
+            if (!qualityPopup.parent)
+                return
+            var m = Theme.spacingSm
+            var wantX = qualityPopup.anchorPoint.x - qualityPopup.width
+            var wantY = qualityPopup.anchorPoint.y - qualityPopup.height - m
+            if (wantY < m)
+                wantY = qualityPopup.anchorPoint.y + qualityPopup.anchorHeight + m
+            qualityPopup.x = Math.max(m, Math.min(wantX, qualityPopup.parent.width - qualityPopup.width - m))
+            qualityPopup.y = Math.max(m, Math.min(wantY, qualityPopup.parent.height - qualityPopup.height - m))
+        }
+
+        onHeightChanged: reposition()
+        onOpened: reposition()
+
         background: Rectangle {
-            color: "#1a1a2e"
-            radius: 6
-            border.color: "#0f3460"
+            color: Theme.surface
+            radius: Theme.radiusMd
+            border.color: Theme.border
             border.width: 1
         }
 
-        ColumnLayout {
+        contentItem: ColumnLayout {
             id: qualityListColumn
-            anchors.fill: parent
-            spacing: 6
+            spacing: Theme.spacingSm
 
-            Text {
-                text: qsTr("Quality Variants")
-                color: "#808080"
-                font.pixelSize: 10
-                font.bold: true
+            RowLayout {
+                id: qualityHeader
+                Layout.fillWidth: true
+                spacing: Theme.spacingXs
+
+                MdiIcon {
+                    glyph: Mdi.highDefinition
+                    font.pixelSize: Theme.iconSm
+                    color: Theme.textDim
+                }
+
+                Text {
+                    Layout.fillWidth: true
+                    text: qsTr("Quality Variants")
+                    color: Theme.textDim
+                    font.pixelSize: Theme.fontSm
+                    font.bold: true
+                }
             }
 
             Rectangle {
                 Layout.preferredHeight: 1
-                color: "#0f3460"
                 Layout.fillWidth: true
+                color: Theme.border
             }
 
             ListView {
                 id: qualityListView
                 Layout.fillWidth: true
-                Layout.preferredHeight: contentHeight
-                interactive: contentHeight > 260
+                Layout.preferredHeight: qualityPopup.listHeight
+                interactive: contentHeight > height
                 clip: true
+                boundsBehavior: Flickable.StopAtBounds
                 model: ListModel { id: qualityListModel }
+
+                ScrollBar.vertical: AppScrollBar {}
+
                 delegate: Rectangle {
                     id: variantRow
 
                     required property var model
 
                     width: qualityListView.width
-                    height: 44
-                    radius: 4
-                    color: mouseArea.containsMouse ? "#0f3460" : "transparent"
+                    height: qualityPopup.rowHeight
+                    radius: Theme.radiusSm
+                    color: variantMouse.containsMouse ? Theme.surfaceHi
+                         : variantRow.model.isCurrent ? Theme.accentSoft : "transparent"
+
+                    Behavior on color { ColorAnimation { duration: Theme.durFast } }
 
                     ColumnLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 8
-                        anchors.rightMargin: 8
+                        anchors.leftMargin: Theme.spacingSm
+                        anchors.rightMargin: Theme.spacingSm
                         spacing: 2
 
                         RowLayout {
                             Layout.fillWidth: true
-                            spacing: 6
+                            spacing: Theme.spacingXs
 
                             Text {
                                 text: variantRow.model.label
-                                color: variantRow.model.isCurrent ? "#4a90d9" : "#e0e0e0"
-                                font.pixelSize: 12
+                                color: variantRow.model.isCurrent ? Theme.accent : Theme.text
+                                font.pixelSize: Theme.fontMd
                                 font.bold: variantRow.model.isCurrent
                                 Layout.minimumWidth: implicitWidth
                             }
 
                             Text {
                                 text: variantRow.model.name
-                                color: "#a0a0a0"
-                                font.pixelSize: 10
+                                color: Theme.textMuted
+                                font.pixelSize: Theme.fontXs
                                 elide: Text.ElideRight
                                 Layout.fillWidth: true
                             }
 
-                            Text {
-                                text: variantRow.model.isCurrent ? "\u2713" : ""
-                                color: "#4a90d9"
-                                font.pixelSize: 13
+                            MdiIcon {
+                                glyph: Mdi.check
+                                font.pixelSize: Theme.iconSm
+                                color: Theme.accent
                                 visible: variantRow.model.isCurrent
                             }
                         }
 
                         Text {
                             text: variantRow.model.group || ""
-                            color: "#606060"
-                            font.pixelSize: 10
+                            color: Theme.textDim
+                            font.pixelSize: Theme.fontXs
                             elide: Text.ElideRight
                             Layout.fillWidth: true
                             visible: (variantRow.model.group || "") !== ""
@@ -768,7 +909,7 @@ Rectangle {
                     }
 
                     MouseArea {
-                        id: mouseArea
+                        id: variantMouse
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor

@@ -4,62 +4,88 @@ import QtQuick.Controls
 
 GridView {
     id: root
-    cellWidth: 200
-    cellHeight: 70
-    clip: true
-    ScrollBar.vertical: ScrollBar {}
-    boundsBehavior: Flickable.StopAtBounds
 
     signal groupSelected(string groupName)
 
-    delegate: Rectangle {
+    readonly property int minCellWidth: 232
+
+    cellWidth: root.width > root.minCellWidth
+               ? Math.floor(root.width / Math.floor(root.width / root.minCellWidth))
+               : root.minCellWidth
+    cellHeight: 64
+    clip: true
+    boundsBehavior: Flickable.StopAtBounds
+
+    ScrollBar.vertical: AppScrollBar {}
+
+    delegate: Item {
         id: groupCell
 
         required property var model
 
-        width: root.cellWidth - 12
-        height: root.cellHeight - 12
-        x: 6
-        y: 6
-        radius: 8
-        color: mouseArea.containsMouse ? "#0f3460" : "#16213e"
+        readonly property string gName: groupCell.model.name
 
-        property string gName: model.name
+        width: root.cellWidth
+        height: root.cellHeight
 
-        MouseArea {
-            id: mouseArea
+        Rectangle {
             anchors.fill: parent
-            hoverEnabled: true
-            onClicked: root.groupSelected(groupCell.gName)
-        }
+            anchors.margins: Theme.spacingXs
+            radius: Theme.radiusMd
+            color: mouseArea.containsMouse ? Theme.surfaceHi : Theme.surfaceAlt
+            border.width: 1
+            border.color: mouseArea.containsMouse ? Theme.accent : Theme.border
 
-        Label {
-            anchors.left: parent.left
-            anchors.leftMargin: 12
-            anchors.verticalCenter: parent.verticalCenter
-            text: groupCell.gName
-            color: "#e0e0e0"
-            font.pixelSize: 14
-            font.bold: true
-            elide: Text.ElideRight
-            width: parent.width - 36
-        }
+            Behavior on color { ColorAnimation { duration: Theme.durFast } }
+            Behavior on border.color { ColorAnimation { duration: Theme.durFast } }
 
-        Label {
-            anchors.right: parent.right
-            anchors.rightMargin: 12
-            anchors.verticalCenter: parent.verticalCenter
-            text: "\u203A"
-            color: "#808080"
-            font.pixelSize: 20
+            MouseArea {
+                id: mouseArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.groupSelected(groupCell.gName)
+            }
+
+            Row {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.leftMargin: Theme.spacingMd
+                anchors.rightMargin: Theme.spacingSm
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: Theme.spacingSm
+
+                MdiIcon {
+                    anchors.verticalCenter: parent.verticalCenter
+                    glyph: Mdi.folderMultiple
+                    font.pixelSize: Theme.iconMd
+                    color: mouseArea.containsMouse ? Theme.accent : Theme.textMuted
+                }
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width - Theme.iconMd - Theme.iconSm - Theme.spacingSm * 2
+                    text: groupCell.gName
+                    color: Theme.text
+                    font.pixelSize: Theme.fontMd
+                    font.bold: true
+                    elide: Text.ElideRight
+                }
+
+                MdiIcon {
+                    anchors.verticalCenter: parent.verticalCenter
+                    glyph: Mdi.chevronRight
+                    font.pixelSize: Theme.iconSm
+                    color: mouseArea.containsMouse ? Theme.accent : Theme.textDim
+                }
+            }
         }
     }
 
-    Label {
+    EmptyState {
         anchors.centerIn: parent
-        text: qsTr("No groups found")
-        color: "#808080"
-        font.pixelSize: 16
         visible: root.count === 0
+        glyph: Mdi.folderMultiple
+        title: qsTr("No groups found")
     }
 }

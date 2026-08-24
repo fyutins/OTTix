@@ -9,6 +9,7 @@ Window {
     height: 720
     visible: true
     title: qsTr("IPTV Player")
+    color: Theme.bg
 
     property bool isFullScreen: false
     property bool showPlayer: false
@@ -89,6 +90,30 @@ Window {
         channelSearchPopup.openPicker()
     }
 
+    function toggleFullScreen() {
+        if (window.visibility === Window.FullScreen) {
+            window.visibility = Window.Windowed
+            window.isFullScreen = false
+        } else {
+            window.visibility = Window.FullScreen
+            window.isFullScreen = true
+        }
+    }
+
+    // Donne le focus au champ de recherche de l'onglet courant (Ctrl+F).
+    function focusCurrentSearch() {
+        if (window.showPlayer || window.showAdmin)
+            return
+        if (tabBar.currentIndex === 0)
+            favoritesPage.focusSearch()
+        else if (tabBar.currentIndex === 1)
+            allChannelsPage.focusSearch()
+        else if (tabBar.currentIndex === 2)
+            groupsPage.focusSearch()
+        else
+            historyPage.focusSearch()
+    }
+
     PlaylistLoader {
         id: loader
         onLoadComplete: (playlistId, channelCount) => {
@@ -127,17 +152,35 @@ Window {
         }
     }
 
+    // Bascule sur une autre playlist : affichage immediat depuis la base, et
+    // retelechargement seulement si elle est vide ou perimee.
+    function selectPlaylist(index) {
+        var pl = PlaylistModel.get(index)
+        if (!pl || pl.id === activePlaylistId)
+            return
+        activePlaylistId = pl.id
+        ChannelListModel.setChannels(pl.id)
+        if (DatabaseManager.needsRefresh(pl.id, 24))
+            refreshPlaylist(pl)
+    }
+
+    function playlistIndexOf(id) {
+        for (var i = 0; i < PlaylistModel.count; i++) {
+            var pl = PlaylistModel.get(i)
+            if (pl && pl.id === id)
+                return i
+        }
+        return -1
+    }
+
     Shortcut {
         sequence: "F11"
-        onActivated: {
-            if (window.visibility === Window.FullScreen) {
-                window.visibility = Window.Windowed
-                window.isFullScreen = false
-            } else {
-                window.visibility = Window.FullScreen
-                window.isFullScreen = true
-            }
-        }
+        onActivated: window.toggleFullScreen()
+    }
+
+    Shortcut {
+        sequences: [StandardKey.Find]
+        onActivated: window.focusCurrentSearch()
     }
 
     Shortcut {
@@ -178,7 +221,7 @@ Window {
     // ── Navigation layer ──
     Rectangle {
         anchors.fill: parent
-        color: "#1a1a2e"
+        color: Theme.bg
         visible: !window.showPlayer
 
         StackLayout {
@@ -189,141 +232,188 @@ Window {
             ColumnLayout {
                 spacing: 0
 
-                // Toolbar
+                // ── Barre d'outils ──
                 Rectangle {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 44
-                    color: "#16213e"
+                    Layout.preferredHeight: Theme.toolbarHeight
+                    color: Theme.surface
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.margins: 8
-                        spacing: 8
+                        anchors.leftMargin: Theme.spacingMd
+                        anchors.rightMargin: Theme.spacingSm
+                        spacing: Theme.spacingSm
+
+                        Rectangle {
+                            Layout.preferredWidth: Theme.controlSm
+                            Layout.preferredHeight: Theme.controlSm
+                            radius: Theme.radiusSm
+                            color: Theme.accent
+
+                            MdiIcon {
+                                anchors.centerIn: parent
+                                glyph: Mdi.playlistPlay
+                                font.pixelSize: Theme.iconSm
+                                color: Theme.textOnAccent
+                            }
+                        }
 
                         Label {
                             text: qsTr("IPTV Player")
-                            color: "#e0e0e0"
-                            font.pixelSize: 16
+                            color: Theme.text
+                            font.pixelSize: Theme.fontLg
                             font.bold: true
+                        }
+
+                        // Selecteur de playlist active
+                        AppComboBox {
+                            id: playlistCombo
+                            Layout.leftMargin: Theme.spacingSm
+                            Layout.preferredWidth: 220
+                            visible: PlaylistModel.count > 0
+                            model: PlaylistModel
+                            textRole: "name"
+                            onActivated: (index) => window.selectPlaylist(index)
                         }
 
                         Item { Layout.fillWidth: true }
 
                         Label {
-                            text: qsTr("Updating\u2026")
-                            color: "#a0a0a0"
-                            font.pixelSize: 12
+                            text: qsTr("Updating…")
+                            color: Theme.textMuted
+                            font.pixelSize: Theme.fontSm
                             visible: window.refreshing
                         }
 
-                        Button {
-                            text: "\u21BB"
-                            flat: true
+                        IconButton {
+                            id: refreshButton
+                            glyph: Mdi.refresh
                             enabled: !window.refreshing && window.activePlaylistId >= 0
-                            implicitWidth: 36
-                            implicitHeight: 36
-                            contentItem: Text {
-                                text: "\u21BB"
-                                color: parent.enabled ? "#e0e0e0" : "#606060"
-                                font.pixelSize: 18
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
+                            tooltip: qsTr("Refresh the playlist")
+                            onClicked: window.refreshActivePlaylist()
+
+                            RotationAnimation on rotation {
+                                running: window.refreshing
+                                loops: Animation.Infinite
+                                from: 0
+                                to: 360
+                                duration: 1200
+                                onRunningChanged: if (!running) refreshButton.rotation = 0
                             }
-                            background: Rectangle {
-                                radius: 6
-                                color: refreshBtnMouse.containsMouse ? Qt.rgba(1,1,1,0.1) : "transparent"
-                            }
-                            MouseArea {
-                                id: refreshBtnMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: window.refreshActivePlaylist()
-                            }
-                            ToolTip.visible: refreshBtnMouse.containsMouse
-                            ToolTip.text: qsTr("Refresh the playlist")
                         }
 
-                        Button {
-                            text: "\u2699"
-                            flat: true
-                            implicitWidth: 36
-                            implicitHeight: 36
-                            contentItem: Text {
-                                text: "\u2699"
-                                color: "#e0e0e0"
-                                font.pixelSize: 20
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                            }
-                            background: Rectangle {
-                                radius: 6
-                                color: adminBtnMouse.containsMouse ? Qt.rgba(1,1,1,0.1) : "transparent"
-                            }
-                            MouseArea {
-                                id: adminBtnMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: window.showAdmin = true
+                        IconButton {
+                            glyph: Mdi.cogOutline
+                            tooltip: qsTr("Settings and playlists")
+                            onClicked: window.showAdmin = true
+                        }
+                    }
+
+                    // Filet de progression indeterminee pendant un refresh
+                    Item {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        height: 2
+                        clip: true
+                        visible: window.refreshing
+
+                        Rectangle {
+                            id: progressSliver
+                            width: parent.width * 0.3
+                            height: parent.height
+                            color: Theme.accent
+
+                            XAnimator on x {
+                                running: window.refreshing
+                                loops: Animation.Infinite
+                                from: -progressSliver.width
+                                to: progressSliver.parent.width
+                                duration: 1100
                             }
                         }
                     }
+
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        height: 1
+                        color: Theme.border
+                        visible: !window.refreshing
+                    }
                 }
 
-                // Pick mode banner
+                // ── Banniere du mode selection (multiplex) ──
                 Rectangle {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: window.pendingPickSlot >= 0 ? 40 : 0
+                    Layout.preferredHeight: window.pendingPickSlot >= 0 ? Theme.controlLg + Theme.spacingSm : 0
                     visible: window.pendingPickSlot >= 0
-                    color: "#0f3460"
+                    color: Theme.accentSoft
                     clip: true
 
                     Behavior on Layout.preferredHeight {
-                        NumberAnimation { duration: 200 }
+                        NumberAnimation { duration: Theme.durNormal; easing.type: Easing.OutCubic }
+                    }
+
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.top: parent.top
+                        anchors.bottom: parent.bottom
+                        width: 3
+                        color: Theme.accent
                     }
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.margins: 8
-                        spacing: 8
+                        anchors.leftMargin: Theme.spacingMd
+                        anchors.rightMargin: Theme.spacingSm
+                        spacing: Theme.spacingSm
 
-                        Label {
-                            text: qsTr("Select a channel for Player %1").arg(window.pendingPickSlot + 1)
-                            color: "white"
-                            font.pixelSize: 13
-                            font.bold: true
-                            Layout.fillWidth: true
+                        MdiIcon {
+                            glyph: Mdi.plusCircle
+                            font.pixelSize: Theme.iconSm
+                            color: Theme.accent
                         }
 
-                        Button {
+                        Label {
+                            Layout.fillWidth: true
+                            text: qsTr("Select a channel for Player %1").arg(window.pendingPickSlot + 1)
+                            color: Theme.text
+                            font.pixelSize: Theme.fontMd
+                            font.bold: true
+                        }
+
+                        AppButton {
                             text: qsTr("Cancel")
-                            flat: true
-                            contentItem: Text {
-                                text: qsTr("Cancel")
-                                color: "#4a90d9"
-                                font.pixelSize: 12
-                            }
-                            background: Rectangle {
-                                color: "transparent"
-                                border.color: "#4a90d9"
-                                border.width: 1
-                                radius: 4
-                            }
+                            variant: AppButton.Ghost
                             onClicked: window.pendingPickSlot = -1
                         }
                     }
                 }
 
-                // Tab bar
-                TabBar {
+                // ── Onglets ──
+                AppTabBar {
                     id: tabBar
                     Layout.fillWidth: true
 
-                    TabButton { text: qsTr("Favorites") }
-                    TabButton { text: qsTr("All Channels") }
-                    TabButton { text: qsTr("Groups") }
-                    TabButton { text: qsTr("History") }
+                    AppTabButton {
+                        text: qsTr("Favorites")
+                        glyph: Mdi.star
+                        badgeText: favoritesPage.displayCount > 0 ? favoritesPage.displayCount : ""
+                    }
+                    AppTabButton {
+                        text: qsTr("All Channels")
+                        glyph: Mdi.television
+                    }
+                    AppTabButton {
+                        text: qsTr("Groups")
+                        glyph: Mdi.folderMultiple
+                    }
+                    AppTabButton {
+                        text: qsTr("History")
+                        glyph: Mdi.history
+                    }
                 }
 
                 // Content
@@ -342,6 +432,7 @@ Window {
                     }
 
                     FavoritesPage {
+                        id: favoritesPage
                         onChannelSelected: (name, url, logo, group) => window.handleChannelSelected(name, url, logo, group)
                     }
 
@@ -356,6 +447,7 @@ Window {
                     }
 
                     HistoryPage {
+                        id: historyPage
                         onChannelSelected: (name, url, logo, group) => window.handleChannelSelected(name, url, logo, group)
                     }
                 }
@@ -364,8 +456,25 @@ Window {
             // Page 1: Admin page
             AdminPage {
                 onBackRequested: window.showAdmin = false
+                onPlaylistsChanged: window.syncPlaylistSelection()
             }
         }
+    }
+
+    // Aligne le selecteur sur la playlist active (et en adopte une si celle en
+    // cours a disparu).
+    function syncPlaylistSelection() {
+        PlaylistModel.refresh()
+        var idx = playlistIndexOf(activePlaylistId)
+        if (idx < 0 && PlaylistModel.count > 0) {
+            idx = 0
+            var pl = PlaylistModel.get(0)
+            if (pl) {
+                activePlaylistId = pl.id
+                ChannelListModel.setChannels(pl.id)
+            }
+        }
+        playlistCombo.currentIndex = idx
     }
 
     // ── Player layer ──
@@ -378,6 +487,7 @@ Window {
         activeAudioSlot: window.activeAudioSlot
         pendingPickSlot: window.pendingPickSlot
         slotChannels: window.slotChannels
+        isFullScreen: window.isFullScreen
 
         onMultiplexModeChangeRequested: (mode) => {
             window.multiplexMode = mode
@@ -398,15 +508,7 @@ Window {
             window.setSlotChannel(slotIndex, name, url, logo, window.slotChannels[slotIndex].group)
             DatabaseManager.addHistoryEntry(name, url, logo, window.slotChannels[slotIndex].group)
         }
-        onToggleFullscreenRequested: {
-            if (window.visibility === Window.FullScreen) {
-                window.visibility = Window.Windowed
-                window.isFullScreen = false
-            } else {
-                window.visibility = Window.FullScreen
-                window.isFullScreen = true
-            }
-        }
+        onToggleFullscreenRequested: window.toggleFullScreen()
     }
 
     // ── Channel search popup ──
@@ -430,6 +532,7 @@ Window {
             return
 
         activePlaylistId = first.id
+        playlistCombo.currentIndex = 0
         ChannelListModel.setChannels(first.id)
 
         if (DatabaseManager.needsRefresh(first.id, 24))

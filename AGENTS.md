@@ -18,6 +18,26 @@ IptvPlayer/
 ├── AdminPage.qml         # Page admin (Playlists + Settings)
 ├── PlaylistDialog.qml    # Dialogue d'ajout / édition de playlist
 ├── HistoryPage.qml       # Historique de lecture
+│
+│   # ── Design system (composants partages) ──
+├── Theme.qml             # Singleton : couleurs, espacements, typo, durees
+├── Mdi.qml               # Singleton : fonte + points de code Material Design Icons
+├── MdiIcon.qml           # Icone MDI (Text specialise)
+├── IconButton.qml        # Bouton icone (plat / pastille claire / pastille sombre)
+├── AppButton.qml         # Bouton texte : Primary / Secondary / Ghost / Danger
+├── AppTabBar.qml         # Barre d'onglets (filet bas)
+├── AppTabButton.qml      # Onglet : icone + libelle + compteur + souligne anime
+├── AppComboBox.qml       # Liste deroulante
+├── AppMenu.qml           # Menu contextuel
+├── AppMenuItem.qml       # Entree de menu (coche, icone, sous-menu)
+├── AppScrollBar.qml      # Barre de defilement discrete
+├── SearchField.qml       # Champ de recherche (loupe + effacement)
+├── SettingsCard.qml      # Carte de reglages (en-tete icone + titre)
+├── ConfirmDialog.qml     # Confirmation d'action destructive
+├── EmptyState.qml        # Etat vide (icone + message)
+├── Tip.qml               # Infobulle
+│
+├── fonts/                # materialdesignicons-webfont.ttf (+ NOTICE.md)
 ├── PLAN.md               # Plan de refonte ergonomique
 ├── CMakeLists.txt        # Build CMake + Qt6
 ├── AGENTS.md             # Ce fichier
@@ -36,9 +56,14 @@ IptvPlayer/
 ## Navigation
 
 ```
-TabBar: [Favorites] [All Channels] [Groups] [History]
-Toolbar: ⟳ refresh playlist · ⚙️ → AdminPage (Playlists + Settings)
+TabBar:  [★ Favorites] [📺 All Channels] [🗂 Groups] [🕘 History]
+Toolbar: [logo] IPTV Player · selecteur de playlist active ·
+         ⟳ refresh playlist · ⚙️ → AdminPage (Playlists + Settings)
 ```
+
+Raccourcis : `F11` plein ecran · `Ctrl+F` focus recherche de l'onglet courant ·
+`Espace` play/pause · `←`/`→` chaine precedente/suivante · `Echap` sortie du
+plein ecran ou annulation du mode selection.
 
 ## Architecture UI
 
@@ -201,9 +226,55 @@ tout nouveau sous-dossier de `src/` doit être ajouté à `target_include_direct
 `SetThreadExecutionState` sous Windows, `org.freedesktop.ScreenSaver` via D-Bus
 sous Linux (nécessite `Qt6::DBus`, détecté par CMake → `HAS_DBUS`).
 
+## Design system
+
+Tous les styles passent par deux singletons QML ; **aucun literal de couleur,
+d'espacement ou de taille de police ne doit apparaitre ailleurs**.
+
+### `Theme.qml`
+Jetons regroupes par role : surfaces (`bg` → `surface` → `surfaceAlt` →
+`surfaceHi`, `border`/`borderStrong`), accent (`accent`, `accentHover`,
+`accentPressed`, `accentSoft`, `textOnAccent`), texte (`text`, `textMuted`,
+`textDim`), statuts (`danger`, `success`, `warning`, `live`), survol/appui
+(`hover`, `pressed`), calques poses sur la video (`scrim`, `scrimStrong`,
+`glass*`), rayons (`radiusSm/Md/Lg/Pill`), espacements (`spacingXs` → `spacingXl`,
+grille de 4), typo (`fontXs` → `fontXl`), tailles de controle (`controlXs` →
+`controlLg`, `iconXs` → `iconXl`) et durees (`durFast`, `durNormal`, `durSlow`).
+
+Un nom de propriete ne doit **jamais** commencer par `on` + majuscule : QML le
+lit comme un gestionnaire de signal (d'ou `textOnAccent` et non `onAccent`).
+
+### `Mdi.qml` — icones
+Jeu d'icones unique : Material Design Icons v7.4.47, fonte embarquee dans le
+module QML (`fonts/materialdesignicons-webfont.ttf`, cf. `RESOURCES` du
+`qt_add_qml_module`) et chargee une seule fois par le `FontLoader` du singleton.
+
+Les points de code MDI sont > 0xFFFF : ils s'ecrivent `String.fromCodePoint(0xF0450)`
+et **pas** `"\uF0450"`. Pour ajouter une icone : relever le point de code sur
+[pictogrammers.com/library/mdi](https://pictogrammers.com/library/mdi) et
+l'ajouter dans la section thematique correspondante de `Mdi.qml`.
+
+Usage : `MdiIcon { glyph: Mdi.refresh }`, `IconButton { glyph: Mdi.cogOutline }`,
+`AppButton { glyph: Mdi.plus }`.
+
+### Composants
+- `IconButton` : `glyph`, `tooltip`, `round`, `checkable`, `danger`, plus
+  `tinted` (pastille claire sur la video) et `tinted` + `dark` (pastille sombre
+  des controles centraux du player). Survol, appui (leger retrait d'echelle) et
+  etat coche sont geres par le composant — ne jamais empiler une `MouseArea`
+  dans un bouton.
+- `AppButton` : `variant: AppButton.Primary | Secondary | Ghost | Danger`.
+- `AppTabBar` / `AppTabButton` : onglets compacts alignes a gauche.
+  `AppTabButton` fixe `width: implicitWidth` : c'est ce qui empeche `TabBar` de
+  repartir la largeur a parts egales.
+- Popups poses sur la video (`ChannelSearchPopup`, variantes de qualite, infos) :
+  `parent: Overlay.overlay`, position calculee puis **bornee a la fenetre**
+  (cf. `qualityPopup.reposition()` dans `PlayerSlot.qml`). Leur hauteur doit etre
+  deduite du modele (nombre de lignes × hauteur de ligne) et non du contenu
+  rendu, sinon le premier positionnement se fait sur une hauteur encore nulle.
+
 ## Convention QML
 
-- Palette sombre : `#1a1a2e` fond, `#16213e` cartes, `#0f3460` accent, `#e0e0e0` texte
 - `qsTr()` pour les textes affichés
 - Contrôles par player dans `PlayerSlot.qml` (barre haute, play/pause centré, `+` en dessous)
 - Contrôles globaux dans `PlayerPage.qml` (mode selector + volume)
@@ -221,6 +292,7 @@ sous Linux (nécessite `Qt6::DBus`, détecté par CMake → `HAS_DBUS`).
 
 - **Binding** : `PlayerSlot → MpvObject.volume` courbe puissance `^1.1` pour compenser la perception logarithmique
 - **Curseur** dans `PlayerPage.qml`, id `volumeSlider`, largeur 130px, `stepSize: 1`, `value: 100` (statique, pas de binding pour éviter le verrouillage)
+- **Bouton muet** à sa gauche : `PlayerPage.toggleMute()` mémorise le niveau dans `lastVolume`
 - Les 4 PlayerSlot lient `globalVolume` directement à `volumeSlider.value` (pas d'intermédiaire PlayerPage.globalVolume)
 - **Persistance** : `QtCore.Settings` dans `PlayerPage.qml`, alias sur `volumeSlider.value`
 

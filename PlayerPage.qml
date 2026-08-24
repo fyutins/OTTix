@@ -21,6 +21,7 @@ Rectangle {
     property int multiplexMode: 1
     property int activeAudioSlot: 0
     property int pendingPickSlot: -1
+    property bool isFullScreen: false
 
     property var slotChannels: [
         { name: "", url: "", logo: "", group: "" },
@@ -41,6 +42,7 @@ Rectangle {
     }
 
     property string playerHwdec: "auto"
+    property int lastVolume: 100
 
     Settings {
         property alias volume: volumeSlider.value
@@ -86,6 +88,15 @@ Rectangle {
         navigateRequested()
     }
 
+    function toggleMute() {
+        if (volumeSlider.value > 0) {
+            root.lastVolume = volumeSlider.value
+            volumeSlider.value = 0
+        } else {
+            volumeSlider.value = root.lastVolume > 0 ? root.lastVolume : 100
+        }
+    }
+
     function formatTime(seconds) {
         if (seconds <= 0) return "00:00"
         var h = Math.floor(seconds / 3600)
@@ -119,6 +130,7 @@ Rectangle {
                 channelLogo: root.slotChannels[0].logo
                 channelGroup: root.slotChannels[0].group
                 isActiveAudio: root.activeAudioSlot === 0
+                multiplexed: root.multiplexMode > 1
                 globalVolume: volumeSlider.value
                 pendingPick: root.pendingPickSlot === 0
                 onPickRequested: root.startSlotPick(slotIndex)
@@ -141,6 +153,7 @@ Rectangle {
                 channelLogo: root.slotChannels[1].logo
                 channelGroup: root.slotChannels[1].group
                 isActiveAudio: root.activeAudioSlot === 1
+                multiplexed: root.multiplexMode > 1
                 globalVolume: volumeSlider.value
                 pendingPick: root.pendingPickSlot === 1
                 onPickRequested: root.startSlotPick(slotIndex)
@@ -169,6 +182,7 @@ Rectangle {
                 channelLogo: root.slotChannels[2].logo
                 channelGroup: root.slotChannels[2].group
                 isActiveAudio: root.activeAudioSlot === 2
+                multiplexed: root.multiplexMode > 1
                 globalVolume: volumeSlider.value
                 pendingPick: root.pendingPickSlot === 2
                 onPickRequested: root.startSlotPick(slotIndex)
@@ -191,6 +205,7 @@ Rectangle {
                 channelLogo: root.slotChannels[3].logo
                 channelGroup: root.slotChannels[3].group
                 isActiveAudio: root.activeAudioSlot === 3
+                multiplexed: root.multiplexMode > 1
                 globalVolume: volumeSlider.value
                 pendingPick: root.pendingPickSlot === 3
                 onPickRequested: root.startSlotPick(slotIndex)
@@ -204,78 +219,84 @@ Rectangle {
         }
     }
 
-    // ── Top bar (close + centrered mode selector + volume) ──
+    // ── Barre haute : fermeture · disposition · volume · plein ecran ──
     Rectangle {
+        id: topBar
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        height: 40
-        color: Qt.rgba(0, 0, 0, 0.65)
+        height: Theme.toolbarHeight
         opacity: slot0.overlayActive || slot1.overlayActive || slot2.overlayActive || slot3.overlayActive ? 1.0 : 0.0
-        Behavior on opacity { NumberAnimation { duration: 300 } }
+        visible: opacity > 0.01
         z: 10
+
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Theme.scrimStrong }
+            GradientStop { position: 1.0; color: "transparent" }
+        }
+
+        Behavior on opacity { NumberAnimation { duration: Theme.durSlow } }
 
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 6
-            anchors.rightMargin: 6
+            anchors.leftMargin: Theme.spacingSm
+            anchors.rightMargin: Theme.spacingSm
+            spacing: Theme.spacingSm
 
-            Button {
-                text: "\u2715"
-                flat: true
-                implicitWidth: 28
-                implicitHeight: 28
-                contentItem: Text {
-                    text: "\u2715"
-                    color: "#e0e0e0"
-                    font.pixelSize: 14
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-                background: Rectangle {
-                    color: mouseArea.containsMouse ? Qt.rgba(1,1,1,0.15) : "transparent"
-                    radius: 4
-                }
-                MouseArea {
-                    id: mouseArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: { root.stopAll(); root.closeRequested() }
-                }
+            IconButton {
+                glyph: Mdi.close
+                tinted: true
+                round: true
+                glyphColor: Theme.text
+                tooltip: qsTr("Close the player")
+                onClicked: { root.stopAll(); root.closeRequested() }
+            }
+
+            IconButton {
+                glyph: Mdi.menu
+                tinted: true
+                round: true
+                glyphColor: Theme.text
+                tooltip: qsTr("Browse channels")
+                onClicked: root.navigateRequested()
             }
 
             Item { Layout.fillWidth: true }
 
-            RowLayout {
-                spacing: 6
+            // ── Selecteur de disposition (segmente) ──
+            Rectangle {
+                Layout.preferredWidth: modeRow.implicitWidth + Theme.spacingXs * 2
+                Layout.preferredHeight: Theme.controlMd
+                radius: Theme.radiusSm
+                color: Theme.glassDark
 
-                Repeater {
-                    model: [1, 2, 3, 4]
-                    delegate: ToolButton {
-                        id: modeButton
+                Row {
+                    id: modeRow
+                    anchors.centerIn: parent
+                    spacing: 2
 
-                        required property int modelData
+                    Repeater {
+                        model: [
+                            { mode: 1, glyph: Mdi.layout1, label: qsTr("Single screen") },
+                            { mode: 2, glyph: Mdi.layout2, label: qsTr("Two screens") },
+                            { mode: 3, glyph: Mdi.layout3, label: qsTr("Three screens") },
+                            { mode: 4, glyph: Mdi.layout4, label: qsTr("Four screens") }
+                        ]
 
-                        text: modeButton.modelData
-                        checkable: true
-                        checked: root.multiplexMode === modeButton.modelData
-                        font.pixelSize: 11
-                        implicitWidth: 28
-                        implicitHeight: 24
-                        onClicked: root.multiplexModeChangeRequested(modeButton.modelData)
-                        contentItem: Text {
-                            text: modeButton.modelData
-                            color: modeButton.checked ? "white" : "#a0a0a0"
-                            font.pixelSize: 11
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-                        background: Rectangle {
-                            color: modeButton.checked ? "#4a90d9" : "transparent"
-                            radius: 4
-                            border.color: modeButton.checked ? "#4a90d9" : "#555"
-                            border.width: 1
+                        delegate: IconButton {
+                            id: modeButton
+
+                            required property var modelData
+
+                            implicitWidth: Theme.controlSm + Theme.spacingXs
+                            implicitHeight: Theme.controlSm
+                            glyph: modeButton.modelData.glyph
+                            glyphSize: Theme.iconSm
+                            glyphColor: Theme.textMuted
+                            checkable: true
+                            checked: root.multiplexMode === modeButton.modelData.mode
+                            tooltip: modeButton.modelData.label
+                            onClicked: root.multiplexModeChangeRequested(modeButton.modelData.mode)
                         }
                     }
                 }
@@ -283,41 +304,79 @@ Rectangle {
 
             Item { Layout.fillWidth: true }
 
+            // ── Volume ──
             RowLayout {
-                spacing: 8
+                spacing: Theme.spacingXs
 
-                Label {
-                    text: qsTr("Vol")
-                    color: "#a0a0a0"
-                    font.pixelSize: 11
+                IconButton {
+                    glyph: volumeSlider.value === 0 ? Mdi.volumeOff
+                         : volumeSlider.value < 50 ? Mdi.volumeMedium : Mdi.volumeHigh
+                    tinted: true
+                    round: true
+                    glyphColor: volumeSlider.value === 0 ? Theme.textDim : Theme.text
+                    tooltip: volumeSlider.value === 0 ? qsTr("Unmute") : qsTr("Mute")
+                    onClicked: root.toggleMute()
                 }
 
                 Slider {
                     id: volumeSlider
                     Layout.preferredWidth: 130
-                    implicitHeight: 22
+                    implicitHeight: Theme.controlSm
                     from: 0
                     to: 100
                     stepSize: 1
                     value: 100
+
+                    background: Rectangle {
+                        x: volumeSlider.leftPadding
+                        y: volumeSlider.topPadding + volumeSlider.availableHeight / 2 - height / 2
+                        width: volumeSlider.availableWidth
+                        height: 4
+                        radius: 2
+                        color: Theme.glass
+
+                        Rectangle {
+                            width: volumeSlider.visualPosition * parent.width
+                            height: parent.height
+                            radius: parent.radius
+                            color: Theme.accent
+                        }
+                    }
+
                     handle: Rectangle {
                         x: volumeSlider.leftPadding + volumeSlider.visualPosition * (volumeSlider.availableWidth - width)
                         y: volumeSlider.topPadding + volumeSlider.availableHeight / 2 - height / 2
-                        width: 16
-                        height: 16
-                        radius: 8
-                        color: volumeSlider.pressed ? "#6ab0f0" : "#4a90d9"
-                        Behavior on color { ColorAnimation { duration: 100 } }
+                        width: volumeSlider.pressed || volumeSlider.hovered ? 16 : 12
+                        height: width
+                        radius: width / 2
+                        color: volumeSlider.pressed ? Theme.accentPressed : Theme.accent
+                        border.width: 2
+                        border.color: Theme.textOnAccent
+
+                        Behavior on width { NumberAnimation { duration: Theme.durFast } }
+                        Behavior on color { ColorAnimation { duration: Theme.durFast } }
                     }
+
+                    HoverHandler { cursorShape: Qt.PointingHandCursor }
                 }
 
                 Label {
                     text: Math.round(volumeSlider.value) + "%"
-                    color: "#e0e0e0"
-                    font.pixelSize: 11
+                    color: Theme.textMuted
+                    font.pixelSize: Theme.fontSm
                     horizontalAlignment: Text.AlignRight
-                    Layout.preferredWidth: 30
+                    Layout.preferredWidth: 32
                 }
+            }
+
+            IconButton {
+                glyph: root.isFullScreen ? Mdi.fullscreenExit : Mdi.fullscreen
+                tinted: true
+                round: true
+                glyphColor: Theme.text
+                tooltip: root.isFullScreen ? qsTr("Exit full screen (F11)")
+                                           : qsTr("Full screen (F11)")
+                onClicked: root.toggleFullscreenRequested()
             }
         }
     }
@@ -325,5 +384,6 @@ Rectangle {
     Component.onCompleted: {
         updateActiveSlotItem()
         applyHwdecToAll(playerHwdec)
+        lastVolume = volumeSlider.value > 0 ? volumeSlider.value : 100
     }
 }

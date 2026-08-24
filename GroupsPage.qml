@@ -1,9 +1,8 @@
 import QtQuick
 import QtQuick.Layouts
 
-Rectangle {
+Item {
     id: root
-    color: "transparent"
 
     signal channelSelected(string name, string url, string logo, string group)
 
@@ -16,6 +15,13 @@ Rectangle {
     function activate() {
         ChannelListModel.filterGroup = currentGroup
         ChannelListModel.filterText = currentGroup !== "" ? channelFilterText : ""
+    }
+
+    function focusSearch() {
+        if (currentGroup === "")
+            groupBar.focusSearch()
+        else
+            groupChannelsBar.focusSearch()
     }
 
     function backToGroups() {
@@ -34,7 +40,8 @@ Rectangle {
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: 0
+        anchors.margins: Theme.spacingMd
+        spacing: Theme.spacingSm
 
         GroupSearchBar {
             id: groupBar
@@ -50,8 +57,6 @@ Rectangle {
             }
         }
 
-        Item { Layout.preferredHeight: 8 }
-
         StackLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -64,9 +69,10 @@ Rectangle {
             }
 
             ColumnLayout {
-                spacing: 8
+                spacing: Theme.spacingSm
 
                 ChannelSearchBar {
+                    id: groupChannelsBar
                     visible: root.currentGroup !== ""
                     searchPlaceholder: qsTr("Search in group...")
                     countText: ""
