@@ -6,6 +6,9 @@ import QtQuick.Controls
 ComboBox {
     id: control
 
+    // Coins droits carres quand un controle lui est accole (cf. IconButton.attachedLeft)
+    property bool attachedRight: false
+
     implicitHeight: Theme.controlMd
     leftPadding: Theme.spacingMd
     rightPadding: Theme.controlMd
@@ -14,6 +17,8 @@ ComboBox {
 
     background: Rectangle {
         radius: Theme.radiusSm
+        topRightRadius: control.attachedRight ? 0 : radius
+        bottomRightRadius: control.attachedRight ? 0 : radius
         color: control.pressed ? Theme.surfaceHi : Theme.surfaceAlt
         border.width: 1
         border.color: control.activeFocus || control.popup.visible ? Theme.accent

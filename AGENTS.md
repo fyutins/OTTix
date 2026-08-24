@@ -57,9 +57,14 @@ IptvPlayer/
 
 ```
 TabBar:  [★ Favorites] [📺 All Channels] [🗂 Groups] [🕘 History]
-Toolbar: [logo] IPTV Player · selecteur de playlist active ·
-         ⟳ refresh playlist · ⚙️ → AdminPage (Playlists + Settings)
+Toolbar: [logo] IPTV Player · [playlist active |⟳] · « Updated 3 min ago »
+         ................................... ⚙️ → AdminPage (Playlists + Settings)
 ```
+
+Le selecteur de playlist et son bouton de rafraichissement forment un groupe
+accole (`AppComboBox.attachedRight` + `IconButton.framed`/`attachedLeft`), suivi
+de l'etat de la derniere synchronisation reussie (`DatabaseManager.lastSync()`,
+mis en forme par `Main.formatLastSync()` et rafraichi chaque minute).
 
 Raccourcis : `F11` plein ecran · `Ctrl+F` focus recherche de l'onglet courant ·
 `Espace` play/pause · `←`/`→` chaine precedente/suivante · `Echap` sortie du

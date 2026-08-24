@@ -91,6 +91,7 @@ QtObject {
     readonly property string label: String.fromCodePoint(0xF0316)
 
     // ── Etats / informations ──────────────────────────────────────────────
+    readonly property string clock: String.fromCodePoint(0xF0150)
     readonly property string information: String.fromCodePoint(0xF02FD)
     readonly property string alert: String.fromCodePoint(0xF05D6)
     readonly property string help: String.fromCodePoint(0xF0625)

@@ -17,15 +17,19 @@ AbstractButton {
     property bool tinted: false
     property bool dark: false
     property bool danger: false
+    // `framed` : meme boitier qu'un champ (fond + bordure), pour former un
+    // groupe avec le controle voisin ; `attachedLeft` carre les coins gauches.
+    property bool framed: false
+    property bool attachedLeft: false
     property string tooltip: ""
 
     readonly property color idleBg: control.tinted
         ? (control.dark ? Theme.glassDark : Theme.glass)
-        : "transparent"
+        : (control.framed ? Theme.surfaceAlt : "transparent")
     readonly property color hoverBg: control.danger
         ? Theme.dangerSoft
         : (control.tinted ? (control.dark ? Theme.glassDarkHover : Theme.glassHover)
-                          : Theme.hover)
+                          : (control.framed ? Theme.surfaceHi : Theme.hover))
     readonly property color pressBg: control.tinted ? Theme.glassPressed : Theme.pressed
 
     implicitWidth: Theme.controlMd
@@ -41,12 +45,17 @@ AbstractButton {
 
     background: Rectangle {
         radius: control.round ? height / 2 : Theme.radiusSm
+        topLeftRadius: control.attachedLeft ? 0 : radius
+        bottomLeftRadius: control.attachedLeft ? 0 : radius
         color: !control.enabled ? control.idleBg
              : control.down ? control.pressBg
              : control.hovered ? control.hoverBg
              : (control.checked ? Theme.accentSoft : control.idleBg)
-        border.width: control.checked || (control.tinted && control.dark) ? 1 : 0
-        border.color: control.checked ? control.checkedColor : Theme.glass
+        border.width: control.checked || control.framed
+                      || (control.tinted && control.dark) ? 1 : 0
+        border.color: control.checked ? control.checkedColor
+                    : control.framed ? (control.hovered ? Theme.borderStrong : Theme.border)
+                    : Theme.glass
 
         Behavior on color { ColorAnimation { duration: Theme.durFast } }
     }
