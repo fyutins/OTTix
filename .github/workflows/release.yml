@@ -126,10 +126,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # elfutils fournit eu-strip / eu-elfcompress, dont flatpak-builder a
+      # besoin pour extraire les symboles de debogage : le paquet apt
+      # flatpak-builder ne les tire pas, et le build echoue sur le premier
+      # module compile.
       - name: Installer flatpak-builder
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends flatpak flatpak-builder
+          sudo apt-get install -y --no-install-recommends \
+            flatpak flatpak-builder elfutils
 
       - name: Runtime et SDK KDE
         run: |
