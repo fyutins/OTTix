@@ -8,7 +8,7 @@ Window {
     width: 1280
     height: 720
     visible: true
-    title: qsTr("IPTV Player")
+    title: qsTr("OTTix")
     color: Theme.bg
 
     property bool isFullScreen: false
@@ -307,7 +307,7 @@ Window {
                         }
 
                         Label {
-                            text: qsTr("IPTV Player")
+                            text: qsTr("OTTix")
                             color: Theme.text
                             font.pixelSize: Theme.fontLg
                             font.bold: true

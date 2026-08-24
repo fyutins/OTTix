@@ -1,0 +1,186 @@
+name: Release
+
+# Publie les artefacts d'une version : installateur + zip portable Windows,
+# bundle Flatpak Linux. Declenche par un tag "vX.Y.Z" ; le declenchement
+# manuel produit les memes artefacts sans creer de release.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version a construire (x.y.z)'
+        required: true
+        default: '0.0.0'
+
+permissions:
+  contents: write
+
+env:
+  QT_VERSION: 6.11.2
+  APP_ID: io.github.fyutins.OTTix
+
+jobs:
+  version:
+    name: Determiner la version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get.outputs.version }}
+    steps:
+      - id: get
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version="${{ inputs.version }}"
+          else
+            version="${GITHUB_REF_NAME#v}"
+          fi
+          # x.y.z strict : CMake (project(VERSION)) et Inno Setup
+          # (VersionInfoVersion) refusent tout suffixe non numerique.
+          if ! echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Version invalide : '$version' (attendu x.y.z)"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Version : $version"
+
+  windows:
+    name: Windows
+    needs: version
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: windows
+          target: desktop
+          arch: win64_mingw
+          tools: tools_mingw1310
+          cache: true
+
+      - name: Ajouter MinGW et Ninja
+        shell: pwsh
+        run: |
+          "$env:IQTA_TOOLS\mingw1310_64\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          choco install ninja -y --no-progress
+
+      - name: Telecharger libmpv
+        shell: pwsh
+        run: |
+          & .github/scripts/fetch-libmpv.ps1 -Destination "$env:GITHUB_WORKSPACE\mpv"
+
+      - name: Configurer
+        shell: pwsh
+        run: |
+          cmake -S . -B build -G Ninja `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DOTTIX_VERSION="${{ needs.version.outputs.version }}" `
+            -DMPV_INCLUDE_DIR="$env:GITHUB_WORKSPACE/mpv/include" `
+            -DMPV_LIBRARY="$env:GITHUB_WORKSPACE/mpv/libmpv.dll.a" `
+            -DMPV_RUNTIME_DLL="$env:GITHUB_WORKSPACE/mpv/libmpv-2.dll"
+
+      - name: Compiler
+        run: cmake --build build
+
+      # Produit dist\ : exe + DLL Qt (windeployqt) + qml\ + libmpv-2.dll.
+      - name: Deployer
+        run: cmake --install build --prefix dist
+
+      - name: Archive portable
+        shell: pwsh
+        run: |
+          $name = "OTTix-${{ needs.version.outputs.version }}-win64.zip"
+          Compress-Archive -Path dist\* -DestinationPath $name
+
+      - name: Construire l'installateur
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'
+          & $iscc /DAppVersion="${{ needs.version.outputs.version }}" `
+                  /DSourceDir="$env:GITHUB_WORKSPACE\dist" `
+                  /DOutputDir="$env:GITHUB_WORKSPACE\dist-installer" `
+                  packaging\windows\OTTix.iss
+          if ($LASTEXITCODE -ne 0) { throw "ISCC a echoue ($LASTEXITCODE)" }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            OTTix-*-win64.zip
+            dist-installer/*.exe
+          if-no-files-found: error
+
+  flatpak:
+    name: Flatpak
+    needs: version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer flatpak-builder
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends flatpak flatpak-builder
+
+      - name: Runtime et SDK KDE
+        run: |
+          flatpak remote-add --user --if-not-exists flathub \
+            https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y flathub org.kde.Platform//6.11 org.kde.Sdk//6.11
+
+      # Accelere les builds suivants : sources telechargees (mpv, libplacebo,
+      # libass...) et objets ccache.
+      - name: Cache flatpak-builder
+        uses: actions/cache@v4
+        with:
+          path: .flatpak-builder
+          key: flatpak-builder-${{ hashFiles('packaging/flatpak/*.yml') }}-${{ github.sha }}
+          restore-keys: |
+            flatpak-builder-${{ hashFiles('packaging/flatpak/*.yml') }}-
+            flatpak-builder-
+
+      - name: Construire
+        run: |
+          flatpak-builder --user --disable-rofiles-fuse --force-clean \
+            --repo=flatpak-repo build-flatpak \
+            packaging/flatpak/${APP_ID}.yml
+
+      - name: Creer le bundle
+        run: |
+          # --runtime-repo : l'installation du bundle propose alors d'ajouter
+          # Flathub pour recuperer org.kde.Platform//6.11 s'il manque.
+          flatpak build-bundle flatpak-repo \
+            --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
+            "OTTix-${{ needs.version.outputs.version }}-x86_64.flatpak" \
+            "$APP_ID"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flatpak
+          path: OTTix-*-x86_64.flatpak
+          if-no-files-found: error
+
+  release:
+    name: Publier la release
+    needs: [version, windows, flatpak]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Lister les artefacts
+        run: find artifacts -type f -printf '%s\t%p\n'
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: OTTix ${{ needs.version.outputs.version }}
+          generate_release_notes: true
+          files: |
+            artifacts/**/*.exe
+            artifacts/**/*.zip
+            artifacts/**/*.flatpak

@@ -62,7 +62,7 @@ QNetworkReply *XtreamApi::get(const QString &url)
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::NoLessSafeRedirectPolicy);
     request.setHeader(QNetworkRequest::UserAgentHeader,
-                      "IptvPlayer/1.0");
+                      "OTTix/1.0");
     return m_nam->get(request);
 }
 

@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  QT_VERSION: 6.11.2
+
+jobs:
+  linux:
+    name: Build Linux
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependances systeme
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build libmpv-dev libgl1-mesa-dev libxkbcommon-dev \
+            libxkbcommon-x11-dev libvulkan-dev libegl1-mesa-dev
+
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          cache: true
+
+      - name: Configurer
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Compiler
+        run: cmake --build build
+
+      # AGENTS.md : qmllint doit rester a zero warning.
+      - name: qmllint
+        run: cmake --build build --target all_qmllint
+
+      - name: Verifier l'installation
+        run: cmake --install build --prefix "$RUNNER_TEMP/prefix"
+
+  windows:
+    name: Build Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          host: windows
+          target: desktop
+          arch: win64_mingw
+          tools: tools_mingw1310
+          cache: true
+
+      - name: Ajouter MinGW et Ninja
+        shell: pwsh
+        run: |
+          "$env:IQTA_TOOLS\mingw1310_64\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          choco install ninja -y --no-progress
+
+      - name: Telecharger libmpv
+        shell: pwsh
+        run: |
+          & .github/scripts/fetch-libmpv.ps1 -Destination "$env:GITHUB_WORKSPACE\mpv"
+
+      - name: Configurer
+        shell: pwsh
+        run: |
+          cmake -S . -B build -G Ninja `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DMPV_INCLUDE_DIR="$env:GITHUB_WORKSPACE/mpv/include" `
+            -DMPV_LIBRARY="$env:GITHUB_WORKSPACE/mpv/libmpv.dll.a" `
+            -DMPV_RUNTIME_DLL="$env:GITHUB_WORKSPACE/mpv/libmpv-2.dll"
+
+      - name: Compiler
+        run: cmake --build build

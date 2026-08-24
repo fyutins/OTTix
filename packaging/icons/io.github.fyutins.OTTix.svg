@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1e2740"/>
+      <stop offset="1" stop-color="#0f1320"/>
+    </linearGradient>
+    <linearGradient id="play" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6ea6ff"/>
+      <stop offset="1" stop-color="#3a76dd"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="8" y="8" width="240" height="240" rx="52" fill="url(#bg)"/>
+  <rect x="8.5" y="8.5" width="239" height="239" rx="51.5" fill="none" stroke="#2b3757" stroke-width="3"/>
+
+  <!-- Ondes de diffusion -->
+  <g fill="none" stroke="#4c8dff" stroke-width="10" stroke-linecap="round">
+    <path d="M102 49 A 30 30 0 0 1 154 49" opacity="0.9"/>
+    <path d="M83 38 A 52 52 0 0 1 173 38" opacity="0.55"/>
+  </g>
+  <circle cx="128" cy="66" r="10" fill="#4c8dff"/>
+
+  <!-- Ecran -->
+  <rect x="40" y="92" width="176" height="116" rx="20" fill="#161c2c" stroke="#3d4c76" stroke-width="5"/>
+  <path d="M112 124 L 162 150 L 112 176 Z" fill="url(#play)" stroke="url(#play)" stroke-width="12" stroke-linejoin="round"/>
+</svg>

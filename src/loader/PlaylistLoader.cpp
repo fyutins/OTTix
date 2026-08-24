@@ -34,7 +34,7 @@ void PlaylistLoader::loadM3U(int playlistId, const QString &url)
     QNetworkRequest request{QUrl(url)};
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::NoLessSafeRedirectPolicy);
-    request.setHeader(QNetworkRequest::UserAgentHeader, "IptvPlayer/1.0");
+    request.setHeader(QNetworkRequest::UserAgentHeader, "OTTix/1.0");
 
     m_currentReply = m_nam->get(request);
     connect(m_currentReply, &QNetworkReply::finished,

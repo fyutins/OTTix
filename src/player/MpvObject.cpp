@@ -54,7 +54,7 @@ MpvObject::MpvObject(QQuickItem *parent)
     mpv_set_option_string(m_mpv, "demuxer-max-bytes", "150M");
     mpv_set_option_string(m_mpv, "demuxer-max-back-bytes", "75M");
     mpv_set_option_string(m_mpv, "keepaspect", "yes");
-    mpv_set_option_string(m_mpv, "audio-client-name", "IptvPlayer");
+    mpv_set_option_string(m_mpv, "audio-client-name", "OTTix");
 
     if (mpv_initialize(m_mpv) < 0) {
         qFatal("[MPV] mpv_initialize failed");

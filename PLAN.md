@@ -1,4 +1,4 @@
-# Plan de refonte ergonomique — IPTV Player
+# Plan de refonte ergonomique — OTTix
 
 ## Objectif
 Restructurer l'interface pour séparer clairement la navigation des chaînes de la lecture vidéo, améliorer la navigation par groupes, et déplacer l'administration (playlists + paramètres) dans une page dédiée.

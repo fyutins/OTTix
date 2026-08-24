@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.fyutins.OTTix</id>
+
+  <name>OTTix</name>
+  <summary>Lecteur de flux IPTV M3U et Xtream Codes</summary>
+
+  <metadata_license>CC0-1.0</metadata_license>
+  <!-- TODO: aucun fichier LICENSE dans le depot. Remplacer par la licence
+       choisie (MIT, GPL-3.0-only, ...) avant toute publication sur Flathub. -->
+  <project_license>LicenseRef-proprietary</project_license>
+
+  <developer id="io.github.fyutins">
+    <name>Fyutins</name>
+  </developer>
+
+  <description>
+    <p>
+      OTTix lit les listes de chaines M3U et les comptes Xtream Codes.
+      La lecture s'appuie sur libmpv, avec decodage materiel quand il est
+      disponible.
+    </p>
+    <p>Fonctionnalites :</p>
+    <ul>
+      <li>Import de playlists M3U (fichier ou URL) et de comptes Xtream Codes</li>
+      <li>Multiplex : jusqu'a quatre flux simultanes, dispositions au choix</li>
+      <li>Regroupement automatique des chaines par qualite (SD, HD, FHD, 4K)</li>
+      <li>Favoris, historique et recherche instantanee</li>
+      <li>Inhibition de la mise en veille pendant la lecture</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">io.github.fyutins.OTTix.desktop</launchable>
+
+  <url type="homepage">https://github.com/fyutins/OTTix</url>
+  <url type="bugtracker">https://github.com/fyutins/OTTix/issues</url>
+
+  <categories>
+    <category>AudioVideo</category>
+    <category>Video</category>
+    <category>Player</category>
+    <category>TV</category>
+  </categories>
+
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+
+  <requires>
+    <display_length compare="ge">768</display_length>
+  </requires>
+
+  <content_rating type="oars-1.1"/>
+
+  <!-- TODO Flathub : au moins une capture d'ecran est obligatoire pour la
+       soumission en boutique (URL publique, PNG 16:9 recommande).
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/Fyutins/OTTix/main/docs/screenshot-player.png</image>
+      <caption>Lecture d'une chaine en multiplex</caption>
+    </screenshot>
+  </screenshots>
+  -->
+
+  <releases>
+    <release version="0.1.0" date="2026-08-24">
+      <description>
+        <p>Premiere version packagee.</p>
+      </description>
+    </release>
+  </releases>
+</component>

@@ -1,0 +1,139 @@
+# Manifeste Flatpak.
+#
+# Build local :
+#   flatpak install -y flathub org.kde.Platform//6.11 org.kde.Sdk//6.11
+#   flatpak-builder --force-clean --user --install build-flatpak \
+#       packaging/flatpak/io.github.fyutins.OTTix.yml
+#   flatpak run io.github.fyutins.OTTix
+#
+# Le runtime KDE 6.11 fournit Qt 6.11 (Quick, Controls2, Sql, Network, OpenGL,
+# Concurrent, DBus) et ffmpeg : rien de tout cela n'est bundle ici. Seul mpv et
+# ses dependances non fournies par le runtime sont compiles (chaine reprise du
+# manifeste de Haruna, org.kde.haruna, qui suit les memes versions).
+id: io.github.fyutins.OTTix
+runtime: org.kde.Platform
+runtime-version: '6.11'
+sdk: org.kde.Sdk
+command: appOTTix
+
+finish-args:
+  - --share=ipc
+  - --share=network
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --socket=pulseaudio
+  # Decodage materiel (VA-API / Vulkan) pour mpv.
+  - --device=dri
+  # SleepInhibitor : org.freedesktop.ScreenSaver.Inhibit pendant la lecture.
+  - --talk-name=org.freedesktop.ScreenSaver
+  # Pas d'acces au systeme de fichiers : l'application ne charge que des URL
+  # (M3U distant, Xtream Codes). Pour ouvrir un .m3u local :
+  #   flatpak override --user --filesystem=home:ro io.github.fyutins.OTTix
+
+cleanup:
+  - '*.a'
+  - '*.la'
+  - /include
+  - /lib/cmake
+  - /lib/pkgconfig
+  - /share/man
+
+modules:
+  - name: libmpv
+    buildsystem: meson
+    config-opts:
+      # libmpv seul : ni le binaire mpv, ni les scripts Lua.
+      - -Dlibmpv=true
+      - -Dcplayer=false
+      - -Dlua=disabled
+      - -Ddebug=false
+      - -Dbuild-date=false
+      - -Dalsa=disabled
+      - -Dmanpage-build=disabled
+    cleanup:
+      - /share/bash-completion
+      - /share/fish
+      - /share/zsh
+      - /share/doc
+      - /share/icons
+      - /share/applications
+    sources:
+      - type: archive
+        url: https://github.com/mpv-player/mpv/archive/refs/tags/v0.41.0.tar.gz
+        sha256: ee21092a5ee427353392360929dc64645c54479aefdb5babc5cfbb5fad626209
+        x-checker-data:
+          type: anitya
+          project-id: 5348
+          stable-only: true
+          url-template: https://github.com/mpv-player/mpv/archive/refs/tags/v$version.tar.gz
+    modules:
+      - name: libplacebo
+        buildsystem: meson
+        config-opts:
+          - -Ddemos=false
+        sources:
+          - type: git
+            url: https://github.com/haasn/libplacebo.git
+            tag: v7.360.1
+            commit: cee9b076f2c63104ccfd497fa79c39a867293ec4
+            x-checker-data:
+              type: git
+              tag-pattern: ^v([\d.]+)$
+
+      - name: libXpresent
+        buildsystem: autotools
+        sources:
+          - type: archive
+            url: https://xorg.freedesktop.org/archive/individual/lib/libXpresent-1.0.2.tar.xz
+            sha256: 4e5b21b4812206a4b223013606ae31170502c1043038777a1ef8f70c09d37602
+            x-checker-data:
+              type: anitya
+              project-id: 17166
+              stable-only: true
+              url-template: https://xorg.freedesktop.org/archive/individual/lib/libXpresent-$version.tar.xz
+
+      - name: libass
+        config-opts:
+          - --disable-static
+        sources:
+          - type: archive
+            url: https://github.com/libass/libass/releases/download/0.17.5/libass-0.17.5.tar.gz
+            sha256: caab4b993dd7be6187c55623b789ed75dddefea6e65938af134637c732fe094a
+            x-checker-data:
+              type: anitya
+              project-id: 1560
+              stable-only: true
+              url-template: https://github.com/libass/libass/releases/download/$version/libass-$version.tar.gz
+
+      - name: uchardet
+        buildsystem: cmake-ninja
+        config-opts:
+          - -DCMAKE_BUILD_TYPE=Release
+          - -DBUILD_STATIC=0
+          - -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+        cleanup:
+          - /bin
+        sources:
+          - type: archive
+            url: https://www.freedesktop.org/software/uchardet/releases/uchardet-0.0.8.tar.xz
+            sha256: e97a60cfc00a1c147a674b097bb1422abd9fa78a2d9ce3f3fdcc2e78a34ac5f0
+            x-checker-data:
+              type: anitya
+              project-id: 9265
+              stable-only: true
+              url-template: https://www.freedesktop.org/software/uchardet/releases/uchardet-$version.tar.xz
+
+  - name: ottix
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+    sources:
+      - type: dir
+        path: ../..
+        skip:
+          - build
+          - build-linux
+          - .git
+          - .qtc_clangd
+          - .qtcreator
+          - installer

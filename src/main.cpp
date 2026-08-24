@@ -167,7 +167,7 @@ static void msgHandler(QtMsgType type, const QMessageLogContext &ctx, const QStr
 static void installMsgHandler()
 {
     QString logPath = QDir::toNativeSeparators(
-        QCoreApplication::applicationDirPath() + "/iptvplayer.log");
+        QCoreApplication::applicationDirPath() + "/ottix.log");
     msgLogFile = new QFile(logPath);
     if (msgLogFile->open(QIODevice::Append | QIODevice::Text)) {
         QTextStream out(msgLogFile);
@@ -188,8 +188,8 @@ int main(int argc, char *argv[])
 #endif
 
     QGuiApplication app(argc, argv);
-    app.setOrganizationName("IptvPlayer");
-    app.setApplicationName("IptvPlayer");
+    app.setOrganizationName("OTTix");
+    app.setApplicationName("OTTix");
 
 #ifdef Q_OS_UNIX
     // libmpv requires LC_NUMERIC=C (breaks with e.g. fr_FR.UTF-8)
@@ -207,7 +207,7 @@ int main(int argc, char *argv[])
 
     QQuickStyle::setStyle("Basic");
 
-    qDebug() << "[MAIN] Starting IptvPlayer, Qt version:" << qVersion();
+    qDebug() << "[MAIN] Starting OTTix, Qt version:" << qVersion();
 
     // Initialize database
     if (!DatabaseManager::instance().initialize()) {
@@ -217,7 +217,7 @@ int main(int argc, char *argv[])
     qDebug() << "[MAIN] Database initialized successfully";
 
     // Les types QML sont enregistres de maniere declarative (QML_ELEMENT /
-    // QML_SINGLETON dans les en-tetes) et exposes par le module QML "IptvPlayer".
+    // QML_SINGLETON dans les en-tetes) et exposes par le module QML "OTTix".
 
     QQmlApplicationEngine engine;
     QObject::connect(
@@ -227,7 +227,7 @@ int main(int argc, char *argv[])
         []() { QCoreApplication::exit(-1); },
         Qt::QueuedConnection);
 
-    engine.loadFromModule("IptvPlayer", "Main");
+    engine.loadFromModule("OTTix", "Main");
 
     return QCoreApplication::exec();
 }

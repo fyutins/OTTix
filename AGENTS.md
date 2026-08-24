@@ -1,4 +1,4 @@
-# IPTV Player
+# OTTix
 
 ## Description
 Application Qt 6 / QML avec backend C++ pour lire des flux IPTV (M3U / XTREAM Codes) via libmpv.
@@ -6,7 +6,7 @@ Application Qt 6 / QML avec backend C++ pour lire des flux IPTV (M3U / XTREAM Co
 ## Structure
 
 ```
-IptvPlayer/
+OTTix/
 ├── Main.qml              # Fenêtre principale — navigation + player overlay
 ├── PlayerPage.qml        # Vue plein écran du player (multiplex, contrôles, close+nav)
 ├── PlayerSlot.qml        # Zone player individuelle (multiplex)
@@ -58,7 +58,7 @@ IptvPlayer/
 
 ```
 TabBar:  [★ Favorites] [📺 All Channels] [🗂 Groups] [🕘 History]
-Toolbar: [logo] IPTV Player · [playlist active |⟳] · « Updated 3 min ago »
+Toolbar: [logo] OTTix · [playlist active |⟳] · « Updated 3 min ago »
          ................................... ⚙️ → AdminPage (Playlists + Settings)
 ```
 
@@ -97,19 +97,19 @@ cmake --build .
 
 ### Rebuild complet
 ```powershell
-Get-Process appIptvPlayer -ErrorAction SilentlyContinue | Stop-Process -Force
+Get-Process appOTTix -ErrorAction SilentlyContinue | Stop-Process -Force
 Set-Location "build\Desktop_Qt_6_11_0_MinGW_64_bit-Debug"
 cmake --build .
 ```
 
 ### Lancer l'application
 ```powershell
-& "build\Desktop_Qt_6_11_0_MinGW_64_bit-Debug\appIptvPlayer.exe"
+& "build\Desktop_Qt_6_11_0_MinGW_64_bit-Debug\appOTTix.exe"
 ```
 
 ### Killer le process
 ```powershell
-Get-Process appIptvPlayer -ErrorAction SilentlyContinue | Stop-Process -Force
+Get-Process appOTTix -ErrorAction SilentlyContinue | Stop-Process -Force
 ```
 
 ## Linux (Fedora 44)
@@ -124,13 +124,91 @@ cmake --build build-linux
 
 ### Lancer l'application
 ```bash
-./build-linux/appIptvPlayer
+./build-linux/appOTTix
 ```
 
 Notes :
 - mpv est trouvé via pkg-config (libmpv système)
 - `setlocale(LC_NUMERIC, "C")` est appliqué dans main.cpp sous Q_OS_UNIX — obligatoire pour libmpv avec une locale fr
 - Kit Qt Creator : « Desktop Qt 6.11.2 » (auto-détecté), ouvrir directement le CMakeLists.txt
+
+## Packaging et distribution
+
+Tout vit dans `packaging/` ; les workflows GitHub Actions dans `.github/workflows/`.
+
+| Cible | Format | Fichiers |
+|---|---|---|
+| Windows | Installateur Inno Setup + zip portable | `packaging/windows/` |
+| Linux | Bundle Flatpak (runtime KDE 6.11) | `packaging/flatpak/`, `packaging/linux/` |
+
+L'identifiant d'application est `io.github.fyutins.OTTix` : il nomme le
+`.desktop`, le metainfo AppStream, l'icône et l'app-id Flatpak. Le changer
+impose de renommer les quatre.
+
+La version des artefacts vient du tag git : le workflow `Release` passe
+`-DOTTIX_VERSION=x.y.z`, qui alimente `project(VERSION)`, la ressource
+`.rc` Windows et l'installateur. Ne pas coder la version en dur ailleurs.
+
+### Windows
+
+`cmake --install <build> --prefix dist` produit **le dossier complet** :
+`install(CODE ...)` appelle `windeployqt --no-opengl-sw --compiler-runtime
+--qmldir <sources>`, et `-DMPV_RUNTIME_DLL=<chemin>` ajoute `libmpv-2.dll`.
+`--no-opengl-sw` est obligatoire : l'OpenGL logiciel (`opengl32sw.dll`) fige la
+fenêtre quand on la déplace pendant une lecture mpv.
+
+En CI, libmpv vient des builds shinchiro (`.github/scripts/fetch-libmpv.ps1`,
+paquet `mpv-dev-x86_64`), et le compilateur est MinGW 13.1.0 — celui dont
+dépend le paquet Qt `win64_mingw`.
+
+L'installateur s'installe par défaut par utilisateur (`PrivilegesRequired=lowest`,
+donc sans élévation) et **conserve** `%LOCALAPPDATA%\OTTix` à la
+désinstallation (playlists, favoris, historique).
+
+### Linux / Flatpak
+
+Le runtime `org.kde.Platform//6.11` fournit Qt 6.11 et ffmpeg : rien de tout
+cela n'est bundlé. Seul mpv est compilé, avec ses dépendances absentes du
+runtime (libplacebo, libass, libXpresent, uchardet) — chaîne alignée sur le
+manifeste de Haruna, à re-synchroniser quand mpv monte de version.
+
+```bash
+sudo dnf install flatpak-builder
+flatpak install --user -y flathub org.kde.Platform//6.11 org.kde.Sdk//6.11
+flatpak-builder --user --force-clean --install build-flatpak-out \
+    packaging/flatpak/io.github.fyutins.OTTix.yml
+flatpak run io.github.fyutins.OTTix
+```
+
+Sans `flatpak-builder` natif, il existe la version flatpak — mais elle ne voit
+pas l'installation utilisateur (son `XDG_DATA_HOME` est redirigé vers
+`~/.var/app/`), d'où le `FLATPAK_USER_DIR` explicite :
+
+```bash
+flatpak install --user -y flathub org.flatpak.Builder
+flatpak run --env=FLATPAK_USER_DIR="$HOME/.local/share/flatpak" \
+    --command=flatpak-builder org.flatpak.Builder \
+    --user --disable-rofiles-fuse --force-clean \
+    --state-dir build-flatpak-state --repo build-flatpak-repo \
+    build-flatpak-out packaging/flatpak/io.github.fyutins.OTTix.yml
+```
+
+Le linter Flathub se lance de la même façon :
+`flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest <manifeste>`.
+
+Le manifeste construit **le dossier de travail** (`type: dir`), pas un tag git :
+il packageera les modifications non committées.
+
+### Publier une version
+
+```bash
+git tag -a v0.2.0 -m "v0.2.0" && git push origin v0.2.0
+```
+
+Le workflow `Release` construit les trois artefacts et crée la release GitHub.
+Penser à ajouter un `<release>` dans
+`packaging/linux/io.github.fyutins.OTTix.metainfo.xml` (AppStream) avant
+de taguer.
 
 ## Qt Creator
 
@@ -164,6 +242,13 @@ l'écriture en base reste sur le thread principal (QSqlDatabase n'est pas
 partageable entre threads).
 
 ## Base de données
+
+La base vit dans `QStandardPaths::AppLocalDataLocation`, soit
+`~/.local/share/OTTix/OTTix/iptv_player.db` et
+`%LOCALAPPDATA%\OTTix\OTTix\iptv_player.db`. Ce chemin découle de
+`setOrganizationName` / `setApplicationName` : le renommage IptvPlayer → OTTix
+l'a déplacé, les installations antérieures gardent leurs données sous
+`…/IptvPlayer/IptvPlayer/`.
 
 Deux tables distinctes pour les données non-chaînes :
 
@@ -226,8 +311,8 @@ Toutes les traces passent par des catégories (`src/utils/Logging.h`), limitées
 à Warning par défaut. Pour activer :
 
 ```bash
-QT_LOGGING_RULES="iptv.*.debug=true" ./build-linux/appIptvPlayer
-QT_LOGGING_RULES="iptv.perf.debug=true;iptv.mpv.debug=true" ./build-linux/appIptvPlayer
+QT_LOGGING_RULES="iptv.*.debug=true" ./build-linux/appOTTix
+QT_LOGGING_RULES="iptv.perf.debug=true;iptv.mpv.debug=true" ./build-linux/appOTTix
 ```
 
 Catégories : `iptv.db`, `iptv.model`, `iptv.loader`, `iptv.xtream`, `iptv.mpv`,
@@ -260,12 +345,12 @@ Tous les types C++ exposés à QML sont enregistrés de manière **déclarative*
 `QML_ELEMENT` / `QML_SINGLETON` dans les en-têtes — pas de `qmlRegisterType*` dans
 `main.cpp`. C'est ce qui rend les types visibles pour l'éditeur et pour `qmllint`.
 
-Ils appartiennent tous au module QML `IptvPlayer` (celui de `qt_add_qml_module`), donc
+Ils appartiennent tous au module QML `OTTix` (celui de `qt_add_qml_module`), donc
 les `.qml` du module y accèdent **sans import** (`DatabaseManager`, `ChannelListModel`,
 `PlaylistModel`, `PlaylistLoader`, `MpvObject`, `ClipboardHelper`, `SleepInhibitor`).
 
 Pour ajouter un type : `QML_ELEMENT` (+ `QML_SINGLETON` pour un singleton) dans le
-`.h`, et ajouter le `.h`/`.cpp` aux sources de `appIptvPlayer`. Un singleton adossé à
+`.h`, et ajouter le `.h`/`.cpp` aux sources de `appOTTix`. Un singleton adossé à
 une instance C++ existante fournit `static T *create(QQmlEngine *, QJSEngine *)` et
 appelle `QJSEngine::setObjectOwnership(..., CppOwnership)` (cf. `DatabaseManager`).
 

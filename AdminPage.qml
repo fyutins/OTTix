@@ -583,7 +583,7 @@ Rectangle {
                             spacing: Theme.spacingXs
 
                             Label {
-                                text: qsTr("IPTV Player v0.1")
+                                text: qsTr("OTTix v0.1")
                                 color: Theme.text
                                 font.pixelSize: Theme.fontMd
                             }
