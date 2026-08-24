@@ -252,7 +252,7 @@ Rectangle {
             }
 
             IconButton {
-                glyph: Mdi.menu
+                glyph: Mdi.remoteTv
                 tinted: true
                 round: true
                 tooltip: qsTr("Browse channels")
@@ -275,10 +275,10 @@ Rectangle {
 
                     Repeater {
                         model: [
-                            { mode: 1, glyph: Mdi.layout1, label: qsTr("Single screen") },
-                            { mode: 2, glyph: Mdi.layout2, label: qsTr("Two screens") },
-                            { mode: 3, glyph: Mdi.layout3, label: qsTr("Three screens") },
-                            { mode: 4, glyph: Mdi.layout4, label: qsTr("Four screens") }
+                            { mode: 1, label: qsTr("Single screen") },
+                            { mode: 2, label: qsTr("Two screens") },
+                            { mode: 3, label: qsTr("Three screens") },
+                            { mode: 4, label: qsTr("Four screens") }
                         ]
 
                         delegate: IconButton {
@@ -288,13 +288,22 @@ Rectangle {
 
                             implicitWidth: Theme.controlSm + Theme.spacingXs
                             implicitHeight: Theme.controlSm
-                            glyph: modeButton.modelData.glyph
-                            glyphSize: Theme.iconSm
-                            glyphColor: Theme.scrimTextMuted
                             checkable: true
                             checked: root.multiplexMode === modeButton.modelData.mode
                             tooltip: modeButton.modelData.label
                             onClicked: root.multiplexModeChangeRequested(modeButton.modelData.mode)
+
+                            // Icone dessinee et non prise dans la fonte : les
+                            // quatre dispositions doivent se lire comme une
+                            // famille de carres (cf. ScreenLayoutIcon).
+                            contentItem: ScreenLayoutIcon {
+                                screens: modeButton.modelData.mode
+                                size: Theme.iconSm
+                                color: modeButton.checked ? modeButton.checkedColor
+                                                          : Theme.scrimTextMuted
+
+                                Behavior on color { ColorAnimation { duration: Theme.durFast } }
+                            }
                         }
                     }
                 }

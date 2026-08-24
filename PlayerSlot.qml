@@ -308,7 +308,7 @@ Rectangle {
                     round: true
                     tinted: true
                     dark: true
-                    glyph: Mdi.menu
+                    glyph: Mdi.remoteTv
                     tooltip: qsTr("Change the channel on this screen")
                     onClicked: root.pickRequested(root.slotIndex)
                 }

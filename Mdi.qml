@@ -36,6 +36,7 @@ QtObject {
     readonly property string star: String.fromCodePoint(0xF04CE)
     readonly property string starOutline: String.fromCodePoint(0xF04D2)
     readonly property string television: String.fromCodePoint(0xF07F4)
+    readonly property string remoteTv: String.fromCodePoint(0xF0EC5)
     readonly property string televisionGuide: String.fromCodePoint(0xF0503)
     readonly property string televisionOff: String.fromCodePoint(0xF083B)
     readonly property string folderMultiple: String.fromCodePoint(0xF0255)
@@ -62,12 +63,6 @@ QtObject {
     readonly property string highDefinition: String.fromCodePoint(0xF07CF)
     readonly property string fullscreen: String.fromCodePoint(0xF0293)
     readonly property string fullscreenExit: String.fromCodePoint(0xF0294)
-
-    // ── Disposition multiplex ─────────────────────────────────────────────
-    readonly property string layout1: String.fromCodePoint(0xF0763)  // square-outline
-    readonly property string layout2: String.fromCodePoint(0xF0BCC)  // view-split-vertical
-    readonly property string layout3: String.fromCodePoint(0xF148E)  // view-quilt-outline
-    readonly property string layout4: String.fromCodePoint(0xF11D9)  // view-grid-outline
 
     // ── Actions ───────────────────────────────────────────────────────────
     readonly property string refresh: String.fromCodePoint(0xF0450)
