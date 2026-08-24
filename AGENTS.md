@@ -232,6 +232,20 @@ Tous les styles passent par deux singletons QML ; **aucun literal de couleur,
 d'espacement ou de taille de police ne doit apparaitre ailleurs**.
 
 ### `Theme.qml`
+**Deux palettes** (`darkPalette` / `lightPalette`) exposant les memes jetons ;
+les fichiers QML lisent toujours `Theme.<jeton>`, jamais la palette. Le mode
+vit dans `Theme.mode` (`modeAuto` / `modeLight` / `modeDark`), est persiste via
+`QtCore.Settings` (categorie `Appearance`) et se regle dans Administration >
+Settings > Appearance. En mode auto, un `Timer` d'une minute reevalue l'heure
+locale : theme clair de `dayStartHour` (7 h) a `nightStartHour` (19 h), sombre
+ensuite.
+
+Les jetons **independants du mode** couvrent la zone de lecture, qui reste
+sombre dans les deux themes : `videoBg`, `scrim*`, `glass*`, `scrimText`,
+`scrimTextMuted`, `scrimTextDim` (tout texte pose sur la video) et
+`logoBackdrop` (fond des logos de chaines, souvent dessines pour du sombre).
+Un calque pose sur la video ne doit donc jamais utiliser `Theme.text`.
+
 Jetons regroupes par role : surfaces (`bg` → `surface` → `surfaceAlt` →
 `surfaceHi`, `border`/`borderStrong`), accent (`accent`, `accentHover`,
 `accentPressed`, `accentSoft`, `textOnAccent`), texte (`text`, `textMuted`,
@@ -264,6 +278,8 @@ Usage : `MdiIcon { glyph: Mdi.refresh }`, `IconButton { glyph: Mdi.cogOutline }`
   etat coche sont geres par le composant — ne jamais empiler une `MouseArea`
   dans un bouton.
 - `AppButton` : `variant: AppButton.Primary | Secondary | Ghost | Danger`.
+- `SegmentedControl` : options exclusives dans un meme boitier (`options`,
+  `currentValue`, signal `selected`).
 - `AppTabBar` / `AppTabButton` : onglets compacts alignes a gauche.
   `AppTabButton` fixe `width: implicitWidth` : c'est ce qui empeche `TabBar` de
   repartir la largeur a parts egales.

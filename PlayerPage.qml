@@ -6,7 +6,7 @@ import QtCore
 
 Rectangle {
     id: root
-    color: "black"
+    color: Theme.videoBg
 
     signal closeRequested()
     signal navigateRequested()
@@ -247,7 +247,6 @@ Rectangle {
                 glyph: Mdi.close
                 tinted: true
                 round: true
-                glyphColor: Theme.text
                 tooltip: qsTr("Close the player")
                 onClicked: { root.stopAll(); root.closeRequested() }
             }
@@ -256,7 +255,6 @@ Rectangle {
                 glyph: Mdi.menu
                 tinted: true
                 round: true
-                glyphColor: Theme.text
                 tooltip: qsTr("Browse channels")
                 onClicked: root.navigateRequested()
             }
@@ -292,7 +290,7 @@ Rectangle {
                             implicitHeight: Theme.controlSm
                             glyph: modeButton.modelData.glyph
                             glyphSize: Theme.iconSm
-                            glyphColor: Theme.textMuted
+                            glyphColor: Theme.scrimTextMuted
                             checkable: true
                             checked: root.multiplexMode === modeButton.modelData.mode
                             tooltip: modeButton.modelData.label
@@ -313,7 +311,7 @@ Rectangle {
                          : volumeSlider.value < 50 ? Mdi.volumeMedium : Mdi.volumeHigh
                     tinted: true
                     round: true
-                    glyphColor: volumeSlider.value === 0 ? Theme.textDim : Theme.text
+                    glyphColor: volumeSlider.value === 0 ? Theme.scrimTextDim : Theme.scrimText
                     tooltip: volumeSlider.value === 0 ? qsTr("Unmute") : qsTr("Mute")
                     onClicked: root.toggleMute()
                 }
@@ -351,7 +349,7 @@ Rectangle {
                         radius: width / 2
                         color: volumeSlider.pressed ? Theme.accentPressed : Theme.accent
                         border.width: 2
-                        border.color: Theme.textOnAccent
+                        border.color: Theme.scrimText
 
                         Behavior on width { NumberAnimation { duration: Theme.durFast } }
                         Behavior on color { ColorAnimation { duration: Theme.durFast } }
@@ -362,7 +360,7 @@ Rectangle {
 
                 Label {
                     text: Math.round(volumeSlider.value) + "%"
-                    color: Theme.textMuted
+                    color: Theme.scrimTextMuted
                     font.pixelSize: Theme.fontSm
                     horizontalAlignment: Text.AlignRight
                     Layout.preferredWidth: 32
@@ -373,7 +371,6 @@ Rectangle {
                 glyph: root.isFullScreen ? Mdi.fullscreenExit : Mdi.fullscreen
                 tinted: true
                 round: true
-                glyphColor: Theme.text
                 tooltip: root.isFullScreen ? qsTr("Exit full screen (F11)")
                                            : qsTr("Full screen (F11)")
                 onClicked: root.toggleFullscreenRequested()

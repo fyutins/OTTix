@@ -65,7 +65,7 @@ Item {
                 Layout.preferredWidth: 44
                 Layout.preferredHeight: 40
                 radius: Theme.radiusSm
-                color: Theme.bg
+                color: Theme.logoBackdrop
 
                 Image {
                     id: logo

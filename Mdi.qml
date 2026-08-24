@@ -43,6 +43,11 @@ QtObject {
     readonly property string playlistPlay: String.fromCodePoint(0xF0411)
     readonly property string cogOutline: String.fromCodePoint(0xF08BB)
 
+    // ── Apparence ─────────────────────────────────────────────────────────
+    readonly property string themeAuto: String.fromCodePoint(0xF050E)   // theme-light-dark
+    readonly property string themeLight: String.fromCodePoint(0xF05A8)  // white-balance-sunny
+    readonly property string themeDark: String.fromCodePoint(0xF0594)   // weather-night
+
     // ── Lecture ───────────────────────────────────────────────────────────
     readonly property string play: String.fromCodePoint(0xF040A)
     readonly property string pause: String.fromCodePoint(0xF03E4)

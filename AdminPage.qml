@@ -314,6 +314,57 @@ Rectangle {
                     width: Math.min(parent.width - Theme.spacingXl * 2, 900)
                     spacing: Theme.spacingLg
 
+                    // ── Apparence ──
+                    SettingsCard {
+                        Layout.fillWidth: true
+                        glyph: Mdi.themeAuto
+                        title: qsTr("Appearance")
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.spacingSm
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: qsTr("Auto follows the local time: light theme from %1:00, dark theme from %2:00.")
+                                    .arg(Theme.dayStartHour).arg(Theme.nightStartHour)
+                                color: Theme.textMuted
+                                font.pixelSize: Theme.fontMd
+                                wrapMode: Text.WordWrap
+                            }
+
+                            SegmentedControl {
+                                options: [
+                                    { label: qsTr("Auto"), glyph: Mdi.themeAuto, value: Theme.modeAuto },
+                                    { label: qsTr("Light"), glyph: Mdi.themeLight, value: Theme.modeLight },
+                                    { label: qsTr("Dark"), glyph: Mdi.themeDark, value: Theme.modeDark }
+                                ]
+                                currentValue: Theme.mode
+                                onSelected: (value) => Theme.mode = value
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: Theme.spacingXs
+                                visible: Theme.mode === Theme.modeAuto
+
+                                MdiIcon {
+                                    glyph: Theme.dark ? Mdi.themeDark : Mdi.themeLight
+                                    font.pixelSize: Theme.iconXs
+                                    color: Theme.textDim
+                                }
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: Theme.dark ? qsTr("Currently showing the dark theme")
+                                                     : qsTr("Currently showing the light theme")
+                                    color: Theme.textDim
+                                    font.pixelSize: Theme.fontSm
+                                }
+                            }
+                        }
+                    }
+
                     // ── Base de donnees ──
                     SettingsCard {
                         Layout.fillWidth: true

@@ -144,6 +144,7 @@ qt_add_qml_module(appIptvPlayer
         PlayerSlot.qml
         PlaylistDialog.qml
         SearchField.qml
+        SegmentedControl.qml
         SettingsCard.qml
         Theme.qml
         Tip.qml

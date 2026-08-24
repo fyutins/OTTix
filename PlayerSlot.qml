@@ -5,7 +5,7 @@ import QtQuick.Layouts
 
 Rectangle {
     id: root
-    color: "black"
+    color: Theme.videoBg
     clip: true
 
     property int slotIndex: 0
@@ -52,7 +52,7 @@ Rectangle {
 
     Rectangle {
         anchors.fill: parent
-        color: Theme.bg
+        color: Theme.videoBg
         visible: root.channelUrl === ""
         z: 1
     }
@@ -62,7 +62,7 @@ Rectangle {
         running: mpvItem.loading && root.channelUrl !== ""
         z: 2
         palette {
-            dark: Theme.text
+            dark: Theme.scrimText
             mid: Theme.accent
         }
     }
@@ -188,7 +188,7 @@ Rectangle {
 
                 Text {
                     text: root.channelName
-                    color: Theme.text
+                    color: Theme.scrimText
                     font.pixelSize: Theme.fontSm
                     font.bold: true
                     elide: Text.ElideRight
@@ -203,7 +203,7 @@ Rectangle {
                     radius: Theme.radiusSm
                     color: qualityMouse.containsMouse ? Theme.glassHover : Theme.glass
                     border.width: 1
-                    border.color: qualityMouse.containsMouse ? Theme.accent : Theme.borderStrong
+                    border.color: qualityMouse.containsMouse ? Theme.accent : Theme.scrimTextDim
                     visible: root.channelUrl !== "" && ChannelListModel.channelHasVariants(root.channelUrl)
 
                     property string currentLabel: ""
@@ -219,7 +219,7 @@ Rectangle {
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             text: qualityBadge.currentLabel.length > 0 ? qualityBadge.currentLabel : qsTr("SD")
-                            color: Theme.text
+                            color: Theme.scrimText
                             font.pixelSize: Theme.fontXs
                             font.bold: true
                         }
@@ -228,7 +228,7 @@ Rectangle {
                             anchors.verticalCenter: parent.verticalCenter
                             glyph: qualityPopup.opened ? Mdi.chevronDown : Mdi.chevronUp
                             font.pixelSize: Theme.iconXs
-                            color: Theme.textMuted
+                            color: Theme.scrimTextMuted
                         }
                     }
 
@@ -281,7 +281,7 @@ Rectangle {
                     checked: root.isActiveAudio
                     glyph: root.isActiveAudio ? Mdi.volumeHigh : Mdi.volumeOff
                     glyphSize: Theme.iconSm
-                    glyphColor: Theme.textMuted
+                    glyphColor: Theme.scrimTextMuted
                     tooltip: root.isActiveAudio ? qsTr("Audio on this screen")
                                                 : qsTr("Listen to this screen")
                     onClicked: root.audioToggleRequested(root.slotIndex)
@@ -405,13 +405,13 @@ Rectangle {
                             width: 6
                             height: 6
                             radius: 3
-                            color: liveBtn.isLive ? Theme.textOnAccent : Theme.textDim
+                            color: liveBtn.isLive ? Theme.scrimText : Theme.scrimTextDim
                         }
 
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             text: qsTr("LIVE")
-                            color: liveBtn.isLive ? Theme.textOnAccent : Theme.textMuted
+                            color: liveBtn.isLive ? Theme.scrimText : Theme.scrimTextMuted
                             font.pixelSize: Theme.fontSm
                             font.bold: true
                         }
@@ -449,7 +449,7 @@ Rectangle {
                             return sign + m + ":" + (s < 10 ? "0" : "") + s
                         return sign + s + "s"
                     }
-                    color: Theme.textMuted
+                    color: Theme.scrimTextMuted
                     font.pixelSize: Theme.fontXs
                 }
             }
@@ -722,9 +722,9 @@ Rectangle {
         width: 200
         height: 116
         radius: Theme.radiusMd
-        color: emptyMouse.containsMouse ? Theme.surfaceAlt : Theme.surface
+        color: emptyMouse.containsMouse ? Theme.glassDarkHover : Theme.glassDark
         border.width: 1
-        border.color: emptyMouse.containsMouse ? Theme.accent : Theme.border
+        border.color: emptyMouse.containsMouse ? Theme.accent : Theme.scrimTextDim
         visible: root.channelUrl === ""
         z: 2
 
@@ -739,7 +739,7 @@ Rectangle {
                 Layout.alignment: Qt.AlignHCenter
                 glyph: Mdi.plusCircle
                 font.pixelSize: Theme.iconXl
-                color: emptyMouse.containsMouse ? Theme.accent : Theme.textMuted
+                color: emptyMouse.containsMouse ? Theme.accent : Theme.scrimTextMuted
 
                 Behavior on color { ColorAnimation { duration: Theme.durFast } }
             }
@@ -747,14 +747,14 @@ Rectangle {
             Text {
                 Layout.alignment: Qt.AlignHCenter
                 text: qsTr("Choose a channel")
-                color: Theme.textMuted
+                color: Theme.scrimTextMuted
                 font.pixelSize: Theme.fontMd
             }
 
             Text {
                 Layout.alignment: Qt.AlignHCenter
                 text: qsTr("Screen %1").arg(root.slotIndex + 1)
-                color: Theme.textDim
+                color: Theme.scrimTextDim
                 font.pixelSize: Theme.fontSm
             }
         }

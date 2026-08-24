@@ -10,7 +10,8 @@ AbstractButton {
 
     property string glyph: ""
     property int glyphSize: Theme.iconMd
-    property color glyphColor: Theme.text
+    // Sur la video, le texte reste clair quel que soit le theme.
+    property color glyphColor: control.tinted ? Theme.scrimText : Theme.text
     property color checkedColor: Theme.accent
     property bool round: false
     property bool tinted: false
