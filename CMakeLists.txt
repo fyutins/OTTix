@@ -121,7 +121,7 @@ target_include_directories(appOTTix PRIVATE
 
 # Design system QML singletons (style tokens + icon set).
 # Must come before qt_add_qml_module().
-set_source_files_properties(Theme.qml Mdi.qml
+set_source_files_properties(qml/Theme.qml qml/Mdi.qml
     PROPERTIES QT_QML_SINGLETON_TYPE TRUE
 )
 
@@ -129,39 +129,39 @@ qt_add_qml_module(appOTTix
     URI OTTix
     VERSION 1.0
     QML_FILES
-        Main.qml
-        AdminPage.qml
-        AppButton.qml
-        AppComboBox.qml
-        AppMenu.qml
-        AppMenuItem.qml
-        AppScrollBar.qml
-        AppTabBar.qml
-        AppTabButton.qml
-        ChannelDelegate.qml
-        ChannelGrid.qml
-        ChannelListPage.qml
-        ChannelSearchBar.qml
-        ChannelSearchPopup.qml
-        ConfirmDialog.qml
-        EmptyState.qml
-        FavoritesPage.qml
-        GroupGrid.qml
-        GroupSearchBar.qml
-        GroupsPage.qml
-        HistoryPage.qml
-        IconButton.qml
-        Mdi.qml
-        MdiIcon.qml
-        PlayerPage.qml
-        PlayerSlot.qml
-        PlaylistDialog.qml
-        ScreenLayoutIcon.qml
-        SearchField.qml
-        SegmentedControl.qml
-        SettingsCard.qml
-        Theme.qml
-        Tip.qml
+        qml/Main.qml
+        qml/AdminPage.qml
+        qml/AppButton.qml
+        qml/AppComboBox.qml
+        qml/AppMenu.qml
+        qml/AppMenuItem.qml
+        qml/AppScrollBar.qml
+        qml/AppTabBar.qml
+        qml/AppTabButton.qml
+        qml/ChannelDelegate.qml
+        qml/ChannelGrid.qml
+        qml/ChannelListPage.qml
+        qml/ChannelSearchBar.qml
+        qml/ChannelSearchPopup.qml
+        qml/ConfirmDialog.qml
+        qml/EmptyState.qml
+        qml/FavoritesPage.qml
+        qml/GroupGrid.qml
+        qml/GroupSearchBar.qml
+        qml/GroupsPage.qml
+        qml/HistoryPage.qml
+        qml/IconButton.qml
+        qml/Mdi.qml
+        qml/MdiIcon.qml
+        qml/PlayerPage.qml
+        qml/PlayerSlot.qml
+        qml/PlaylistDialog.qml
+        qml/ScreenLayoutIcon.qml
+        qml/SearchField.qml
+        qml/SegmentedControl.qml
+        qml/SettingsCard.qml
+        qml/Theme.qml
+        qml/Tip.qml
     RESOURCES
         fonts/materialdesignicons-webfont.ttf
 )

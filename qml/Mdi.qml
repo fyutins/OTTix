@@ -13,7 +13,7 @@ QtObject {
     id: mdi
 
     property FontLoader loader: FontLoader {
-        source: Qt.resolvedUrl("fonts/materialdesignicons-webfont.ttf")
+        source: Qt.resolvedUrl("../fonts/materialdesignicons-webfont.ttf")
     }
 
     readonly property string family: mdi.loader.status === FontLoader.Ready

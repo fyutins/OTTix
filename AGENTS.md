@@ -7,26 +7,27 @@ Codes) through libmpv.
 
 ```
 OTTix/
-├── Main.qml              # Main window — navigation + player overlay
-├── PlayerPage.qml        # Fullscreen player view (multiplex, controls, close+nav)
-├── PlayerSlot.qml        # Single player pane (multiplex)
-├── ChannelListPage.qml   # All channels, with search
-├── GroupsPage.qml        # Group browser with drill-down
-├── FavoritesPage.qml     # Favorite channels
-├── HistoryPage.qml       # Watch history
-├── AdminPage.qml         # Admin page (Playlists + Settings)
-├── PlaylistDialog.qml    # Add / edit a playlist
-├── ChannelSearchPopup.qml# Channel picker opened from the player
-├── ChannelGrid.qml, GroupGrid.qml, ChannelDelegate.qml
-├── ChannelSearchBar.qml, GroupSearchBar.qml
-│
-│   # ── Design system ──
-├── Theme.qml             # Singleton: colors, spacing, typography, durations
-├── Mdi.qml               # Singleton: Material Design Icons font + code points
-├── MdiIcon.qml, IconButton.qml, AppButton.qml, SegmentedControl.qml
-├── AppTabBar.qml, AppTabButton.qml, AppComboBox.qml, AppScrollBar.qml
-├── AppMenu.qml, AppMenuItem.qml, SearchField.qml, SettingsCard.qml
-├── ConfirmDialog.qml, EmptyState.qml, Tip.qml, ScreenLayoutIcon.qml
+├── qml/
+│   ├── Main.qml              # Main window — navigation + player overlay
+│   ├── PlayerPage.qml        # Fullscreen player view (multiplex, controls, close+nav)
+│   ├── PlayerSlot.qml        # Single player pane (multiplex)
+│   ├── ChannelListPage.qml   # All channels, with search
+│   ├── GroupsPage.qml        # Group browser with drill-down
+│   ├── FavoritesPage.qml     # Favorite channels
+│   ├── HistoryPage.qml       # Watch history
+│   ├── AdminPage.qml         # Admin page (Playlists + Settings)
+│   ├── PlaylistDialog.qml    # Add / edit a playlist
+│   ├── ChannelSearchPopup.qml# Channel picker opened from the player
+│   ├── ChannelGrid.qml, GroupGrid.qml, ChannelDelegate.qml
+│   ├── ChannelSearchBar.qml, GroupSearchBar.qml
+│   │
+│   │   # ── Design system ──
+│   ├── Theme.qml             # Singleton: colors, spacing, typography, durations
+│   ├── Mdi.qml               # Singleton: Material Design Icons font + code points
+│   ├── MdiIcon.qml, IconButton.qml, AppButton.qml, SegmentedControl.qml
+│   ├── AppTabBar.qml, AppTabButton.qml, AppComboBox.qml, AppScrollBar.qml
+│   ├── AppMenu.qml, AppMenuItem.qml, SearchField.qml, SettingsCard.qml
+│   └── ConfirmDialog.qml, EmptyState.qml, Tip.qml, ScreenLayoutIcon.qml
 │
 ├── fonts/                # materialdesignicons-webfont.ttf (+ NOTICE.md)
 ├── packaging/            # Windows installer + Flatpak manifest

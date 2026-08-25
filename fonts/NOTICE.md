@@ -8,4 +8,4 @@
 
 Source: https://github.com/Templarian/MaterialDesign-Webfont
 
-The code points used by the application are declared in `Mdi.qml`.
+The code points used by the application are declared in `qml/Mdi.qml`.
