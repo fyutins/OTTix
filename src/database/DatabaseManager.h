@@ -99,7 +99,7 @@ class DatabaseManager : public QObject
 public:
     static DatabaseManager &instance();
 
-    // Le singleton vit cote C++ : l'engine QML ne doit pas le detruire.
+    // The singleton lives on the C++ side: the QML engine must not destroy it.
     static DatabaseManager *create(QQmlEngine *, QJSEngine *);
 
     bool initialize(const QString &path = QString());
@@ -122,7 +122,7 @@ public:
     ChannelInfo getChannel(int id);
     Q_INVOKABLE int channelCount(int playlistId);
 
-    // Synchronisation des playlists (chargement DB-first)
+    // Playlist synchronization (DB-first loading)
     void markPlaylistSynced(int playlistId);
     Q_INVOKABLE bool needsRefresh(int playlistId, int maxAgeHours = 24);
     Q_INVOKABLE QString lastSync(int playlistId);
@@ -147,12 +147,12 @@ signals:
     void databasePathChanged();
 
 public:
-    // Cache (donnees regenerables uniquement — purgeables a tout moment)
+    // Cache (regenerable data only - purgeable at any time)
     void setCache(const QString &key, const QString &data);
     QString getCache(const QString &key);
     Q_INVOKABLE void clearCache(int olderThanDays = 7);
 
-    // Settings (reglages utilisateur — jamais purges par clearCache)
+    // Settings (user settings - never purged by clearCache)
     Q_INVOKABLE void setSetting(const QString &key, const QString &value);
     Q_INVOKABLE QString getSetting(const QString &key, const QString &defaultValue = QString());
 

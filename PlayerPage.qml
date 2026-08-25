@@ -219,7 +219,7 @@ Rectangle {
         }
     }
 
-    // ── Barre haute : fermeture · disposition · volume · plein ecran ──
+    // -- Top bar: close - layout - volume - fullscreen --
     Rectangle {
         id: topBar
         anchors.left: parent.left
@@ -261,7 +261,7 @@ Rectangle {
 
             Item { Layout.fillWidth: true }
 
-            // ── Selecteur de disposition (segmente) ──
+            // -- Layout selector (segmented) --
             Rectangle {
                 Layout.preferredWidth: modeRow.implicitWidth + Theme.spacingXs * 2
                 Layout.preferredHeight: Theme.controlMd
@@ -293,9 +293,9 @@ Rectangle {
                             tooltip: modeButton.modelData.label
                             onClicked: root.multiplexModeChangeRequested(modeButton.modelData.mode)
 
-                            // Icone dessinee et non prise dans la fonte : les
-                            // quatre dispositions doivent se lire comme une
-                            // famille de carres (cf. ScreenLayoutIcon).
+                            // Icon drawn rather than taken from the font: the
+                            // four layouts must read as one family of squares
+                            // (see ScreenLayoutIcon).
                             contentItem: ScreenLayoutIcon {
                                 screens: modeButton.modelData.mode
                                 size: Theme.iconSm
@@ -311,7 +311,7 @@ Rectangle {
 
             Item { Layout.fillWidth: true }
 
-            // ── Volume ──
+            // -- Volume --
             RowLayout {
                 spacing: Theme.spacingXs
 

@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 
-// Carte de reglages : en-tete (icone + titre) puis contenu libre.
+// Settings card: header (icon + title) then free-form content.
 Rectangle {
     id: card
 

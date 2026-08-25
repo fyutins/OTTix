@@ -2,8 +2,8 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-// Tuile de chaine. La racine occupe toute la cellule de la grille ; la carte
-// visible est en retrait pour menager des gouttieres regulieres.
+// Channel tile. The root fills the whole grid cell; the visible card is inset
+// to leave regular gutters.
 Item {
     id: delegateRoot
 
@@ -15,9 +15,9 @@ Item {
     property bool isFavorite: false
     property bool showFavoriteIcon: true
 
-    // Le bouton favori absorbe les evenements de survol : sans cette union, la
-    // carte perdrait le survol des qu'on pointe l'etoile, retrecirait, et la
-    // souris ressortirait du bouton — d'ou un clignotement en boucle.
+    // The favorite button absorbs hover events: without this union the card
+    // would lose hover as soon as the star is pointed at, shrink, and the mouse
+    // would fall back out of the button - hence an endless flicker.
     readonly property bool hovered: mouseArea.containsMouse || favoriteButton.hovered
 
     signal playRequested(string name, string url, string logo, string group)
@@ -64,14 +64,14 @@ Item {
             anchors.margins: Theme.spacingSm
             spacing: Theme.spacingXs
 
-            // ── Logo (ou pictogramme de repli) + surimpression de lecture ──
+            // -- Logo (or fallback pictogram) + playback overlay --
             Rectangle {
                 id: logoFrame
 
                 readonly property string logoSource: delegateRoot.channelLogo || ""
-                // Fond derive de la couleur dominante du logo (cf. LogoPalette) :
-                // un logo sombre se perdrait sur le fond sombre par defaut, et
-                // inversement. Invalide tant que l'analyse n'a pas abouti.
+                // Backdrop derived from the logo's dominant color (see
+                // LogoPalette): a dark logo would be lost on the default dark
+                // background, and vice versa. Invalid until the analysis lands.
                 property color backdrop: "transparent"
                 readonly property bool lightBackdrop: logoFrame.backdrop.a > 0
                                                       && logoFrame.backdrop.hslLightness > 0.5
@@ -127,8 +127,8 @@ Item {
                     visible: delegateRoot.hovered
                     glyph: Mdi.play
                     font.pixelSize: Theme.iconLg
-                    // Sur un fond clair derive du logo, l'accent nominal manque
-                    // de contraste : on prend sa variante appuyee.
+                    // On a light logo-derived backdrop the nominal accent lacks
+                    // contrast, so use its pressed variant.
                     color: logoFrame.lightBackdrop ? Theme.accentPressed : Theme.accent
                 }
             }
@@ -157,7 +157,7 @@ Item {
             }
         }
 
-        // ── Favori : toujours visible s'il l'est, au survol sinon ──
+        // -- Favorite: always visible when set, on hover otherwise --
         IconButton {
             id: favoriteButton
 

@@ -2,11 +2,11 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 
-// Liste deroulante du design system.
+// Design system drop-down list.
 ComboBox {
     id: control
 
-    // Coins droits carres quand un controle lui est accole (cf. IconButton.attachedLeft)
+    // Right corners squared off when a control is attached to it (see IconButton.attachedLeft)
     property bool attachedRight: false
 
     implicitHeight: Theme.controlMd

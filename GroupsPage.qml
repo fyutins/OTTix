@@ -10,7 +10,7 @@ Item {
     property string groupFilterText: ""
     property string channelFilterText: ""
 
-    // Reapplique le filtre de cette page sur le modele partage (voir
+    // Re-applies this page's filter on the shared model (see
     // ChannelListPage.activate()).
     function activate() {
         ChannelListModel.filterGroup = currentGroup

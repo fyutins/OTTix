@@ -11,18 +11,18 @@
 class QImage;
 class QNetworkAccessManager;
 
-// Fond des logos de chaines, derive de la couleur dominante du logo lui-meme.
+// Channel logo backdrop, derived from the dominant color of the logo itself.
 //
-// Un fond uni unique rend illisible tout logo peint dans une teinte proche :
-// on analyse donc l'image et on renvoie un fond qui contraste avec elle
-// (sombre pour un logo clair, clair pour un logo sombre), teinte de la meme
-// couleur pour que la tuile reste coherente.
+// A single flat backdrop makes any logo painted in a nearby hue unreadable, so
+// the image is analyzed and a backdrop that contrasts with it is returned (dark
+// for a light logo, light for a dark one), tinted with the same color so the
+// tile stays coherent.
 //
-// La resolution est asynchrone : `backdrop()` renvoie une couleur invalide
-// tant qu'elle n'est pas connue (l'appelant garde alors le fond par defaut du
-// theme) et `backdropResolved` est emis des que l'analyse aboutit. Les
-// resultats sont memorises en RAM et persistes dans la table `cache` : au
-// demarrage suivant, aucun logo n'est retelecharge pour son fond.
+// Resolution is asynchronous: `backdrop()` returns an invalid color while the
+// answer is unknown (the caller then keeps the theme default) and
+// `backdropResolved` is emitted as soon as the analysis completes. Results are
+// memoized in RAM and persisted in the `cache` table: on the next start, no logo
+// is re-downloaded just for its backdrop.
 class LogoPalette : public QObject
 {
     Q_OBJECT
@@ -32,11 +32,11 @@ class LogoPalette : public QObject
 public:
     explicit LogoPalette(QObject *parent = nullptr);
 
-    // Fond a appliquer derriere `source`, ou une couleur invalide si elle
-    // n'est pas (encore) connue. Declenche l'analyse au premier appel.
+    // Backdrop to paint behind `source`, or an invalid color when it is not
+    // (yet) known. Kicks off the analysis on the first call.
     Q_INVOKABLE QColor backdrop(const QString &source);
 
-    // Analyse pure, sans etat : exposee pour les tests et la reutilisation.
+    // Pure, stateless analysis: exposed for tests and reuse.
     static QColor backdropOf(const QImage &image);
 
 signals:
@@ -48,7 +48,7 @@ private:
     void resolve(const QString &source, const QColor &color, bool persist);
 
     QNetworkAccessManager *m_nam = nullptr;
-    QHash<QString, QColor> m_backdrops;  // couleur invalide = fond par defaut
+    QHash<QString, QColor> m_backdrops;  // invalid color = theme default
     QSet<QString> m_requested;
     QQueue<QString> m_queue;
     int m_inFlight = 0;

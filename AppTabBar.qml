@@ -1,9 +1,9 @@
 import QtQuick
 import QtQuick.Controls
 
-// Barre d'onglets du design system : fond de surface, filet de separation bas,
-// onglets compacts alignes a gauche (cf. AppTabButton, qui fixe sa propre
-// largeur pour empecher TabBar de repartir l'espace a parts egales).
+// Design system tab bar: surface background, bottom separator line, compact
+// left-aligned tabs (see AppTabButton, which sets its own width to stop TabBar
+// from splitting the space evenly).
 TabBar {
     id: control
 

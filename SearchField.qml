@@ -1,8 +1,8 @@
 import QtQuick
 import QtQuick.Controls
 
-// Champ de recherche : loupe a gauche, bouton d'effacement a droite,
-// bordure qui s'illumine a la prise de focus.
+// Search field: magnifier on the left, clear button on the right, border that
+// lights up on focus.
 TextField {
     id: control
 

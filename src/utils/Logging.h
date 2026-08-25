@@ -2,8 +2,8 @@
 
 #include <QLoggingCategory>
 
-// Categories de log de l'application. Toutes sont limitees a Warning par
-// defaut : activer au besoin via QT_LOGGING_RULES, par exemple
+// Application log categories. All are capped at Warning by default: enable
+// them as needed through QT_LOGGING_RULES, for example
 //   QT_LOGGING_RULES="iptv.*.debug=true"
 //   QT_LOGGING_RULES="iptv.mpv.debug=true;iptv.db.debug=true"
 Q_DECLARE_LOGGING_CATEGORY(logDb)

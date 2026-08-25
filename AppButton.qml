@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 
-// Bouton texte (avec icone optionnelle) du design system.
+// Design system text button (with an optional icon).
 //   AppButton { text: qsTr("Add"); variant: AppButton.Primary; glyph: Mdi.plus }
 Button {
     id: control

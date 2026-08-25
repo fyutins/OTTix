@@ -1,13 +1,12 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 
-// Icone de disposition du lecteur : un carre par ecran, poses comme les slots
-// le sont reellement (deux ecrans cote a cote, le troisieme sur toute la
-// largeur). Dessinee plutot que prise dans la fonte MDI : les icones de
-// disposition de MDI melangent des motifs heterogenes (square, split, quilt,
-// grid) et les quatre ne se lisent pas comme une famille.
+// Player layout icon: one square per screen, laid out the way the slots really
+// are (two screens side by side, the third across the full width). Drawn rather
+// than taken from the MDI font: the MDI layout icons mix heterogeneous motifs
+// (square, split, quilt, grid) and the four do not read as one family.
 //
-// Purement geometrique : la couleur et la taille viennent de l'appelant.
+// Purely geometric: color and size come from the caller.
 //   ScreenLayoutIcon { screens: 3; size: Theme.iconSm; color: Theme.text }
 Item {
     id: root
@@ -22,7 +21,7 @@ Item {
     readonly property real stroke: Math.max(1, Math.round(root.size / 14))
     readonly property real gap: Math.max(2, Math.round(root.size / 7))
 
-    // Une cellule par ecran : x, y, largeur, hauteur en fraction de l'icone.
+    // One cell per screen: x, y, width, height as a fraction of the icon.
     readonly property var cells: {
         switch (root.screens) {
         case 2: return [[0, 0, 0.5, 1], [0.5, 0, 0.5, 1]]
@@ -33,9 +32,9 @@ Item {
         }
     }
 
-    // Demi-gouttiere retiree de chaque cote interieur : les carres touchent les
-    // bords de l'icone et sont separes de `gap` entre eux. Arrondi au pixel
-    // pour que les traits restent nets aux petites tailles.
+    // Half a gutter removed from each inner side: the squares touch the icon
+    // edges and are `gap` apart from each other. Rounded to the pixel so the
+    // strokes stay crisp at small sizes.
     function startPx(fraction) {
         return Math.round(fraction * root.size + (fraction > 0 ? root.gap / 2 : 0))
     }
@@ -44,9 +43,9 @@ Item {
         return Math.round(fraction * root.size - (fraction < 1 ? root.gap / 2 : 0))
     }
 
-    // Les carres sont dessines dans un carre de `size` centre : un Control
-    // etire son contentItem sur toute la zone disponible, la geometrie ne peut
-    // donc pas etre calee sur la racine.
+    // The squares are drawn inside a centered `size` square: a Control stretches
+    // its contentItem over the whole available area, so the geometry cannot be
+    // anchored to the root.
     Item {
         anchors.centerIn: parent
         width: root.size

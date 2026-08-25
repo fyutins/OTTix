@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 
-// Barre de recherche des grilles de chaines : champ + compteur de resultats.
+// Search bar for the channel grids: field + result counter.
 Item {
     id: root
 

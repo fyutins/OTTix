@@ -76,14 +76,14 @@ MpvObject::~MpvObject()
 #if HAS_MPV
     qCDebug(logMpv) << "[MPV] Destroying MpvObject";
     if (m_mpv) {
-        // Plus personne ne doit rappeler cet objet apres sa destruction.
+        // Nothing must call back into this object once it is destroyed.
         mpv_set_wakeup_callback(m_mpv, nullptr, nullptr);
         const char *stop_cmd[] = {"stop", nullptr};
         mpv_command(m_mpv, stop_cmd);
         m_mpv = nullptr;
     }
-    // Le handle n'est reellement detruit que quand le renderer a lache sa
-    // reference, donc apres mpv_render_context_free().
+    // The handle is only really destroyed once the renderer has released its
+    // reference, hence after mpv_render_context_free().
     m_mpvOwner.reset();
 #endif
 }

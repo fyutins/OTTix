@@ -67,10 +67,10 @@ Rectangle {
         }
     }
 
-    // Double-clic sur la video : plein ecran. Volontairement **sous** la couche
-    // de controles (z: 0) pour que les boutons recoivent l'appui les premiers ;
-    // une MouseArea pleine surface posee au-dessus le capterait et les boutons
-    // (Controls) ne seraient plus cliquables.
+    // Double click on the video: fullscreen. Deliberately **below** the controls
+    // layer (z: 0) so the buttons get the press first; a full-surface MouseArea
+    // laid on top would swallow it and the buttons (Controls) would no longer be
+    // clickable.
     MouseArea {
         id: doubleClickArea
         anchors.fill: parent
@@ -78,7 +78,7 @@ Rectangle {
         onDoubleClicked: root.doubleClickRequested()
     }
 
-    // Liseré sur le slot dont on entend le son (utile en multiplex).
+    // Outline on the slot whose audio is playing (useful in multiplex).
     Rectangle {
         anchors.fill: parent
         color: "transparent"
@@ -95,7 +95,7 @@ Rectangle {
         id: hideTimer
         interval: 3000
         onTriggered: {
-            // Ne rien masquer tant qu'un menu ou une bulle est ouvert.
+            // Hide nothing while a menu or a popup is open.
             if (qualityPopup.opened || infoPopup.opened || contextMenu.opened) {
                 hideTimer.restart()
                 return
@@ -155,7 +155,7 @@ Rectangle {
         enabled: opacity > 0.5
         Behavior on opacity { NumberAnimation { duration: Theme.durSlow } }
 
-        // ── Barre basse : logo, nom, qualite, rechargement, audio ──
+        // -- Bottom bar: logo, name, quality, reload, audio --
         Rectangle {
             id: bottomBar
             anchors.left: parent.left
@@ -195,7 +195,7 @@ Rectangle {
                     Layout.fillWidth: true
                 }
 
-                // ── Pastille de qualite (variantes) ──
+                // -- Quality pill (variants) --
                 Rectangle {
                     id: qualityBadge
                     Layout.preferredWidth: qualityRow.implicitWidth + Theme.spacingMd
@@ -289,7 +289,7 @@ Rectangle {
             }
         }
 
-        // ── Centre : parcourir (haut) · precedent / lecture / suivant ──
+        // -- Center: browse (top) - previous / play / next --
         Item {
             anchors.centerIn: parent
             width: centerColumn.implicitWidth
@@ -359,7 +359,7 @@ Rectangle {
             }
         }
 
-        // ── -15s · LIVE · +15s (au-dessus de la barre basse) ──
+        // -- -15s / LIVE / +15s (above the bottom bar) --
         RowLayout {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: bottomBar.top
@@ -454,7 +454,7 @@ Rectangle {
                 }
             }
 
-            // Masque par l'opacite pour garder la rangee stable en direct.
+            // Hidden through opacity to keep the row stable on live streams.
             IconButton {
                 implicitWidth: 40
                 implicitHeight: 40
@@ -471,7 +471,7 @@ Rectangle {
         }
     }
 
-    // ── Menu contextuel (clic droit) ──
+    // -- Context menu (right click) --
     AppMenu {
         id: contextMenu
 
@@ -571,7 +571,7 @@ Rectangle {
         })
     }
 
-    // ── Informations sur la chaine ──
+    // -- Channel information --
     Popup {
         id: infoPopup
         modal: true
@@ -716,7 +716,7 @@ Rectangle {
         }
     }
 
-    // ── Slot vide : invite a choisir une chaine ──
+    // -- Empty slot: prompt to pick a channel --
     Rectangle {
         anchors.centerIn: parent
         width: 200
@@ -768,11 +768,11 @@ Rectangle {
         }
     }
 
-    // ── Variantes de qualite ──
-    // Positionnee dans l'overlay de la fenetre, jamais dans le slot : la bulle
-    // reste ainsi entierement visible meme quand le slot est petit ou colle a
-    // un bord. La hauteur est deduite du nombre d'items pour que le calcul de
-    // position soit juste des la premiere ouverture.
+    // -- Quality variants --
+    // Placed in the window overlay, never in the slot: this keeps the popup
+    // fully visible even when the slot is small or flush against an edge. The
+    // height is derived from the item count so the position is already right on
+    // the first opening.
     Popup {
         id: qualityPopup
         parent: Overlay.overlay
@@ -797,8 +797,8 @@ Rectangle {
             qualityPopup.reposition()
         }
 
-        // Aligne le coin bas-droit sur le badge, bascule sous le badge s'il n'y
-        // a pas la place au-dessus, puis borne le tout a la fenetre.
+        // Align the bottom-right corner on the badge, flip below it when there
+        // is no room above, then clamp everything to the window.
         function reposition() {
             if (!qualityPopup.parent)
                 return
@@ -939,10 +939,10 @@ Rectangle {
         }
     }
 
-    // Le survol reveille les controles. Un HoverHandler et non une MouseArea
-    // pleine surface : la MouseArea capterait l'appui et les boutons (Controls)
-    // ne le recevraient jamais. `propagateComposedEvents` ne rattrape pas ce
-    // cas — il ne repropage les evenements composes qu'a d'autres MouseArea.
+    // Hovering wakes the controls up. A HoverHandler and not a full-surface
+    // MouseArea: the MouseArea would capture the press and the buttons
+    // (Controls) would never receive it. `propagateComposedEvents` does not help
+    // here - it only re-propagates composed events to other MouseAreas.
     HoverHandler {
         id: hoverHandler
         onPointChanged: {
@@ -951,11 +951,10 @@ Rectangle {
         }
     }
 
-    // Clic droit : un TapHandler et non une MouseArea pleine surface. Posee
-    // au-dessus des controles, celle-ci laissait bien passer les clics gauches
-    // mais devenait l'element le plus haut sous le curseur : le curseur des
-    // boutons (HoverHandler) n'etait plus applique et la main ne s'affichait
-    // jamais. Un handler observe sans s'interposer.
+    // Right click: a TapHandler and not a full-surface MouseArea. Laid over the
+    // controls, that MouseArea did let left clicks through but became the topmost
+    // element under the pointer: the buttons' cursor (HoverHandler) no longer
+    // applied and the hand never showed. A handler observes without interposing.
     TapHandler {
         acceptedButtons: Qt.RightButton
         gesturePolicy: TapHandler.ReleaseWithinBounds

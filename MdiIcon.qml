@@ -1,7 +1,7 @@
 import QtQuick
 
-// Icone Material Design Icons. `glyph` prend une valeur du singleton Mdi
-// (ex. MdiIcon { glyph: Mdi.refresh }).
+// Material Design Icons icon. `glyph` takes a value from the Mdi singleton
+// (e.g. MdiIcon { glyph: Mdi.refresh }).
 Text {
     id: control
 

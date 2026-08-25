@@ -6,9 +6,9 @@
 
 namespace {
 
-// Le nom de la chaine suit la virgule qui termine la liste d'attributs. Les
-// attributs pouvant contenir des virgules (group-title="Sport, Info"), on
-// cherche la premiere virgule situee apres le dernier guillemet.
+// The channel name follows the comma that ends the attribute list. Since
+// attributes may contain commas (group-title="Sport, Info"), look for the first
+// comma located after the last quote.
 int nameSeparatorIndex(const QString &extinf)
 {
     const int lastQuote = extinf.lastIndexOf(u'"');

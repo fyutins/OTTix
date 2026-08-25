@@ -27,8 +27,8 @@ public:
     void render() override;
 
 private:
-    // QPointer : le renderer est detruit par le scene graph, potentiellement
-    // apres l'item auquel il appartient.
+    // QPointer: the renderer is destroyed by the scene graph, potentially after
+    // the item it belongs to.
     QPointer<MpvObject> m_obj;
 #if HAS_MPV
     std::shared_ptr<mpv_handle> m_mpvOwner;

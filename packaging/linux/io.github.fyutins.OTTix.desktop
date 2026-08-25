@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
 Name=OTTix
-GenericName=Lecteur IPTV
-Comment=Lire des flux IPTV M3U et Xtream Codes
+GenericName=IPTV Player
+Comment=Play M3U and Xtream Codes IPTV streams
 Exec=appOTTix
 Icon=io.github.fyutins.OTTix
 Terminal=false

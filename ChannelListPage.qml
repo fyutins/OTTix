@@ -8,8 +8,8 @@ Item {
 
     property string searchText: ""
 
-    // ChannelListModel est partage par les onglets : chaque page reapplique son
-    // propre filtre quand elle redevient visible.
+    // ChannelListModel is shared across tabs: each page re-applies its own
+    // filter when it becomes visible again.
     function activate() {
         ChannelListModel.filterGroup = ""
         ChannelListModel.filterText = searchText

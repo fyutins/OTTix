@@ -4,10 +4,10 @@
 
 namespace LogUtils {
 
-// Masque les identifiants presents dans une URL avant de la journaliser.
-// Couvre les credentials Xtream, qui voyagent soit en query string
-// (player_api.php?username=...&password=...), soit dans le chemin
-// (/live/<user>/<password>/<id>.ts), soit en userinfo (http://user:pass@host).
+// Masks the credentials carried by a URL before logging it. Covers Xtream
+// credentials, which travel either in the query string
+// (player_api.php?username=...&password=...), in the path
+// (/live/<user>/<password>/<id>.ts), or as userinfo (http://user:pass@host).
 QString scrubUrl(const QString &url);
 
 } // namespace LogUtils

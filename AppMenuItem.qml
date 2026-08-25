@@ -1,8 +1,8 @@
 import QtQuick
 import QtQuick.Controls
 
-// Entree de menu : coche a gauche pour les items cochables, icone optionnelle,
-// chevron pour les sous-menus.
+// Menu entry: check mark on the left for checkable items, optional icon,
+// chevron for submenus.
 MenuItem {
     id: control
 

@@ -2,18 +2,17 @@ pragma Singleton
 import QtQuick
 import QtCore
 
-// Design system de l'application : toutes les couleurs, tailles, rayons et
-// durees d'animation sont declarees ici. Aucun literal de couleur ne doit
-// subsister dans les autres fichiers QML.
+// The application design system: every color, size, radius and animation
+// duration is declared here. No color literal may remain in the other QML files.
 //
-// Deux palettes (claire / sombre) exposent les memes jetons ; les fichiers QML
-// lisent toujours `Theme.<jeton>`, jamais la palette directement. Le mode est
-// persiste et vaut par defaut « Auto » : clair de `dayStartHour` a
-// `nightStartHour`, sombre le reste du temps (heure locale).
+// Two palettes (light / dark) expose the same tokens; QML files always read
+// `Theme.<token>`, never the palette directly. The mode is persisted and
+// defaults to "Auto": light from `dayStartHour` to `nightStartHour`, dark the
+// rest of the time (local time).
 QtObject {
     id: theme
 
-    // ── Mode d'apparence ─────────────────────────────────────────────────
+    // -- Appearance mode --
     readonly property int modeAuto: 0
     readonly property int modeLight: 1
     readonly property int modeDark: 2
@@ -23,7 +22,7 @@ QtObject {
     readonly property int dayStartHour: 7
     readonly property int nightStartHour: 19
 
-    // Recalculee chaque minute pour que la bascule se fasse sans redemarrage.
+    // Recomputed every minute so the switch happens without a restart.
     property bool autoDark: true
 
     readonly property bool dark: theme.mode === theme.modeDark
@@ -47,9 +46,9 @@ QtObject {
         property alias themeMode: theme.mode
     }
 
-    // ── Palettes ──────────────────────────────────────────────────────────
+    // -- Palettes --
     component Palette: QtObject {
-        // Surfaces, de la plus basse a la plus haute elevation
+        // Surfaces, from the lowest to the highest elevation
         property color bg
         property color surface
         property color surfaceAlt
@@ -64,19 +63,19 @@ QtObject {
         property color accentSoft
         property color textOnAccent
 
-        // Texte
+        // Text
         property color text
         property color textMuted
         property color textDim
 
-        // Statuts
+        // Status
         property color danger
         property color dangerSoft
         property color success
         property color warning
         property color live
 
-        // Survol / appui sur une surface
+        // Hover / press on a surface
         property color hover
         property color pressed
     }
@@ -139,7 +138,7 @@ QtObject {
 
     readonly property Palette palette: theme.dark ? theme.darkPalette : theme.lightPalette
 
-    // ── Jetons de couleur (toujours lus via Theme.<jeton>) ───────────────
+    // -- Color tokens (always read through Theme.<token>) --
     readonly property color bg: theme.palette.bg
     readonly property color surface: theme.palette.surface
     readonly property color surfaceAlt: theme.palette.surfaceAlt
@@ -166,9 +165,9 @@ QtObject {
     readonly property color hover: theme.palette.hover
     readonly property color pressed: theme.palette.pressed
 
-    // ── Jetons independants du mode ──────────────────────────────────────
-    // La zone de lecture reste sombre dans les deux themes : les calques poses
-    // sur la video et les textes qui s'y appuient ne changent donc pas.
+    // -- Mode-independent tokens --
+    // The playback area stays dark in both themes, so the layers laid over the
+    // video and the text sitting on them do not change.
     readonly property color videoBg: "#000000"
     readonly property color scrim: Qt.rgba(0, 0, 0, 0.55)
     readonly property color scrimStrong: Qt.rgba(0, 0, 0, 0.8)
@@ -181,33 +180,33 @@ QtObject {
     readonly property color scrimTextMuted: "#c3cad8"
     readonly property color scrimTextDim: "#8b93a5"
 
-    // Fond par defaut des logos de chaines : la plupart sont dessines pour un
-    // fond sombre et disparaitraient sur une tuile claire. Les logos dont la
-    // couleur dominante s'en approche recoivent un fond derive de cette
-    // couleur (cf. LogoPalette), ce jeton restant le repli.
+    // Default channel logo backdrop: most logos are drawn for a dark background
+    // and would vanish on a light tile. Logos whose dominant color comes close
+    // to it get a backdrop derived from that color (see LogoPalette), this token
+    // staying the fallback.
     readonly property color logoBackdrop: "#1b2133"
 
-    // ── Rayons ────────────────────────────────────────────────────────────
+    // -- Radii --
     readonly property int radiusSm: 6
     readonly property int radiusMd: 10
     readonly property int radiusLg: 14
     readonly property int radiusPill: 999
 
-    // ── Espacements (grille de 4) ────────────────────────────────────────
+    // -- Spacing (4 px grid) --
     readonly property int spacingXs: 4
     readonly property int spacingSm: 8
     readonly property int spacingMd: 12
     readonly property int spacingLg: 16
     readonly property int spacingXl: 24
 
-    // ── Typographie ──────────────────────────────────────────────────────
+    // -- Typography --
     readonly property int fontXs: 10
     readonly property int fontSm: 11
     readonly property int fontMd: 13
     readonly property int fontLg: 15
     readonly property int fontXl: 18
 
-    // ── Tailles de controle ──────────────────────────────────────────────
+    // -- Control sizes --
     readonly property int controlXs: 24
     readonly property int controlSm: 28
     readonly property int controlMd: 34
@@ -218,11 +217,11 @@ QtObject {
     readonly property int iconLg: 22
     readonly property int iconXl: 28
 
-    // ── Hauteurs de reperes ──────────────────────────────────────────────
+    // -- Landmark heights --
     readonly property int toolbarHeight: 48
     readonly property int tabBarHeight: 42
 
-    // ── Animations ───────────────────────────────────────────────────────
+    // -- Animations --
     readonly property int durFast: 120
     readonly property int durNormal: 200
     readonly property int durSlow: 300

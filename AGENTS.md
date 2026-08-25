@@ -1,182 +1,126 @@
 # OTTix
 
-## Description
-Application Qt 6 / QML avec backend C++ pour lire des flux IPTV (M3U / XTREAM Codes) via libmpv.
+Qt 6 / QML application with a C++ backend that plays IPTV streams (M3U / Xtream
+Codes) through libmpv.
 
 ## Structure
 
 ```
 OTTix/
-├── Main.qml              # Fenêtre principale — navigation + player overlay
-├── PlayerPage.qml        # Vue plein écran du player (multiplex, contrôles, close+nav)
-├── PlayerSlot.qml        # Zone player individuelle (multiplex)
-├── ChannelListPage.qml   # Toutes les chaînes avec recherche
-├── GroupsPage.qml        # Navigation par groupe avec drill-down
-├── FavoritesPage.qml     # Chaînes favorites
-├── ChannelDelegate.qml   # Tuile de chaîne dans la grille
-├── ChannelSearchPopup.qml# Popup de navigation dans les chaînes depuis le player
-├── AdminPage.qml         # Page admin (Playlists + Settings)
-├── PlaylistDialog.qml    # Dialogue d'ajout / édition de playlist
-├── HistoryPage.qml       # Historique de lecture
+├── Main.qml              # Main window — navigation + player overlay
+├── PlayerPage.qml        # Fullscreen player view (multiplex, controls, close+nav)
+├── PlayerSlot.qml        # Single player pane (multiplex)
+├── ChannelListPage.qml   # All channels, with search
+├── GroupsPage.qml        # Group browser with drill-down
+├── FavoritesPage.qml     # Favorite channels
+├── HistoryPage.qml       # Watch history
+├── AdminPage.qml         # Admin page (Playlists + Settings)
+├── PlaylistDialog.qml    # Add / edit a playlist
+├── ChannelSearchPopup.qml# Channel picker opened from the player
+├── ChannelGrid.qml, GroupGrid.qml, ChannelDelegate.qml
+├── ChannelSearchBar.qml, GroupSearchBar.qml
 │
-│   # ── Design system (composants partages) ──
-├── Theme.qml             # Singleton : couleurs, espacements, typo, durees
-├── Mdi.qml               # Singleton : fonte + points de code Material Design Icons
-├── MdiIcon.qml           # Icone MDI (Text specialise)
-├── IconButton.qml        # Bouton icone (plat / pastille claire / pastille sombre)
-├── AppButton.qml         # Bouton texte : Primary / Secondary / Ghost / Danger
-├── AppTabBar.qml         # Barre d'onglets (filet bas)
-├── AppTabButton.qml      # Onglet : icone + libelle + compteur + souligne anime
-├── AppComboBox.qml       # Liste deroulante
-├── AppMenu.qml           # Menu contextuel
-├── AppMenuItem.qml       # Entree de menu (coche, icone, sous-menu)
-├── AppScrollBar.qml      # Barre de defilement discrete
-├── SearchField.qml       # Champ de recherche (loupe + effacement)
-├── SettingsCard.qml      # Carte de reglages (en-tete icone + titre)
-├── ConfirmDialog.qml     # Confirmation d'action destructive
-├── EmptyState.qml        # Etat vide (icone + message)
-├── Tip.qml               # Infobulle
+│   # ── Design system ──
+├── Theme.qml             # Singleton: colors, spacing, typography, durations
+├── Mdi.qml               # Singleton: Material Design Icons font + code points
+├── MdiIcon.qml, IconButton.qml, AppButton.qml, SegmentedControl.qml
+├── AppTabBar.qml, AppTabButton.qml, AppComboBox.qml, AppScrollBar.qml
+├── AppMenu.qml, AppMenuItem.qml, SearchField.qml, SettingsCard.qml
+├── ConfirmDialog.qml, EmptyState.qml, Tip.qml, ScreenLayoutIcon.qml
 │
 ├── fonts/                # materialdesignicons-webfont.ttf (+ NOTICE.md)
-├── PLAN.md               # Plan de refonte ergonomique
-├── CMakeLists.txt        # Build CMake + Qt6
-├── AGENTS.md             # Ce fichier
+├── packaging/            # Windows installer + Flatpak manifest
+├── CMakeLists.txt
 └── src/
-    ├── main.cpp          # Point d'entrée C++, registrations QML
+    ├── main.cpp          # C++ entry point
     ├── database/         # SQLite (DatabaseManager)
     ├── loader/           # PlaylistLoader (M3U + Xtream)
     ├── models/           # ChannelListModel, PlaylistModel
     ├── parser/           # M3UParser
     ├── player/           # MpvObject, MpvRenderer (libmpv OpenGL)
     ├── utils/            # ClipboardHelper, SleepInhibitor, ChannelGrouper,
-    │                     # LogoPalette (fond des logos), Logging (catégories),
-    │                     # LogUtils (masquage d'URL)
+    │                     # LogoPalette, Logging, LogUtils
     └── xtream/           # XtreamApi
 ```
 
-## Navigation
+## UI
 
 ```
 TabBar:  [★ Favorites] [📺 All Channels] [🗂 Groups] [🕘 History]
-Toolbar: [logo] OTTix · [playlist active |⟳] · « Updated 3 min ago »
-         ................................... ⚙️ → AdminPage (Playlists + Settings)
+Toolbar: [logo] OTTix · [active playlist |⟳] · "Updated 3 min ago"
+         ................................... ⚙️ → AdminPage
 ```
 
-Le selecteur de playlist et son bouton de rafraichissement forment un groupe
-accole (`AppComboBox.attachedRight` + `IconButton.framed`/`attachedLeft`), suivi
-de l'etat de la derniere synchronisation reussie (`DatabaseManager.lastSync()`,
-mis en forme par `Main.formatLastSync()` et rafraichi chaque minute).
+- Navigation is visible by default (`showPlayer = false`); **PlayerPage** is a
+  fullscreen overlay when `showPlayer = true` — `[X]` stops playback and returns,
+  `[≡]` opens **ChannelSearchPopup** to switch channel without leaving the player.
+- **GroupsPage** has two states: group list → drill-down into one group.
+- The playlist selector and its refresh button form one attached group
+  (`AppComboBox.attachedRight` + `IconButton.framed`/`attachedLeft`), followed by
+  the last successful sync (`DatabaseManager.lastSync()`, formatted by
+  `Main.formatLastSync()`, refreshed every minute).
+- Shortcuts: `F11` fullscreen · `Ctrl+F` focus the current tab's search ·
+  `Space` play/pause · `←`/`→` previous/next channel · `Esc` leave fullscreen or
+  cancel selection mode.
 
-Raccourcis : `F11` plein ecran · `Ctrl+F` focus recherche de l'onglet courant ·
-`Espace` play/pause · `←`/`→` chaine precedente/suivante · `Echap` sortie du
-plein ecran ou annulation du mode selection.
+## Build (Linux, Fedora 44)
 
-## Architecture UI
-
-- **Navigation** visible par défaut (showPlayer = false)
-- **PlayerPage** overlay plein écran quand showPlayer = true
-  - [X] close → stopPlayback(), retour à la navigation
-  - [≡] navigate → ChannelSearchPopup
-- **ChannelSearchPopup** : popup modal pour chercher/changer de chaîne en mode player
-- **GroupsPage** : deux états — liste des groupes → drill-down vers les chaînes d'un groupe
-
-## Commandes
-
-### Build (MinGW)
-```powershell
-Set-Location "build\Desktop_Qt_6_11_0_MinGW_64_bit-Debug"
-cmake --build .
-```
-
-### Build (MSYS — nécessite `jom` dans le PATH)
-```powershell
-$env:Path = "C:\Qt\Tools\QtCreator\bin\jom;" + $env:Path
-Set-Location "build\Desktop_x86_windows_msys_pe_64bit-Debug"
-cmake --build .
-```
-
-### Rebuild complet
-```powershell
-Get-Process appOTTix -ErrorAction SilentlyContinue | Stop-Process -Force
-Set-Location "build\Desktop_Qt_6_11_0_MinGW_64_bit-Debug"
-cmake --build .
-```
-
-### Lancer l'application
-```powershell
-& "build\Desktop_Qt_6_11_0_MinGW_64_bit-Debug\appOTTix.exe"
-```
-
-### Killer le process
-```powershell
-Get-Process appOTTix -ErrorAction SilentlyContinue | Stop-Process -Force
-```
-
-## Linux (Fedora 44)
-
-Prérequis : `sudo dnf install gcc-c++ mpv-devel ninja-build` (Qt via l'installateur officiel dans `~/opt/Qt`, CMake/Ninja dans `~/opt/Qt/Tools`).
+Prerequisites: `sudo dnf install gcc-c++ mpv-devel ninja-build` (Qt from the
+official installer in `~/opt/Qt`, CMake/Ninja under `~/opt/Qt/Tools`).
 
 ```bash
 export PATH="$HOME/opt/Qt/Tools/Ninja:$HOME/opt/Qt/Tools/CMake/bin:$PATH"
 cmake -B build-linux -G Ninja -DCMAKE_PREFIX_PATH="$HOME/opt/Qt/6.11.2/gcc_64" -DCMAKE_BUILD_TYPE=Debug
 cmake --build build-linux
-```
-
-### Lancer l'application
-```bash
 ./build-linux/appOTTix
 ```
 
-Notes :
-- mpv est trouvé via pkg-config (libmpv système)
-- `setlocale(LC_NUMERIC, "C")` est appliqué dans main.cpp sous Q_OS_UNIX — obligatoire pour libmpv avec une locale fr
-- Kit Qt Creator : « Desktop Qt 6.11.2 » (auto-détecté), ouvrir directement le CMakeLists.txt
+mpv is found through pkg-config (system libmpv). `setlocale(LC_NUMERIC, "C")` is
+applied in `main.cpp` under `Q_OS_UNIX` — required for libmpv under a French locale.
 
-## Packaging et distribution
+## Packaging
 
-Tout vit dans `packaging/` ; les workflows GitHub Actions dans `.github/workflows/`.
+Everything lives in `packaging/`; the GitHub Actions workflows in `.github/workflows/`.
 
-| Cible | Format | Fichiers |
+| Target | Format | Files |
 |---|---|---|
-| Windows | Installateur Inno Setup + zip portable | `packaging/windows/` |
-| Linux | Bundle Flatpak (runtime KDE 6.11) | `packaging/flatpak/`, `packaging/linux/` |
+| Windows | Inno Setup installer + portable zip | `packaging/windows/` |
+| Linux | Flatpak bundle (KDE 6.11 runtime) | `packaging/flatpak/`, `packaging/linux/` |
 
-L'identifiant d'application est `io.github.fyutins.OTTix` : il nomme le
-`.desktop`, le metainfo AppStream, l'icône et l'app-id Flatpak. Le changer
-impose de renommer les quatre.
+The application id `io.github.fyutins.OTTix` names the `.desktop` file, the
+AppStream metainfo, the icon and the Flatpak app-id — renaming means renaming all four.
 
-La version des artefacts vient du tag git : le workflow `Release` passe
-`-DOTTIX_VERSION=x.y.z`, qui alimente `project(VERSION)`, la ressource
-`.rc` Windows et l'installateur. Ne pas coder la version en dur ailleurs.
+Artifact versions come from the git tag: the `Release` workflow passes
+`-DOTTIX_VERSION=x.y.z`, which feeds `project(VERSION)`, the Windows `.rc`
+resource and the installer. Never hard-code the version anywhere else.
 
 ### Windows
 
-`cmake --install <build> --prefix dist` produit **le dossier complet** :
-`install(CODE ...)` appelle `windeployqt --no-opengl-sw --compiler-runtime
---qmldir <sources>`, et `-DMPV_RUNTIME_DLL=<chemin>` ajoute `libmpv-2.dll`.
-`--no-opengl-sw` est obligatoire : l'OpenGL logiciel (`opengl32sw.dll`) fige la
-fenêtre quand on la déplace pendant une lecture mpv.
+`cmake --install <build> --prefix dist` produces the complete folder:
+`install(CODE ...)` runs `windeployqt --no-opengl-sw --compiler-runtime --qmldir
+<sources>`, and `-DMPV_RUNTIME_DLL=<path>` adds `libmpv-2.dll`. `--no-opengl-sw`
+is mandatory: software OpenGL (`opengl32sw.dll`) freezes the window when it is
+moved during mpv playback.
 
-En CI, libmpv vient des builds shinchiro (`.github/scripts/fetch-libmpv.ps1`,
-paquet `mpv-dev-x86_64`), et le compilateur est MinGW 13.1.0 — celui dont
-dépend le paquet Qt `win64_mingw`.
+In CI, libmpv comes from the shinchiro builds
+(`.github/scripts/fetch-libmpv.ps1`, package `mpv-dev-x86_64`), and the compiler
+is MinGW 13.1.0 — the one the Qt `win64_mingw` package depends on.
 
-La CI Windows est figée sur **Qt 6.10.3**, pas 6.11.2 : le dépôt Qt a changé
-d'arborescence pour 6.11 sous Windows (un sous-dossier par architecture,
-`qt6_6112/qt6_6112_mingw/`) et aqtinstall 3.3.0 cherche encore
-`qt6_6112/qt6_6112/`. Linux n'est pas touché. À repasser en 6.11 quand
-aqtinstall suivra — d'ici là, ne pas utiliser d'API Qt postérieure à 6.10.
+Windows CI is pinned to **Qt 6.10.3**, not 6.11.2: the Qt repository changed its
+layout for 6.11 on Windows (one subfolder per architecture,
+`qt6_6112/qt6_6112_mingw/`) and aqtinstall 3.3.0 still looks for
+`qt6_6112/qt6_6112/`. Linux is unaffected. Move back to 6.11 once aqtinstall
+catches up — until then, do not use Qt APIs newer than 6.10.
 
-L'installateur s'installe par défaut par utilisateur (`PrivilegesRequired=lowest`,
-donc sans élévation) et **conserve** `%LOCALAPPDATA%\OTTix` à la
-désinstallation (playlists, favoris, historique).
+The installer is per-user by default (`PrivilegesRequired=lowest`, no elevation)
+and **keeps** `%LOCALAPPDATA%\OTTix` on uninstall (playlists, favorites, history).
 
 ### Linux / Flatpak
 
-Le runtime `org.kde.Platform//6.11` fournit Qt 6.11 et ffmpeg : rien de tout
-cela n'est bundlé. Seul mpv est compilé, avec ses dépendances absentes du
-runtime (libplacebo, libass, libXpresent, uchardet) — chaîne alignée sur le
-manifeste de Haruna, à re-synchroniser quand mpv monte de version.
+The `org.kde.Platform//6.11` runtime provides Qt 6.11 and ffmpeg, so neither is
+bundled. Only mpv is built, along with the dependencies missing from the runtime
+(libplacebo, libass, libXpresent, uchardet) — aligned with Haruna's manifest,
+to re-sync whenever mpv is bumped.
 
 ```bash
 sudo dnf install flatpak-builder
@@ -186,9 +130,9 @@ flatpak-builder --user --force-clean --install build-flatpak-out \
 flatpak run io.github.fyutins.OTTix
 ```
 
-Sans `flatpak-builder` natif, il existe la version flatpak — mais elle ne voit
-pas l'installation utilisateur (son `XDG_DATA_HOME` est redirigé vers
-`~/.var/app/`), d'où le `FLATPAK_USER_DIR` explicite :
+Without a native `flatpak-builder`, the flatpak'd one works but does not see the
+user installation (its `XDG_DATA_HOME` is redirected to `~/.var/app/`), hence the
+explicit `FLATPAK_USER_DIR`:
 
 ```bash
 flatpak install --user -y flathub org.flatpak.Builder
@@ -199,266 +143,226 @@ flatpak run --env=FLATPAK_USER_DIR="$HOME/.local/share/flatpak" \
     build-flatpak-out packaging/flatpak/io.github.fyutins.OTTix.yml
 ```
 
-Le linter Flathub se lance de la même façon :
-`flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest <manifeste>`.
+The Flathub linter runs the same way:
+`flatpak run --command=flatpak-builder-lint org.flatpak.Builder manifest <manifest>`.
 
-Le manifeste construit **le dossier de travail** (`type: dir`), pas un tag git :
-il packageera les modifications non committées.
+The manifest builds **the working directory** (`type: dir`), not a git tag: it
+packages uncommitted changes.
 
-### Publier une version
+### Releasing
 
 ```bash
 git tag -a v0.2.0 -m "v0.2.0" && git push origin v0.2.0
 ```
 
-Le workflow `Release` construit les trois artefacts et crée la release GitHub.
-Penser à ajouter un `<release>` dans
-`packaging/linux/io.github.fyutins.OTTix.metainfo.xml` (AppStream) avant
-de taguer.
+The `Release` workflow builds the three artifacts and creates the GitHub release.
+Add a `<release>` entry to
+`packaging/linux/io.github.fyutins.OTTix.metainfo.xml` before tagging.
 
-## Qt Creator
+## Channel loading (DB-first)
 
-Le **seul** fichier de projet est `CMakeLists.txt` : « File > Open File or Project… » →
-sélectionner `CMakeLists.txt`, choisir le kit *Desktop Qt 6.11.2*, puis Configure Project.
+On startup `Main.qml` shows the channels already in the database
+(`ChannelListModel.setChannels(playlistId)`), so the app is usable offline and
+without waiting on the network. A re-download happens only when
+`DatabaseManager.needsRefresh(id, 24)` is true (empty playlist or last sync older
+than 24 h), or on the toolbar ⟳ button. During a refresh the displayed channels
+stay the ones from the database, so a network failure is never blocking.
 
-Ne **jamais** générer en parallèle un projet qmake (`.pro`) ni un projet générique
-(`.creator` / `.files` / `.includes` / `.config`) : Qt Creator lance alors `make all`
-à la racine, où il n'existe aucun Makefile → `No rule to make target 'all'. Stop.`
+`PlaylistLoader` timestamps every successful sync (`markPlaylistSynced`) and
+parses M3U **off the GUI thread** (`M3UParser::parseBuffer` + QtConcurrent);
+database writes stay on the main thread (QSqlDatabase is not shareable between
+threads).
 
-Deux réglages CMake existent pour l'IDE :
-- `CMAKE_EXPORT_COMPILE_COMMANDS` → `compile_commands.json` pour clangd (indexation C++)
-- `QT_QML_GENERATE_QMLLS_INI` → `.qmlls.ini` à la racine des sources, qui pointe qmlls
-  vers le dossier de build (résolution des imports QML dans l'éditeur). Le fichier est
-  régénéré à chaque build et ignoré par git ; il porte le chemin du **dernier** dossier
-  de build configuré.
+## Database
 
-## Chargement des chaînes (DB-first)
+The database lives in `QStandardPaths::AppLocalDataLocation`:
+`~/.local/share/OTTix/OTTix/iptv_player.db` and
+`%LOCALAPPDATA%\OTTix\OTTix\iptv_player.db`. That path derives from
+`setOrganizationName` / `setApplicationName`; the IptvPlayer → OTTix rename moved
+it, so older installs keep their data under `…/IptvPlayer/IptvPlayer/`.
 
-Au démarrage, `Main.qml` affiche **immédiatement** les chaînes déjà en base
-(`ChannelListModel.setChannels(playlistId)`) : l'application est utilisable hors
-ligne et sans attendre le réseau. Le retéléchargement n'a lieu que si
-`DatabaseManager.needsRefresh(id, 24)` est vrai (playlist vide ou dernière
-synchro > 24 h), ou sur clic du bouton ⟳ de la barre d'outils. Pendant un
-refresh, les chaînes affichées restent celles de la base ; un échec réseau
-n'est donc pas bloquant.
+Two separate tables hold non-channel data:
 
-`PlaylistLoader` horodate chaque synchro réussie (`markPlaylistSynced`) et
-parse le M3U **hors du thread GUI** (`M3UParser::parseBuffer` + QtConcurrent) ;
-l'écriture en base reste sur le thread principal (QSqlDatabase n'est pas
-partageable entre threads).
+- `cache`: regenerable data, purged by "Clear Cache" (`clearCache`)
+- `settings`: user settings (e.g. `quality_suffixes`, per-playlist sync
+  timestamps) — **never** purged. A one-time migration moves old keys from
+  `cache` to `settings`.
 
-## Base de données
+Watch history is capped at the last 500 entries.
 
-La base vit dans `QStandardPaths::AppLocalDataLocation`, soit
-`~/.local/share/OTTix/OTTix/iptv_player.db` et
-`%LOCALAPPDATA%\OTTix\OTTix\iptv_player.db`. Ce chemin découle de
-`setOrganizationName` / `setApplicationName` : le renommage IptvPlayer → OTTix
-l'a déplacé, les installations antérieures gardent leurs données sous
-`…/IptvPlayer/IptvPlayer/`.
+## Quality suffixes
 
-Deux tables distinctes pour les données non-chaînes :
+`quality_suffixes` holds the **complete** list of suffixes used to group variants
+of the same channel (HD, FHD, H265, VOSTFR…), fully editable in
+Administration > Settings > Quality Suffixes: the user can remove the built-in
+suffixes as well as add new ones, and "Reset" restores
+`ChannelGrouper::defaultSuffixes()`.
 
-- `cache` : données regénérables, purgées par « Clear Cache » (`clearCache`)
-- `settings` : réglages utilisateur (ex. `quality_suffixes`, horodatage de
-  synchro par playlist) — **jamais** purgés. Une migration automatique déplace
-  les anciennes clefs de `cache` vers `settings`.
+Grouping uses `ChannelGrouper::buildPatternFromList()` with that list **as-is** —
+never `buildPattern()`, which would re-inject the defaults and make removals
+ineffective. `normalizeSuffixes()` trims, de-duplicates (case-insensitively) and
+sorts longest first: "FULLHD" must be tested before "HD".
 
-L'historique de lecture est plafonné aux 500 dernières entrées.
-
-## Fond des logos de chaînes
-
-Un fond uni unique rend illisible tout logo peint dans une teinte proche.
-`LogoPalette` (singleton QML, `src/utils/LogoPalette.cpp`) analyse donc chaque
-logo et renvoie le fond à poser derrière lui :
-
-- histogramme grossier (12 teintes × 4 niveaux de clarté + une classe
-  achromatique), pixels quasi transparents ignorés, pixels saturés pondérés :
-  la couleur retenue est celle qu'on garde en tête d'un logo ;
-- **logo détouré** (peu de pixels opaques) : ses pixels se posent directement
-  sur le fond, donc fond contrasté — sombre si le logo est clair, clair sinon.
-  La bascule se fait sur la **luminance relative WCAG** (seuil 0,18, point où
-  les deux fonds candidats donnent le même rapport de contraste), et non sur la
-  clarté HSL, qui se trompe sur les couleurs vives ;
-- **logo plein** (> 92 % de pixels opaques) : le fond ne dépasse qu'en liseré,
-  on l'accorde alors au logo (même teinte, plus sombre) ;
-- **glyphes clairs sans teinte** — le cas le plus courant — : couleur invalide,
-  l'appelant garde `Theme.logoBackdrop`.
-
-La résolution est asynchrone (`backdrop()` renvoie une couleur invalide, puis
-`backdropResolved` est émis), plafonnée à 4 requêtes simultanées, et le
-résultat est persisté dans la table `cache` sous le préfixe `logo_bg1:` —
-**à incrémenter dès que la dérivation change**, sinon les anciens fonds restent
-servis. Un échec réseau n'est pas mémorisé.
-
-Côté QML, `ChannelDelegate` lit `LogoPalette.backdrop(url)` puis écoute
-`backdropResolved` (les délégués sont recyclés : le fond est réévalué à chaque
-changement de `channelLogo`).
-
-## Suffixes de qualité
-
-`quality_suffixes` contient la **liste complète** des suffixes servant à
-regrouper les variantes d'une même chaîne (HD, FHD, H265, VOSTFR…), entièrement
-éditable dans Administration > Settings > Quality Suffixes : l'utilisateur peut
-retirer les suffixes fournis par défaut aussi bien qu'en ajouter, et « Reset »
-revient à `ChannelGrouper::defaultSuffixes()`.
-
-Le regroupement utilise `ChannelGrouper::buildPatternFromList()` avec cette
-liste **telle quelle** — surtout pas `buildPattern()`, qui y réinjecterait les
-suffixes par défaut et rendrait toute suppression sans effet.
-`normalizeSuffixes()` nettoie, dédoublonne (insensible à la casse) et trie du
-plus long au plus court : « FULLHD » doit être testé avant « HD ».
-
-Au premier démarrage la liste est semée avec les valeurs par défaut, en y
-reprenant l'ancien réglage `custom_suffixes` (qui ne contenait que les ajouts).
+On first start the list is seeded with the defaults plus the old
+`custom_suffixes` setting (which only held the additions).
 
 ## Logs
 
-Toutes les traces passent par des catégories (`src/utils/Logging.h`), limitées
-à Warning par défaut. Pour activer :
+All traces go through categories (`src/utils/Logging.h`), capped at Warning by
+default:
 
 ```bash
 QT_LOGGING_RULES="iptv.*.debug=true" ./build-linux/appOTTix
 QT_LOGGING_RULES="iptv.perf.debug=true;iptv.mpv.debug=true" ./build-linux/appOTTix
 ```
 
-Catégories : `iptv.db`, `iptv.model`, `iptv.loader`, `iptv.xtream`, `iptv.mpv`,
+Categories: `iptv.db`, `iptv.model`, `iptv.loader`, `iptv.xtream`, `iptv.mpv`,
 `iptv.render`, `iptv.perf`, `iptv.logo`.
 
-Les URLs Xtream portent les identifiants (`/live/<user>/<password>/<id>.ts`) :
-toute URL journalisée doit passer par `LogUtils::scrubUrl()`.
+Xtream URLs carry credentials (`/live/<user>/<password>/<id>.ts`): every logged
+URL must go through `LogUtils::scrubUrl()`.
 
-## Architecture clé
+## Player architecture
 
-- **MpvObject** : `QQuickFramebufferObject` wrapping libmpv, un handle mpv par instance
-  - Le handle est un `std::shared_ptr` partagé avec `MpvRenderer` : libmpv impose
-    de libérer le `mpv_render_context` (détruit avec le renderer, sur le thread de
-    rendu) **avant** le handle. Le dernier des deux qui meurt le détruit.
-  - Le renderer garde l'item dans un `QPointer` (il peut survivre à l'item).
-- Plusieurs `MpvObject` peuvent coexister (multiplex 1-4 écrans)
-- **Audio** : un seul slot démuté à la fois (`muted: !isActiveAudio`)
-- **ChannelListModel** : singleton C++ (QAbstractListModel), filtré par texte/groupe
-- **Pick mode** : clic sur `+` → `pendingPickSlot` → sélection dans ChannelSearchPopup
-- **Layout multiplex** :
-  - Mode 1 : 1 écran plein
-  - Mode 2 : 2 écrans côte à côte
-  - Mode 3 : 2 en haut, 1 en bas centré
-  - Mode 4 : 2×2
-- **MultiplexMode/ActiveAudioSlot** : propriétés dans Main.qml (source de vérité), synchronisées avec PlayerPage via signaux
+- **MpvObject**: `QQuickFramebufferObject` wrapping libmpv, one mpv handle per instance.
+  - The handle is a `std::shared_ptr` shared with `MpvRenderer`: libmpv requires
+    the `mpv_render_context` (destroyed with the renderer, on the render thread)
+    to be freed **before** the handle. Whichever of the two dies last destroys it.
+  - The renderer holds the item in a `QPointer` (it can outlive the item).
+- Several `MpvObject` can coexist (1–4 screen multiplex).
+- **Audio**: exactly one slot unmuted at a time (`muted: !isActiveAudio`).
+- **ChannelListModel**: C++ singleton (QAbstractListModel), filtered by text/group.
+- **Pick mode**: click `+` → `pendingPickSlot` → pick in ChannelSearchPopup.
+- **Multiplex layouts**: 1 = full screen · 2 = side by side · 3 = two on top, one
+  centered below · 4 = 2×2.
+- **MultiplexMode/ActiveAudioSlot**: properties in `Main.qml` (source of truth),
+  synchronized with PlayerPage through signals.
 
-## Enregistrement des types QML
+## QML type registration
 
-Tous les types C++ exposés à QML sont enregistrés de manière **déclarative**, via
-`QML_ELEMENT` / `QML_SINGLETON` dans les en-têtes — pas de `qmlRegisterType*` dans
-`main.cpp`. C'est ce qui rend les types visibles pour l'éditeur et pour `qmllint`.
+Every C++ type exposed to QML is registered **declaratively**, via `QML_ELEMENT` /
+`QML_SINGLETON` in the headers — no `qmlRegisterType*` in `main.cpp`. That is what
+makes the types visible to the editor and to `qmllint`.
 
-Ils appartiennent tous au module QML `OTTix` (celui de `qt_add_qml_module`), donc
-les `.qml` du module y accèdent **sans import** (`DatabaseManager`, `ChannelListModel`,
-`PlaylistModel`, `PlaylistLoader`, `MpvObject`, `ClipboardHelper`, `SleepInhibitor`).
+They all belong to the `OTTix` QML module (the one from `qt_add_qml_module`), so
+the module's `.qml` files reach them **without an import** (`DatabaseManager`,
+`ChannelListModel`, `PlaylistModel`, `PlaylistLoader`, `MpvObject`,
+`ClipboardHelper`, `SleepInhibitor`).
 
-Pour ajouter un type : `QML_ELEMENT` (+ `QML_SINGLETON` pour un singleton) dans le
-`.h`, et ajouter le `.h`/`.cpp` aux sources de `appOTTix`. Un singleton adossé à
-une instance C++ existante fournit `static T *create(QQmlEngine *, QJSEngine *)` et
-appelle `QJSEngine::setObjectOwnership(..., CppOwnership)` (cf. `DatabaseManager`).
+To add a type: `QML_ELEMENT` (+ `QML_SINGLETON` for a singleton) in the `.h`, then
+add the `.h`/`.cpp` to the `appOTTix` sources. A singleton backed by an existing
+C++ instance provides `static T *create(QQmlEngine *, QJSEngine *)` and calls
+`QJSEngine::setObjectOwnership(..., CppOwnership)` (see `DatabaseManager`).
 
-Le fichier de registration généré inclut les en-têtes **par leur seul nom de fichier** :
-tout nouveau sous-dossier de `src/` doit être ajouté à `target_include_directories()`.
+The generated registration file includes headers **by file name only**: every new
+subfolder of `src/` must be added to `target_include_directories()`.
 
-## Veille système
+## System sleep
 
-`SleepInhibitor` inhibe la mise en veille pendant la lecture :
-`SetThreadExecutionState` sous Windows, `org.freedesktop.ScreenSaver` via D-Bus
-sous Linux (nécessite `Qt6::DBus`, détecté par CMake → `HAS_DBUS`).
+`SleepInhibitor` blocks sleep during playback: `SetThreadExecutionState` on
+Windows, `org.freedesktop.ScreenSaver` over D-Bus on Linux (needs `Qt6::DBus`,
+detected by CMake → `HAS_DBUS`).
 
 ## Design system
 
-Tous les styles passent par deux singletons QML ; **aucun literal de couleur,
-d'espacement ou de taille de police ne doit apparaitre ailleurs**.
+All styling goes through two QML singletons; **no color, spacing or font-size
+literal may appear anywhere else**.
 
 ### `Theme.qml`
-**Deux palettes** (`darkPalette` / `lightPalette`) exposant les memes jetons ;
-les fichiers QML lisent toujours `Theme.<jeton>`, jamais la palette. Le mode
-vit dans `Theme.mode` (`modeAuto` / `modeLight` / `modeDark`), est persiste via
-`QtCore.Settings` (categorie `Appearance`) et se regle dans Administration >
-Settings > Appearance. En mode auto, un `Timer` d'une minute reevalue l'heure
-locale : theme clair de `dayStartHour` (7 h) a `nightStartHour` (19 h), sombre
-ensuite.
 
-Les jetons **independants du mode** couvrent la zone de lecture, qui reste
-sombre dans les deux themes : `videoBg`, `scrim*`, `glass*`, `scrimText`,
-`scrimTextMuted`, `scrimTextDim` (tout texte pose sur la video) et
-`logoBackdrop` (fond **par defaut** des logos de chaines : le fond reel est
-derive du logo lui-meme, cf. « Fond des logos de chaînes »).
-Un calque pose sur la video ne doit donc jamais utiliser `Theme.text`.
+Two palettes (`darkPalette` / `lightPalette`) expose the same tokens; QML files
+always read `Theme.<token>`, never the palette. The mode lives in `Theme.mode`
+(`modeAuto` / `modeLight` / `modeDark`), is persisted through `QtCore.Settings`
+(`Appearance` category) and is set in Administration > Settings > Appearance. In
+auto mode a one-minute `Timer` re-evaluates local time: light theme from
+`dayStartHour` (7 am) to `nightStartHour` (7 pm), dark afterwards.
 
-Jetons regroupes par role : surfaces (`bg` → `surface` → `surfaceAlt` →
-`surfaceHi`, `border`/`borderStrong`), accent (`accent`, `accentHover`,
-`accentPressed`, `accentSoft`, `textOnAccent`), texte (`text`, `textMuted`,
-`textDim`), statuts (`danger`, `success`, `warning`, `live`), survol/appui
-(`hover`, `pressed`), calques poses sur la video (`scrim`, `scrimStrong`,
-`glass*`), rayons (`radiusSm/Md/Lg/Pill`), espacements (`spacingXs` → `spacingXl`,
-grille de 4), typo (`fontXs` → `fontXl`), tailles de controle (`controlXs` →
-`controlLg`, `iconXs` → `iconXl`) et durees (`durFast`, `durNormal`, `durSlow`).
+Mode-independent tokens cover the playback area, which stays dark in both themes:
+`videoBg`, `scrim*`, `glass*`, `scrimText`, `scrimTextMuted`, `scrimTextDim` (any
+text laid over the video) and `logoBackdrop` (default channel-logo backdrop; the
+real one is derived from the logo itself by `LogoPalette`). A layer over the video
+must therefore never use `Theme.text`.
 
-Un nom de propriete ne doit **jamais** commencer par `on` + majuscule : QML le
-lit comme un gestionnaire de signal (d'ou `textOnAccent` et non `onAccent`).
+Tokens by role: surfaces (`bg` → `surface` → `surfaceAlt` → `surfaceHi`,
+`border`/`borderStrong`), accent (`accent`, `accentHover`, `accentPressed`,
+`accentSoft`, `textOnAccent`), text (`text`, `textMuted`, `textDim`), status
+(`danger`, `success`, `warning`, `live`), hover/press (`hover`, `pressed`), video
+overlays (`scrim`, `scrimStrong`, `glass*`), radii (`radiusSm/Md/Lg/Pill`),
+spacing (`spacingXs` → `spacingXl`, 4 px grid), typography (`fontXs` → `fontXl`),
+control sizes (`controlXs` → `controlLg`, `iconXs` → `iconXl`) and durations
+(`durFast`, `durNormal`, `durSlow`).
 
-### `Mdi.qml` — icones
-Jeu d'icones unique : Material Design Icons v7.4.47, fonte embarquee dans le
-module QML (`fonts/materialdesignicons-webfont.ttf`, cf. `RESOURCES` du
-`qt_add_qml_module`) et chargee une seule fois par le `FontLoader` du singleton.
+A property name must **never** start with `on` + uppercase: QML reads that as a
+signal handler (hence `textOnAccent`, not `onAccent`).
 
-Les points de code MDI sont > 0xFFFF : ils s'ecrivent `String.fromCodePoint(0xF0450)`
-et **pas** `"\uF0450"`. Pour ajouter une icone : relever le point de code sur
-[pictogrammers.com/library/mdi](https://pictogrammers.com/library/mdi) et
-l'ajouter dans la section thematique correspondante de `Mdi.qml`.
+### `Mdi.qml` — icons
 
-Usage : `MdiIcon { glyph: Mdi.refresh }`, `IconButton { glyph: Mdi.cogOutline }`,
+One icon set: Material Design Icons v7.4.47, font embedded in the QML module
+(`fonts/materialdesignicons-webfont.ttf`, see `RESOURCES` in
+`qt_add_qml_module`) and loaded once by the singleton's `FontLoader`.
+
+MDI code points are > 0xFFFF: write them as `String.fromCodePoint(0xF0450)`, **not**
+`"\uF0450"`. To add an icon, look up its code point on
+[pictogrammers.com/library/mdi](https://pictogrammers.com/library/mdi) and add it
+to the matching section of `Mdi.qml`.
+
+Usage: `MdiIcon { glyph: Mdi.refresh }`, `IconButton { glyph: Mdi.cogOutline }`,
 `AppButton { glyph: Mdi.plus }`.
 
-### Composants
-- `IconButton` : `glyph`, `tooltip`, `round`, `checkable`, `danger`, plus
-  `tinted` (pastille claire sur la video) et `tinted` + `dark` (pastille sombre
-  des controles centraux du player). Survol, appui (leger retrait d'echelle) et
-  etat coche sont geres par le composant — ne jamais empiler une `MouseArea`
-  dans un bouton.
-- `AppButton` : `variant: AppButton.Primary | Secondary | Ghost | Danger`.
-- `SegmentedControl` : options exclusives dans un meme boitier (`options`,
-  `currentValue`, signal `selected`).
-- `AppTabBar` / `AppTabButton` : onglets compacts alignes a gauche.
-  `AppTabButton` fixe `width: implicitWidth` : c'est ce qui empeche `TabBar` de
-  repartir la largeur a parts egales.
-- Popups poses sur la video (`ChannelSearchPopup`, variantes de qualite, infos) :
-  `parent: Overlay.overlay`, position calculee puis **bornee a la fenetre**
-  (cf. `qualityPopup.reposition()` dans `PlayerSlot.qml`). Leur hauteur doit etre
-  deduite du modele (nombre de lignes × hauteur de ligne) et non du contenu
-  rendu, sinon le premier positionnement se fait sur une hauteur encore nulle.
+### Components
 
-## Convention QML
+- `IconButton`: `glyph`, `tooltip`, `round`, `checkable`, `danger`, plus `tinted`
+  (light pill over the video) and `tinted` + `dark` (dark pill for the player's
+  central controls). Hover, press (slight scale-down) and checked state are handled
+  by the component — never stack a `MouseArea` inside a button.
+- `AppButton`: `variant: AppButton.Primary | Secondary | Ghost | Danger`.
+- `SegmentedControl`: exclusive options in a single box (`options`, `currentValue`,
+  `selected` signal).
+- `AppTabBar` / `AppTabButton`: compact left-aligned tabs. `AppTabButton` sets
+  `width: implicitWidth`, which is what stops `TabBar` from splitting the width evenly.
+- Popups over the video (`ChannelSearchPopup`, quality variants, info):
+  `parent: Overlay.overlay`, position computed then **clamped to the window** (see
+  `qualityPopup.reposition()` in `PlayerSlot.qml`). Their height must be derived
+  from the model (row count × row height), not from the rendered content, otherwise
+  the first positioning runs against a still-zero height.
 
-- `qsTr()` pour les textes affichés
-- Contrôles par player dans `PlayerSlot.qml` (barre haute, play/pause centré, `+` en dessous)
-- Contrôles globaux dans `PlayerPage.qml` (mode selector + volume)
-- Auto-hide des contrôles après 3s d'inactivité
-- **`qmllint` doit rester à zéro warning** (`cmake --build build-linux --target all_qmllint`) :
-  - accès toujours qualifiés par un id (`root.x`, `window.x`)
-  - délégués : `required property var model` / `required property int index`
-    plutôt que l'injection implicite, et `pragma ComponentBehavior: Bound`
-  - dans un Layout : `Layout.preferredWidth/Height`, jamais `width`/`height`
-- `ChannelListModel` est **partagé** par les onglets : chaque page réapplique son
-  propre filtre via `activate()` quand elle redevient visible
-- Le filtre texte multi-tokens est unique : `ChannelListModel.matchesFilter()`
+## QML conventions
+
+- `qsTr()` for displayed text.
+- Per-player controls in `PlayerSlot.qml` (top bar, centered play/pause, `+` below);
+  global controls in `PlayerPage.qml` (mode selector + volume).
+- Controls auto-hide after 3 s of inactivity.
+- **`qmllint` must stay at zero warnings** (`cmake --build build-linux --target all_qmllint`):
+  - always qualify access with an id (`root.x`, `window.x`)
+  - delegates: `required property var model` / `required property int index` rather
+    than implicit injection, plus `pragma ComponentBehavior: Bound`
+  - inside a Layout: `Layout.preferredWidth/Height`, never `width`/`height`
+- `ChannelListModel` is **shared** across tabs: each page re-applies its own filter
+  via `activate()` when it becomes visible again.
+- The multi-token text filter has a single implementation:
+  `ChannelListModel.matchesFilter()`.
 
 ## Volume
 
-- **Binding** : `PlayerSlot → MpvObject.volume` courbe puissance `^1.1` pour compenser la perception logarithmique
-- **Curseur** dans `PlayerPage.qml`, id `volumeSlider`, largeur 130px, `stepSize: 1`, `value: 100` (statique, pas de binding pour éviter le verrouillage)
-- **Bouton muet** à sa gauche : `PlayerPage.toggleMute()` mémorise le niveau dans `lastVolume`
-- Les 4 PlayerSlot lient `globalVolume` directement à `volumeSlider.value` (pas d'intermédiaire PlayerPage.globalVolume)
-- **Persistance** : `QtCore.Settings` dans `PlayerPage.qml`, alias sur `volumeSlider.value`
+- **Binding**: `PlayerSlot → MpvObject.volume` with a `^1.1` power curve to offset
+  logarithmic perception.
+- **Slider** in `PlayerPage.qml`, id `volumeSlider`, 130 px wide, `stepSize: 1`,
+  `value: 100` (static, no binding, to avoid locking it).
+- **Mute button** to its left: `PlayerPage.toggleMute()` stores the level in `lastVolume`.
+- The 4 PlayerSlots bind `globalVolume` straight to `volumeSlider.value` (no
+  `PlayerPage.globalVolume` middleman).
+- **Persistence**: `QtCore.Settings` in `PlayerPage.qml`, aliased on `volumeSlider.value`.
 
 ## Overlays
 
-- **PlayerSlot** : `controlsOpacity` et `overlayActive` (défaut `false`). `showControls()` → `controlsOpacity=1, overlayActive=true`, timer 3s redémarré. Timer → `controlsOpacity=0, overlayActive=false` + cooldown 500ms.
-- **Top bar (PlayerPage)** : `opacity: slotN.overlayActive || ... ? 1.0 : 0.0` — binding direct sur `overlayActive` des 4 slots. Visible dès qu'au moins un slot a son overlay actif.
-- **Hover** : `onPositionChanged` avec garde `controlsOpacity < 0.5` pour éviter le cycle de réaffichage permanent (onPositionChanged qui spam à cause de la souris/vidéo).
-- **Double-clic** : `onDoubleClicked` dans la hoverArea de chaque PlayerSlot → signal `doubleClickRequested()` → `PlayerPage.toggleFullscreenRequested()` → `Main.qml` toggle `Window.FullScreen`.
+- **PlayerSlot**: `controlsOpacity` and `overlayActive` (default `false`).
+  `showControls()` → `controlsOpacity=1, overlayActive=true`, 3 s timer restarted.
+  Timer → `controlsOpacity=0, overlayActive=false` + 500 ms cooldown.
+- **Top bar (PlayerPage)**: `opacity: slotN.overlayActive || ... ? 1.0 : 0.0` —
+  bound directly to the 4 slots' `overlayActive`; visible as soon as one slot's
+  overlay is active.
+- **Hover**: `onPositionChanged` guarded by `controlsOpacity < 0.5`, otherwise the
+  event spam from mouse/video re-triggers the show cycle forever.
+- **Double click**: `onDoubleClicked` in each PlayerSlot's hoverArea → signal
+  `doubleClickRequested()` → `PlayerPage.toggleFullscreenRequested()` → `Main.qml`
+  toggles `Window.FullScreen`.

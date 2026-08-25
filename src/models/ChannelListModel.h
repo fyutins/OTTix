@@ -37,14 +37,14 @@ public:
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
     QHash<int, QByteArray> roleNames() const override;
 
-    // Filtre texte partage par le modele et les listes construites en QML
-    // (favoris, groupes) : une seule semantique de recherche multi-tokens.
+    // Text filter shared by the model and the lists built in QML (favorites,
+    // groups): a single multi-token search semantics.
     Q_INVOKABLE bool matchesFilter(const QString &name, const QString &filter) const;
 
     Q_INVOKABLE QVariantMap get(int index) const;
 
-    // Chaine suivante (direction > 0) ou precedente dans la liste filtree,
-    // avec bouclage. Map vide si la liste est vide.
+    // Next (direction > 0) or previous channel in the filtered list, wrapping
+    // around. Empty map when the list is empty.
     Q_INVOKABLE QVariantMap channelAfter(const QString &url, int direction) const;
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void setChannels(int playlistId);
@@ -90,8 +90,8 @@ private:
 
     QList<ChannelInfo> m_channels;
     QList<ChannelInfo> m_filtered;
-    QHash<QString, int> m_urlToChannel;   // url -> index dans m_channels
-    QHash<QString, int> m_urlToFiltered;  // url -> index dans m_filtered
+    QHash<QString, int> m_urlToChannel;   // url -> index into m_channels
+    QHash<QString, int> m_urlToFiltered;  // url -> index into m_filtered
     QStringList m_groups;
     QString m_filterGroup;
     QString m_filterText;

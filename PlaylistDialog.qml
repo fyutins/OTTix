@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-// Ajout / edition d'une playlist (M3U ou Xtream).
+// Add / edit a playlist (M3U or Xtream).
 Popup {
     id: dialog
 

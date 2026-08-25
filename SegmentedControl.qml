@@ -2,7 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 
-// Selecteur segmente : plusieurs options exclusives dans un meme boitier.
+// Segmented selector: several exclusive options inside one box.
 //   SegmentedControl {
 //       options: [{ label: qsTr("Auto"), glyph: Mdi.themeAuto, value: 0 }, ...]
 //       currentValue: Theme.mode

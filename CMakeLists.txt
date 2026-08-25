@@ -1,14 +1,14 @@
 cmake_minimum_required(VERSION 3.16)
 
-# Version des artefacts publies : la CI la derive du tag git
-# (cmake -DOTTIX_VERSION=1.2.3). Sert au numero de version Windows
-# (ressource .rc + installateur) et au bundle macOS.
-set(OTTIX_VERSION "0.1.0" CACHE STRING "Version de l'application (x.y.z)")
+# Version of the published artifacts: CI derives it from the git tag
+# (cmake -DOTTIX_VERSION=1.2.3). Used for the Windows version number
+# (.rc resource + installer) and for the macOS bundle.
+set(OTTIX_VERSION "0.1.0" CACHE STRING "Application version (x.y.z)")
 
 project(OTTix VERSION ${OTTIX_VERSION} LANGUAGES CXX)
 
-# Identifiant reverse-DNS : nom des fichiers .desktop / metainfo / icone sous
-# Linux, et app-id du paquet Flatpak. Doit rester identique partout.
+# Reverse-DNS identifier: names the .desktop / metainfo / icon files on Linux,
+# and the app-id of the Flatpak package. Must stay identical everywhere.
 set(OTTIX_APP_ID "io.github.fyutins.OTTix")
 
 include(GNUInstallDirs)
@@ -17,7 +17,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_AUTOMOC ON)
 
-# Qt Creator / clangd : index C++ correct (compile_commands.json)
+# Qt Creator / clangd: correct C++ index (compile_commands.json)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Quick QuickControls2 Sql Network OpenGL Concurrent)
@@ -68,9 +68,9 @@ endif()
 
 qt_standard_project_setup(REQUIRES 6.10)
 
-# Qt Creator / qmlls : genere .qmlls.ini a la racine des sources pour que
-# l'editeur QML retrouve les modules generes dans le dossier de build.
-# Doit etre positionne AVANT qt_add_qml_module().
+# Qt Creator / qmlls: generates .qmlls.ini at the source root so the QML editor
+# finds the modules generated in the build folder.
+# Must be set BEFORE qt_add_qml_module().
 set(QT_QML_GENERATE_QMLLS_INI ON)
 
 qt_add_executable(appOTTix
@@ -105,9 +105,9 @@ qt_add_executable(appOTTix
     src/utils/LogoPalette.cpp
 )
 
-# Le fichier de registration QML genere (appottix_qmltyperegistrations.cpp)
-# inclut les en-tetes par leur seul nom de fichier : chaque sous-dossier de src/
-# doit donc etre dans le include path.
+# The generated QML registration file (appottix_qmltyperegistrations.cpp)
+# includes headers by file name only, so every subfolder of src/ must be on the
+# include path.
 target_include_directories(appOTTix PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/src/database
@@ -119,8 +119,8 @@ target_include_directories(appOTTix PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/xtream
 )
 
-# Singletons QML du design system (jetons de style + jeu d'icones).
-# Doit preceder qt_add_qml_module().
+# Design system QML singletons (style tokens + icon set).
+# Must come before qt_add_qml_module().
 set_source_files_properties(Theme.qml Mdi.qml
     PROPERTIES QT_QML_SINGLETON_TYPE TRUE
 )
@@ -166,8 +166,8 @@ qt_add_qml_module(appOTTix
         fonts/materialdesignicons-webfont.ttf
 )
 
-# Icone et informations de version embarquees dans l'executable Windows.
-# Le .rc est genere dans le dossier de build (les *.rc sont ignores par git).
+# Icon and version information embedded in the Windows executable.
+# The .rc is generated in the build folder (*.rc files are gitignored).
 if(WIN32)
     configure_file(packaging/windows/app.rc.in
                    ${CMAKE_CURRENT_BINARY_DIR}/app.rc @ONLY)
@@ -186,7 +186,7 @@ target_link_libraries(appOTTix
     PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Sql Qt6::Network Qt6::OpenGL Qt6::Concurrent
 )
 
-# Inhibition de la veille sous Linux : org.freedesktop.ScreenSaver via D-Bus.
+# Sleep inhibition on Linux: org.freedesktop.ScreenSaver over D-Bus.
 if(UNIX AND NOT APPLE)
     find_package(Qt6 QUIET COMPONENTS DBus)
     if(Qt6DBus_FOUND)
@@ -210,14 +210,14 @@ else()
     message(STATUS "MPV support disabled - MpvObject will be a stub")
 endif()
 
-# --- Installation / deploiement ------------------------------------------
+# --- Installation / deployment --------------------------------------------
 #
-# Linux   : "cmake --install" pose le binaire, le .desktop, l'icone et le
-#           metainfo AppStream ; Qt vient du runtime KDE (Flatpak), rien n'est
-#           bundle.
-# Windows : tout est mis a plat a cote de l'executable, puis windeployqt
-#           complete l'arborescence (DLL Qt, plugins, qml/). Le resultat est
-#           directement le dossier source de l'installateur Inno Setup.
+# Linux  : "cmake --install" lays down the binary, the .desktop, the icon and the
+#          AppStream metainfo; Qt comes from the KDE runtime (Flatpak), nothing
+#          is bundled.
+# Windows: everything is flattened next to the executable, then windeployqt
+#          completes the tree (Qt DLLs, plugins, qml/). The result is directly
+#          the source folder for the Inno Setup installer.
 
 if(WIN32)
     install(TARGETS appOTTix RUNTIME DESTINATION .)
@@ -227,14 +227,13 @@ if(WIN32)
     find_program(WINDEPLOYQT_EXECUTABLE windeployqt HINTS "${_qt_bin_dir}")
 
     if(NOT WINDEPLOYQT_EXECUTABLE)
-        message(FATAL_ERROR "windeployqt introuvable dans ${_qt_bin_dir}")
+        message(FATAL_ERROR "windeployqt not found in ${_qt_bin_dir}")
     endif()
 
-    # --no-opengl-sw : le rendu OpenGL logiciel (opengl32sw.dll) fige la
-    # fenetre quand on la deplace pendant une lecture mpv. On force l'OpenGL
-    # du systeme.
+    # --no-opengl-sw: software OpenGL rendering (opengl32sw.dll) freezes the
+    # window when it is moved during mpv playback, so force the system OpenGL.
     install(CODE "
-        message(STATUS \"windeployqt : \${CMAKE_INSTALL_PREFIX}\")
+        message(STATUS \"windeployqt: \${CMAKE_INSTALL_PREFIX}\")
         execute_process(
             COMMAND \"${WINDEPLOYQT_EXECUTABLE}\"
                     --no-opengl-sw
@@ -244,17 +243,17 @@ if(WIN32)
             RESULT_VARIABLE _windeployqt_result
         )
         if(NOT _windeployqt_result EQUAL 0)
-            message(FATAL_ERROR \"windeployqt a echoue (\${_windeployqt_result})\")
+            message(FATAL_ERROR \"windeployqt failed (\${_windeployqt_result})\")
         endif()
     ")
 
-    # libmpv n'est pas deployee par windeployqt : la CI passe le chemin de la
-    # DLL extraite du paquet mpv-dev (-DMPV_RUNTIME_DLL=...).
-    set(MPV_RUNTIME_DLL "" CACHE FILEPATH "libmpv-2.dll a inclure dans le paquet Windows")
+    # libmpv is not deployed by windeployqt: CI passes the path of the DLL
+    # extracted from the mpv-dev package (-DMPV_RUNTIME_DLL=...).
+    set(MPV_RUNTIME_DLL "" CACHE FILEPATH "libmpv-2.dll to include in the Windows package")
     if(MPV_RUNTIME_DLL)
         install(FILES "${MPV_RUNTIME_DLL}" DESTINATION .)
     else()
-        message(WARNING "MPV_RUNTIME_DLL non defini : libmpv-2.dll ne sera pas installee")
+        message(WARNING "MPV_RUNTIME_DLL not set: libmpv-2.dll will not be installed")
     endif()
 
 elseif(APPLE)

@@ -25,8 +25,8 @@ MpvRenderer::~MpvRenderer()
         mpv_render_context_free(m_mpvGl);
         m_mpvGl = nullptr;
     }
-    // Le contexte de rendu doit disparaitre avant le handle : on ne lache la
-    // reference partagee qu'ici, une fois mpv_render_context_free() passe.
+    // The render context must go away before the handle: the shared reference
+    // is only released here, once mpv_render_context_free() has run.
     m_mpv = nullptr;
     m_mpvOwner.reset();
 #endif

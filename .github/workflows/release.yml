@@ -1,8 +1,8 @@
 name: Release
 
-# Publie les artefacts d'une version : installateur + zip portable Windows,
-# bundle Flatpak Linux. Declenche par un tag "vX.Y.Z" ; le declenchement
-# manuel produit les memes artefacts sans creer de release.
+# Publishes the artifacts of a release: Windows installer + portable zip, Linux
+# Flatpak bundle. Triggered by a "vX.Y.Z" tag; a manual run produces the same
+# artifacts without creating a release.
 on:
   push:
     tags: ['v*']
@@ -17,19 +17,19 @@ permissions:
   contents: write
 
 env:
-  # Le Flatpak prend Qt du runtime KDE 6.11 ; seul Windows installe Qt.
-  # aqtinstall 3.3.0 ne sait pas installer Qt 6.11 sous Windows : le depot Qt
-  # a change de structure pour 6.11 (un sous-dossier par architecture,
-  # qt6_6112/qt6_6112_mingw/) alors qu'aqt cherche encore qt6_6112/qt6_6112/.
-  # 6.10.3 est la derniere version installable et respecte le plancher du
-  # projet (qt_standard_project_setup REQUIRES 6.10). A repasser en 6.11 des
-  # qu'aqtinstall gere la nouvelle arborescence.
+  # The Flatpak takes Qt from the KDE 6.11 runtime; only Windows installs Qt.
+  # aqtinstall 3.3.0 cannot install Qt 6.11 on Windows: the Qt repository changed
+  # its layout for 6.11 (one subfolder per architecture,
+  # qt6_6112/qt6_6112_mingw/) while aqt still looks for qt6_6112/qt6_6112/.
+  # 6.10.3 is the latest installable version and still meets the project floor
+  # (qt_standard_project_setup REQUIRES 6.10). Move back to 6.11 once aqtinstall
+  # handles the new tree.
   QT_VERSION_WINDOWS: 6.10.3
   APP_ID: io.github.fyutins.OTTix
 
 jobs:
   version:
-    name: Determiner la version
+    name: Determine the version
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.get.outputs.version }}
@@ -41,14 +41,14 @@ jobs:
           else
             version="${GITHUB_REF_NAME#v}"
           fi
-          # x.y.z strict : CMake (project(VERSION)) et Inno Setup
-          # (VersionInfoVersion) refusent tout suffixe non numerique.
+          # Strict x.y.z: CMake (project(VERSION)) and Inno Setup
+          # (VersionInfoVersion) reject any non-numeric suffix.
           if ! echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "::error::Version invalide : '$version' (attendu x.y.z)"
+            echo "::error::Invalid version: '$version' (expected x.y.z)"
             exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "Version : $version"
+          echo "Version: $version"
 
   windows:
     name: Windows
@@ -66,18 +66,18 @@ jobs:
           tools: tools_mingw1310
           cache: true
 
-      - name: Ajouter MinGW et Ninja
+      - name: Add MinGW and Ninja
         shell: pwsh
         run: |
           "$env:IQTA_TOOLS\mingw1310_64\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
           choco install ninja -y --no-progress
 
-      - name: Telecharger libmpv
+      - name: Download libmpv
         shell: pwsh
         run: |
           & .github/scripts/fetch-libmpv.ps1 -Destination "$env:GITHUB_WORKSPACE\mpv"
 
-      - name: Configurer
+      - name: Configure
         shell: pwsh
         run: |
           cmake -S . -B build -G Ninja `
@@ -87,11 +87,11 @@ jobs:
             -DMPV_LIBRARY="$env:GITHUB_WORKSPACE/mpv/libmpv.dll.a" `
             -DMPV_RUNTIME_DLL="$env:GITHUB_WORKSPACE/mpv/libmpv-2.dll"
 
-      - name: Compiler
+      - name: Build
         run: cmake --build build
 
-      # Produit dist\ : exe + DLL Qt (windeployqt) + qml\ + libmpv-2.dll.
-      - name: Deployer
+      # Produces dist\: exe + Qt DLLs (windeployqt) + qml\ + libmpv-2.dll.
+      - name: Deploy
         run: cmake --install build --prefix dist
 
       - name: Archive portable
@@ -100,7 +100,7 @@ jobs:
           $name = "OTTix-${{ needs.version.outputs.version }}-win64.zip"
           Compress-Archive -Path dist\* -DestinationPath $name
 
-      - name: Construire l'installateur
+      - name: Build the installer
         shell: pwsh
         run: |
           choco install innosetup -y --no-progress
@@ -109,7 +109,7 @@ jobs:
                   /DSourceDir="$env:GITHUB_WORKSPACE\dist" `
                   /DOutputDir="$env:GITHUB_WORKSPACE\dist-installer" `
                   packaging\windows\OTTix.iss
-          if ($LASTEXITCODE -ne 0) { throw "ISCC a echoue ($LASTEXITCODE)" }
+          if ($LASTEXITCODE -ne 0) { throw "ISCC failed ($LASTEXITCODE)" }
 
       - uses: actions/upload-artifact@v4
         with:
@@ -126,27 +126,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # elfutils fournit eu-strip / eu-elfcompress, dont flatpak-builder a
-      # besoin pour extraire les symboles de debogage : le paquet apt
-      # flatpak-builder ne les tire pas, et le build echoue sur le premier
-      # module compile.
-      # librsvg2-common fournit le loader SVG de gdk-pixbuf, sans lequel
-      # "appstreamcli compose" ne peut pas lire l'icone de l'application et
-      # rejette le composant (file-read-error) a l'etape d'export.
-      - name: Installer flatpak-builder
+      # elfutils provides eu-strip / eu-elfcompress, which flatpak-builder needs
+      # to extract debug symbols: the flatpak-builder apt package does not pull
+      # them in, and the build fails on the first compiled module.
+      # librsvg2-common provides the gdk-pixbuf SVG loader, without which
+      # "appstreamcli compose" cannot read the application icon and rejects the
+      # component (file-read-error) at the export step.
+      - name: Install flatpak-builder
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             flatpak flatpak-builder elfutils librsvg2-common
 
-      - name: Runtime et SDK KDE
+      - name: KDE runtime and SDK
         run: |
           flatpak remote-add --user --if-not-exists flathub \
             https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak install --user -y flathub org.kde.Platform//6.11 org.kde.Sdk//6.11
 
-      # Accelere les builds suivants : sources telechargees (mpv, libplacebo,
-      # libass...) et objets ccache.
+      # Speeds up subsequent builds: downloaded sources (mpv, libplacebo,
+      # libass...) and ccache objects.
       - name: Cache flatpak-builder
         uses: actions/cache@v4
         with:
@@ -156,16 +155,16 @@ jobs:
             flatpak-builder-${{ hashFiles('packaging/flatpak/*.yml') }}-
             flatpak-builder-
 
-      - name: Construire
+      - name: Build
         run: |
           flatpak-builder --user --disable-rofiles-fuse --force-clean \
             --repo=flatpak-repo build-flatpak \
             packaging/flatpak/${APP_ID}.yml
 
-      - name: Creer le bundle
+      - name: Create the bundle
         run: |
-          # --runtime-repo : l'installation du bundle propose alors d'ajouter
-          # Flathub pour recuperer org.kde.Platform//6.11 s'il manque.
+          # --runtime-repo: installing the bundle then offers to add Flathub to
+          # fetch org.kde.Platform//6.11 if it is missing.
           flatpak build-bundle flatpak-repo \
             --runtime-repo=https://dl.flathub.org/repo/flathub.flatpakrepo \
             "OTTix-${{ needs.version.outputs.version }}-x86_64.flatpak" \
@@ -178,7 +177,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    name: Publier la release
+    name: Publish the release
     needs: [version, windows, flatpak]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
@@ -188,7 +187,7 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      - name: Lister les artefacts
+      - name: List the artifacts
         run: find artifacts -type f -printf '%s\t%p\n'
 
       - uses: softprops/action-gh-release@v2

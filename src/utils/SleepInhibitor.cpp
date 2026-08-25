@@ -16,7 +16,7 @@
 SleepInhibitor::SleepInhibitor(QObject *parent)
     : QObject(parent)
 {
-    // Windows exige un rappel periodique de SetThreadExecutionState.
+    // Windows requires SetThreadExecutionState to be called periodically.
     m_refreshTimer.setInterval(30000);
     connect(&m_refreshTimer, &QTimer::timeout, this, &SleepInhibitor::applyState);
 }

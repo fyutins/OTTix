@@ -74,13 +74,13 @@ public:
     Q_INVOKABLE void setHwdec(const QString &hwdec);
 
 #if HAS_MPV
-    // File de commandes rejouee par MpvRenderer sur le thread de rendu.
+    // Command queue replayed by MpvRenderer on the render thread.
     void enqueueCommand(std::function<void(mpv_handle *)> cmd);
     bool dequeueCommand(std::function<void(mpv_handle *)> &cmd);
 
-    // Le renderer partage la propriete du handle : libmpv impose de liberer le
-    // mpv_render_context (detruit avec le renderer, sur le thread de rendu)
-    // avant de detruire le handle. Le dernier des deux qui meurt le libere.
+    // The renderer shares ownership of the handle: libmpv requires the
+    // mpv_render_context (destroyed with the renderer, on the render thread) to
+    // be freed before the handle. Whichever of the two dies last releases it.
     std::shared_ptr<mpv_handle> mpvHandleRef() const { return m_mpvOwner; }
 #endif
 
@@ -123,7 +123,7 @@ private:
 
 #if HAS_MPV
     std::shared_ptr<mpv_handle> m_mpvOwner;
-    mpv_handle *m_mpv = nullptr; // raccourci non proprietaire vers m_mpvOwner
+    mpv_handle *m_mpv = nullptr; // non-owning shortcut to m_mpvOwner
     mutable QMutex m_mutex;
     QQueue<std::function<void(mpv_handle *)>> m_commandQueue;
 

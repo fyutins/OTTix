@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-// Confirmation d'une action destructive.
+// Confirmation of a destructive action.
 Popup {
     id: dialog
 

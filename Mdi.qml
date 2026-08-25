@@ -1,14 +1,14 @@
 pragma Singleton
 import QtQuick
 
-// Jeu d'icones unique de l'application : Material Design Icons (v7.4.47).
-// La fonte est embarquee dans le module QML (fonts/, cf. CMakeLists.txt) et
-// chargee une seule fois ici.
+// The application's single icon set: Material Design Icons (v7.4.47). The font
+// is embedded in the QML module (fonts/, see CMakeLists.txt) and loaded once
+// here.
 //
-// Les points de code MDI sont hors du plan multilingue de base (> 0xFFFF) :
-// ils ne peuvent pas s'ecrire en litteral "\uXXXX", d'ou String.fromCodePoint.
-// Pour ajouter une icone : chercher son nom sur pictogrammers.com/library/mdi,
-// relever le point de code et l'ajouter ci-dessous par ordre thematique.
+// MDI code points sit outside the basic multilingual plane (> 0xFFFF): they
+// cannot be written as a "\uXXXX" literal, hence String.fromCodePoint. To add an
+// icon: look its name up on pictogrammers.com/library/mdi, read its code point
+// and add it below in the matching section.
 QtObject {
     id: mdi
 
@@ -20,7 +20,7 @@ QtObject {
                                      ? mdi.loader.name
                                      : "Material Design Icons"
 
-    // ── Navigation ────────────────────────────────────────────────────────
+    // -- Navigation --
     readonly property string arrowLeft: String.fromCodePoint(0xF004D)
     readonly property string chevronLeft: String.fromCodePoint(0xF0141)
     readonly property string chevronRight: String.fromCodePoint(0xF0142)
@@ -32,7 +32,7 @@ QtObject {
     readonly property string dotsVertical: String.fromCodePoint(0xF01D9)
     readonly property string openInNew: String.fromCodePoint(0xF03CC)
 
-    // ── Onglets / sections ────────────────────────────────────────────────
+    // -- Tabs / sections --
     readonly property string star: String.fromCodePoint(0xF04CE)
     readonly property string starOutline: String.fromCodePoint(0xF04D2)
     readonly property string television: String.fromCodePoint(0xF07F4)
@@ -44,12 +44,12 @@ QtObject {
     readonly property string playlistPlay: String.fromCodePoint(0xF0411)
     readonly property string cogOutline: String.fromCodePoint(0xF08BB)
 
-    // ── Apparence ─────────────────────────────────────────────────────────
+    // -- Appearance --
     readonly property string themeAuto: String.fromCodePoint(0xF050E)   // theme-light-dark
     readonly property string themeLight: String.fromCodePoint(0xF05A8)  // white-balance-sunny
     readonly property string themeDark: String.fromCodePoint(0xF0594)   // weather-night
 
-    // ── Lecture ───────────────────────────────────────────────────────────
+    // -- Playback --
     readonly property string play: String.fromCodePoint(0xF040A)
     readonly property string pause: String.fromCodePoint(0xF03E4)
     readonly property string skipPrevious: String.fromCodePoint(0xF04AE)
@@ -64,7 +64,7 @@ QtObject {
     readonly property string fullscreen: String.fromCodePoint(0xF0293)
     readonly property string fullscreenExit: String.fromCodePoint(0xF0294)
 
-    // ── Actions ───────────────────────────────────────────────────────────
+    // -- Actions --
     readonly property string refresh: String.fromCodePoint(0xF0450)
     readonly property string sync: String.fromCodePoint(0xF04E6)
     readonly property string restart: String.fromCodePoint(0xF0709)
@@ -78,14 +78,14 @@ QtObject {
     readonly property string checkCircle: String.fromCodePoint(0xF05E1)
     readonly property string broom: String.fromCodePoint(0xF00E2)
 
-    // ── Recherche / filtres ───────────────────────────────────────────────
+    // -- Search / filters --
     readonly property string magnify: String.fromCodePoint(0xF0349)
     readonly property string magnifyClose: String.fromCodePoint(0xF0980)
     readonly property string textSearch: String.fromCodePoint(0xF13B8)
     readonly property string filter: String.fromCodePoint(0xF0236)
     readonly property string label: String.fromCodePoint(0xF0316)
 
-    // ── Etats / informations ──────────────────────────────────────────────
+    // -- States / information --
     readonly property string clock: String.fromCodePoint(0xF0150)
     readonly property string information: String.fromCodePoint(0xF02FD)
     readonly property string alert: String.fromCodePoint(0xF05D6)

@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 
-// Onglet : icone + libelle + compteur optionnel, souligne anime quand actif.
+// Tab: icon + label + optional counter, animated underline when active.
 TabButton {
     id: control
 
@@ -11,8 +11,8 @@ TabButton {
     readonly property color fgColor: control.checked ? Theme.accent
                                    : control.hovered ? Theme.text : Theme.textMuted
 
-    // Largeur explicite : TabBar ne redimensionne que les onglets qui n'en
-    // fixent pas, ce qui garde ici des onglets compacts.
+    // Explicit width: TabBar only resizes tabs that do not set one, which keeps
+    // the tabs compact here.
     width: implicitWidth
     height: parent ? parent.height : Theme.tabBarHeight
     leftPadding: Theme.spacingMd

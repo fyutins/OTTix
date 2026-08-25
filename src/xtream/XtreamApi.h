@@ -87,13 +87,13 @@ private:
     QString buildUrl(const QString &action, const QUrlQuery &extra = QUrlQuery()) const;
     QNetworkReply *get(const QString &url);
 
-    // Envoie une requete player_api et remet le JSON au callback ; toute erreur
-    // reseau est convertie en apiError("<context>: ...").
+    // Sends a player_api request and hands the JSON to the callback; any
+    // network error is turned into apiError("<context>: ...").
     void request(const QString &action, const QUrlQuery &extra, const QString &context,
                  std::function<void(const QJsonDocument &)> onSuccess);
 
-    // Un serveur Xtream repond tantot par un tableau, tantot par un objet qui
-    // contient le tableau.
+    // An Xtream server answers sometimes with an array, sometimes with an
+    // object wrapping that array.
     static QJsonArray asArray(const QJsonDocument &doc);
 
     QList<XtreamChannel> parseVodStreams(const QJsonArray &data);

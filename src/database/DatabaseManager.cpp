@@ -427,7 +427,7 @@ int DatabaseManager::channelCount(int playlistId)
     return 0;
 }
 
-// ── Synchronisation des playlists ──
+// -- Playlist synchronization --
 
 static QString syncKey(int playlistId)
 {
@@ -444,8 +444,8 @@ QString DatabaseManager::lastSync(int playlistId)
     return getSetting(syncKey(playlistId));
 }
 
-// Une playlist doit etre retelechargee si elle n'a aucune chaine en base
-// ou si sa derniere synchronisation date de plus de maxAgeHours.
+// A playlist must be re-downloaded when it has no channel in the database
+// or when its last synchronization is older than maxAgeHours.
 bool DatabaseManager::needsRefresh(int playlistId, int maxAgeHours)
 {
     if (channelCount(playlistId) == 0)
@@ -584,7 +584,7 @@ void DatabaseManager::clearCache(int olderThanDays)
     q.exec();
 }
 
-// ── Settings ──
+// -- Settings --
 
 void DatabaseManager::setSetting(const QString &key, const QString &value)
 {
@@ -606,8 +606,8 @@ QString DatabaseManager::getSetting(const QString &key, const QString &defaultVa
     return defaultValue;
 }
 
-// Les reglages utilisateur vivaient dans la table `cache`, que clearCache() purge.
-// Migration unique vers `settings` pour les bases existantes.
+// User settings used to live in the `cache` table, which clearCache() purges.
+// One-time migration to `settings` for existing databases.
 void DatabaseManager::migrateSettingsFromCache()
 {
     static const QStringList keys = {QStringLiteral("custom_suffixes")};
@@ -631,7 +631,7 @@ void DatabaseManager::migrateSettingsFromCache()
     }
 }
 
-// ── Watch History ──
+// -- Watch History --
 
 void DatabaseManager::addHistoryEntry(const QString &name, const QString &url,
                                       const QString &logo, const QString &group)
@@ -650,7 +650,7 @@ void DatabaseManager::addHistoryEntry(const QString &name, const QString &url,
         return;
     }
 
-    // L'historique n'est jamais purge autrement : on garde les 500 dernieres.
+    // History is never purged otherwise: keep the last 500 entries.
     q.exec("DELETE FROM watch_history WHERE id NOT IN ("
            "SELECT id FROM watch_history ORDER BY watched_at DESC LIMIT 500)");
 

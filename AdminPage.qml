@@ -34,7 +34,7 @@ Rectangle {
         anchors.fill: parent
         spacing: 0
 
-        // ── En-tete ──
+        // -- Header --
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: Theme.toolbarHeight
@@ -64,7 +64,7 @@ Rectangle {
             }
         }
 
-        // ── Onglets ──
+        // -- Tabs --
         AppTabBar {
             id: adminTabBar
             Layout.fillWidth: true
@@ -73,7 +73,7 @@ Rectangle {
             AppTabButton { text: qsTr("Settings"); glyph: Mdi.cogOutline }
         }
 
-        // Bandeau d'erreur du dernier chargement
+        // Error banner for the last load
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: root.errorText !== "" ? Theme.controlLg : 0
@@ -112,13 +112,13 @@ Rectangle {
             }
         }
 
-        // ── Contenu ──
+        // -- Content --
         StackLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
             currentIndex: adminTabBar.currentIndex
 
-            // ── Onglet Playlists ──
+            // -- Playlists tab --
             Item {
                 ColumnLayout {
                     anchors.fill: parent
@@ -299,7 +299,7 @@ Rectangle {
                 }
             }
 
-            // ── Onglet Reglages ──
+            // -- Settings tab --
             Flickable {
                 contentHeight: settingsColumn.implicitHeight + Theme.spacingXl * 2
                 clip: true
@@ -314,7 +314,7 @@ Rectangle {
                     width: Math.min(parent.width - Theme.spacingXl * 2, 900)
                     spacing: Theme.spacingLg
 
-                    // ── Apparence ──
+                    // -- Appearance --
                     SettingsCard {
                         Layout.fillWidth: true
                         glyph: Mdi.themeAuto
@@ -365,7 +365,7 @@ Rectangle {
                         }
                     }
 
-                    // ── Base de donnees ──
+                    // -- Database --
                     SettingsCard {
                         Layout.fillWidth: true
                         glyph: Mdi.database
@@ -417,15 +417,15 @@ Rectangle {
                         }
                     }
 
-                    // ── Suffixes de qualite ──
+                    // -- Quality suffixes --
                     SettingsCard {
                         id: suffixCard
                         Layout.fillWidth: true
                         glyph: Mdi.label
                         title: qsTr("Quality Suffixes")
 
-                        // Affichage alphabetique ; l'ordre de stockage, lui, est
-                        // impose par le C++ (du plus long au plus court).
+                        // Displayed alphabetically; the storage order itself is
+                        // imposed by the C++ side (longest first).
                         readonly property var sortedSuffixes:
                             ChannelListModel.qualitySuffixes.slice().sort(function(a, b) {
                                 return a.toLowerCase().localeCompare(b.toLowerCase())
@@ -572,7 +572,7 @@ Rectangle {
                         }
                     }
 
-                    // ── A propos ──
+                    // -- About --
                     SettingsCard {
                         Layout.fillWidth: true
                         glyph: Mdi.information

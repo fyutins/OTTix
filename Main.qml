@@ -100,7 +100,7 @@ Window {
         }
     }
 
-    // Donne le focus au champ de recherche de l'onglet courant (Ctrl+F).
+    // Focus the current tab's search field (Ctrl+F).
     function focusCurrentSearch() {
         if (window.showPlayer || window.showAdmin)
             return
@@ -123,14 +123,14 @@ Window {
         }
         onLoadError: (playlistId, error) => {
             window.refreshing = false
-            // Les chaines deja en base restent affichees : un refresh rate
-            // n'est pas bloquant.
+            // Channels already in the database stay on screen: a failed
+            // refresh is not blocking.
             console.warn("Playlist refresh failed:", error)
         }
     }
 
-    // Recharge une playlist depuis le reseau. Les chaines de la base restent
-    // affichees pendant l'operation.
+    // Reload a playlist from the network. The channels from the database stay
+    // on screen for the duration.
     function refreshPlaylist(playlist) {
         if (!playlist || refreshing)
             return
@@ -141,7 +141,7 @@ Window {
             loader.loadM3U(playlist.id, playlist.url)
     }
 
-    // ── Derniere synchronisation reussie de la playlist active ──
+    // -- Last successful sync of the active playlist --
     property string lastSyncText: ""
 
     function formatLastSync(iso) {
@@ -179,7 +179,7 @@ Window {
         lastSyncText = formatLastSync(DatabaseManager.lastSync(activePlaylistId))
     }
 
-    // Garde le libelle relatif (« il y a 3 min ») a jour sans rien recharger.
+    // Keeps the relative label ("3 min ago") up to date without reloading anything.
     Timer {
         interval: 60000
         repeat: true
@@ -199,8 +199,8 @@ Window {
         }
     }
 
-    // Bascule sur une autre playlist : affichage immediat depuis la base, et
-    // retelechargement seulement si elle est vide ou perimee.
+    // Switch to another playlist: show it from the database immediately, and
+    // re-download only when it is empty or stale.
     function selectPlaylist(index) {
         var pl = PlaylistModel.get(index)
         if (!pl || pl.id === activePlaylistId)
@@ -266,7 +266,7 @@ Window {
         onActivated: { if (window.showPlayer) window.navigateChannel(1) }
     }
 
-    // ── Navigation layer ──
+    // -- Navigation layer --
     Rectangle {
         anchors.fill: parent
         color: Theme.bg
@@ -280,7 +280,7 @@ Window {
             ColumnLayout {
                 spacing: 0
 
-                // ── Barre d'outils ──
+                // -- Toolbar --
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: Theme.toolbarHeight
@@ -313,7 +313,7 @@ Window {
                             font.bold: true
                         }
 
-                        // Playlist active et son rafraichissement, en un seul groupe
+                        // Active playlist and its refresh button, as one group
                         RowLayout {
                             Layout.leftMargin: Theme.spacingSm
                             spacing: 0
@@ -348,7 +348,7 @@ Window {
                             }
                         }
 
-                        // Etat de la derniere synchronisation reussie
+                        // State of the last successful sync
                         Item {
                             Layout.preferredWidth: syncRow.implicitWidth
                             Layout.preferredHeight: Theme.controlMd
@@ -399,7 +399,7 @@ Window {
                         }
                     }
 
-                    // Filet de progression indeterminee pendant un refresh
+                    // Indeterminate progress line shown during a refresh
                     Item {
                         anchors.left: parent.left
                         anchors.right: parent.right
@@ -434,7 +434,7 @@ Window {
                     }
                 }
 
-                // ── Banniere du mode selection (multiplex) ──
+                // -- Selection mode banner (multiplex) --
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: window.pendingPickSlot >= 0 ? Theme.controlLg + Theme.spacingSm : 0
@@ -482,7 +482,7 @@ Window {
                     }
                 }
 
-                // ── Onglets ──
+                // -- Tabs --
                 AppTabBar {
                     id: tabBar
                     Layout.fillWidth: true
@@ -512,8 +512,8 @@ Window {
                     Layout.fillHeight: true
                     currentIndex: tabBar.currentIndex
 
-                    // ChannelListModel etant partage, l'onglet qui devient
-                    // visible reapplique son propre filtre.
+                    // ChannelListModel is shared, so the tab that becomes
+                    // visible re-applies its own filter.
                     onCurrentIndexChanged: {
                         if (currentIndex === 1)
                             allChannelsPage.activate()
@@ -551,8 +551,8 @@ Window {
         }
     }
 
-    // Aligne le selecteur sur la playlist active (et en adopte une si celle en
-    // cours a disparu).
+    // Line the selector up with the active playlist (and adopt one if the
+    // current playlist is gone).
     function syncPlaylistSelection() {
         PlaylistModel.refresh()
         var idx = playlistIndexOf(activePlaylistId)
@@ -568,7 +568,7 @@ Window {
         playlistCombo.currentIndex = idx
     }
 
-    // ── Player layer ──
+    // -- Player layer --
     PlayerPage {
         id: playerPage
         anchors.fill: parent
@@ -602,16 +602,16 @@ Window {
         onToggleFullscreenRequested: window.toggleFullScreen()
     }
 
-    // ── Channel search popup ──
+    // -- Channel search popup --
     ChannelSearchPopup {
         id: channelSearchPopup
         onChannelSelected: (name, url, logo, group) => window.handleChannelSelected(name, url, logo, group)
     }
 
-    // ── Initial load ──
-    // DB-first : les chaines deja en base s'affichent immediatement (donc aussi
-    // hors ligne), et le retelechargement n'a lieu que si la playlist est vide
-    // ou perimee.
+    // -- Initial load --
+    // DB-first: channels already in the database show up immediately (so the
+    // app also works offline), and a re-download only happens when the playlist
+    // is empty or stale.
     Component.onCompleted: {
         PlaylistModel.refresh()
 

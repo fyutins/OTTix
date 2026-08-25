@@ -216,8 +216,8 @@ int main(int argc, char *argv[])
     }
     qDebug() << "[MAIN] Database initialized successfully";
 
-    // Les types QML sont enregistres de maniere declarative (QML_ELEMENT /
-    // QML_SINGLETON dans les en-tetes) et exposes par le module QML "OTTix".
+    // QML types are registered declaratively (QML_ELEMENT / QML_SINGLETON in
+    // the headers) and exposed by the "OTTix" QML module.
 
     QQmlApplicationEngine engine;
     QObject::connect(

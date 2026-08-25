@@ -12,12 +12,12 @@ concurrency:
 
 env:
   QT_VERSION: 6.11.2
-  # aqtinstall 3.3.0 ne sait pas installer Qt 6.11 sous Windows : le depot Qt
-  # a change de structure pour 6.11 (un sous-dossier par architecture,
-  # qt6_6112/qt6_6112_mingw/) alors qu'aqt cherche encore qt6_6112/qt6_6112/.
-  # 6.10.3 est la derniere version installable et respecte le plancher du
-  # projet (qt_standard_project_setup REQUIRES 6.10). A repasser en 6.11 des
-  # qu'aqtinstall gere la nouvelle arborescence.
+  # aqtinstall 3.3.0 cannot install Qt 6.11 on Windows: the Qt repository changed
+  # its layout for 6.11 (one subfolder per architecture,
+  # qt6_6112/qt6_6112_mingw/) while aqt still looks for qt6_6112/qt6_6112/.
+  # 6.10.3 is the latest installable version and still meets the project floor
+  # (qt_standard_project_setup REQUIRES 6.10). Move back to 6.11 once aqtinstall
+  # handles the new tree.
   QT_VERSION_WINDOWS: 6.10.3
 
 jobs:
@@ -27,7 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Dependances systeme
+      - name: System dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
@@ -42,17 +42,17 @@ jobs:
           arch: linux_gcc_64
           cache: true
 
-      - name: Configurer
+      - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 
-      - name: Compiler
+      - name: Build
         run: cmake --build build
 
       # AGENTS.md : qmllint doit rester a zero warning.
       - name: qmllint
         run: cmake --build build --target all_qmllint
 
-      - name: Verifier l'installation
+      - name: Verify the installation
         run: cmake --install build --prefix "$RUNNER_TEMP/prefix"
 
   windows:
@@ -70,18 +70,18 @@ jobs:
           tools: tools_mingw1310
           cache: true
 
-      - name: Ajouter MinGW et Ninja
+      - name: Add MinGW and Ninja
         shell: pwsh
         run: |
           "$env:IQTA_TOOLS\mingw1310_64\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
           choco install ninja -y --no-progress
 
-      - name: Telecharger libmpv
+      - name: Download libmpv
         shell: pwsh
         run: |
           & .github/scripts/fetch-libmpv.ps1 -Destination "$env:GITHUB_WORKSPACE\mpv"
 
-      - name: Configurer
+      - name: Configure
         shell: pwsh
         run: |
           cmake -S . -B build -G Ninja `
@@ -90,5 +90,5 @@ jobs:
             -DMPV_LIBRARY="$env:GITHUB_WORKSPACE/mpv/libmpv.dll.a" `
             -DMPV_RUNTIME_DLL="$env:GITHUB_WORKSPACE/mpv/libmpv-2.dll"
 
-      - name: Compiler
+      - name: Build
         run: cmake --build build

@@ -36,7 +36,7 @@ QString scrubUrl(const QString &url)
             u.setQuery(query);
     }
 
-    // /live/<user>/<password>/<id>.ext (idem movie, series, timeshift)
+    // /live/<user>/<password>/<id>.ext (same for movie, series, timeshift)
     static const QRegularExpression streamPath(
         QStringLiteral("^(/(?:live|movie|series|timeshift)/[^/]+/)[^/]+(/.*)$"),
         QRegularExpression::CaseInsensitiveOption);

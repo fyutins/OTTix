@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 
-// Menu contextuel du design system.
+// Design system context menu.
 Menu {
     id: control
 

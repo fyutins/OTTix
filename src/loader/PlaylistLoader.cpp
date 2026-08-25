@@ -90,9 +90,9 @@ void PlaylistLoader::onM3UDownloaded()
     QByteArray data = reply->readAll();
     reply->deleteLater();
 
-    // Le parsing d'une grosse playlist (100k+ lignes) bloquerait le thread GUI :
-    // on le deporte, et on revient sur le thread principal pour l'ecriture en
-    // base (QSqlDatabase n'est pas partageable entre threads).
+    // Parsing a large playlist (100k+ lines) would block the GUI thread: run it
+    // off-thread, then come back to the main thread for the database write
+    // (QSqlDatabase is not shareable between threads).
     const int playlistId = m_currentPlaylistId;
     auto *watcher = new QFutureWatcher<QList<ChannelInfo>>(this);
     m_parseWatcher = watcher;

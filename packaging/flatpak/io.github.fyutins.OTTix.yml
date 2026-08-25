@@ -1,25 +1,25 @@
-# Manifeste Flatpak.
+# Flatpak manifest.
 #
-# Build local :
+# Local build:
 #   flatpak install -y flathub org.kde.Platform//6.11 org.kde.Sdk//6.11
 #   flatpak-builder --force-clean --user --install build-flatpak \
 #       packaging/flatpak/io.github.fyutins.OTTix.yml
 #   flatpak run io.github.fyutins.OTTix
 #
-# Le runtime KDE 6.11 fournit Qt 6.11 (Quick, Controls2, Sql, Network, OpenGL,
-# Concurrent, DBus) et ffmpeg : rien de tout cela n'est bundle ici. Seul mpv et
-# ses dependances non fournies par le runtime sont compiles (chaine reprise du
-# manifeste de Haruna, org.kde.haruna, qui suit les memes versions).
+# The KDE 6.11 runtime provides Qt 6.11 (Quick, Controls2, Sql, Network, OpenGL,
+# Concurrent, DBus) and ffmpeg: none of that is bundled here. Only mpv and the
+# dependencies the runtime does not provide are built (chain taken from Haruna's
+# manifest, org.kde.haruna, which tracks the same versions).
 id: io.github.fyutins.OTTix
 runtime: org.kde.Platform
 runtime-version: '6.11'
 sdk: org.kde.Sdk
 command: appOTTix
 
-# Sans libdir explicite, flatpak-builder laisse meson choisir : selon l'hote il
-# installe dans /app/lib64, que ni pkg-config ni l'editeur de liens du runtime
-# ne regardent (libmpv ne trouve alors plus libplacebo). Les runners GitHub
-# tombent dans ce cas, pas les machines de dev — on force donc /app/lib.
+# Without an explicit libdir, flatpak-builder lets meson choose: depending on
+# the host it installs into /app/lib64, which neither pkg-config nor the runtime
+# linker look at (libmpv then no longer finds libplacebo). GitHub runners fall
+# into that case, dev machines do not - so force /app/lib.
 build-options:
   libdir: /app/lib
 
@@ -29,12 +29,12 @@ finish-args:
   - --socket=wayland
   - --socket=fallback-x11
   - --socket=pulseaudio
-  # Decodage materiel (VA-API / Vulkan) pour mpv.
+  # Hardware decoding (VA-API / Vulkan) for mpv.
   - --device=dri
-  # SleepInhibitor : org.freedesktop.ScreenSaver.Inhibit pendant la lecture.
+  # SleepInhibitor: org.freedesktop.ScreenSaver.Inhibit during playback.
   - --talk-name=org.freedesktop.ScreenSaver
-  # Pas d'acces au systeme de fichiers : l'application ne charge que des URL
-  # (M3U distant, Xtream Codes). Pour ouvrir un .m3u local :
+  # No filesystem access: the application only loads URLs (remote M3U, Xtream
+  # Codes). To open a local .m3u:
   #   flatpak override --user --filesystem=home:ro io.github.fyutins.OTTix
 
 cleanup:
@@ -49,7 +49,7 @@ modules:
   - name: libmpv
     buildsystem: meson
     config-opts:
-      # libmpv seul : ni le binaire mpv, ni les scripts Lua.
+      # libmpv only: neither the mpv binary nor the Lua scripts.
       - -Dlibmpv=true
       - -Dcplayer=false
       - -Dlua=disabled

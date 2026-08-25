@@ -10,8 +10,8 @@ GridView {
     signal playRequested(string name, string url, string logo, string group)
     signal favoriteToggled(int dbId)
 
-    // Les cellules s'elargissent pour occuper toute la largeur disponible :
-    // pas de gouttiere residuelle a droite de la grille.
+    // Cells widen to take up all the available width: no leftover gutter on the
+    // right of the grid.
     readonly property int minCellWidth: 162
 
     cellWidth: root.width > root.minCellWidth
@@ -25,8 +25,8 @@ GridView {
     ScrollBar.vertical: AppScrollBar {}
 
     delegate: ChannelDelegate {
-        // Injection explicite : les trois modeles branches ici (ChannelListModel,
-        // favoris, historique) n'exposent pas les memes roles.
+        // Explicit injection: the three models plugged in here (ChannelListModel,
+        // favorites, history) do not expose the same roles.
         required property var model
 
         width: root.cellWidth

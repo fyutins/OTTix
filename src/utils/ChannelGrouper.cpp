@@ -32,18 +32,12 @@ QStringList ChannelGrouper::defaultSuffixes()
         QStringLiteral("x265"),
         QStringLiteral("x264"),
         QStringLiteral("AVC"),
-        QStringLiteral("VO"),
-        QStringLiteral("VF"),
-        QStringLiteral("VOSTFR"),
-        QStringLiteral("VOST"),
-        QStringLiteral("ENG"),
-        QStringLiteral("FR"),
     };
 }
 
-// Nettoie une liste de suffixes : trim, doublons (insensibles a la casse) et
-// tri du plus long au plus court — indispensable pour que « FULLHD » soit
-// teste avant « HD » dans l'alternative de l'expression reguliere.
+// Cleans up a suffix list: trim, de-duplicate (case-insensitively) and sort
+// longest first - required so that "FULLHD" is tested before "HD" in the
+// regular expression alternation.
 QStringList ChannelGrouper::normalizeSuffixes(const QStringList &suffixes)
 {
     QStringList result;
@@ -68,9 +62,9 @@ ChannelGrouper::SuffixPattern ChannelGrouper::buildPattern(const QStringList &ex
     return buildPatternFromList(combinedSuffixes(extraSuffixes));
 }
 
-// Construit le motif a partir de la liste exacte fournie : c'est ce que
-// l'application utilise, pour que retirer un suffixe dans les reglages le
-// retire vraiment (buildPattern y ajouterait toujours les suffixes par defaut).
+// Builds the pattern from the exact list given: this is what the application
+// uses, so that removing a suffix in the settings really removes it
+// (buildPattern would always re-add the default suffixes).
 ChannelGrouper::SuffixPattern ChannelGrouper::buildPatternFromList(const QStringList &list)
 {
     QStringList suffixes = normalizeSuffixes(list);

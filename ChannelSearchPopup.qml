@@ -56,7 +56,7 @@ Popup {
     contentItem: ColumnLayout {
         spacing: 0
 
-        // ── En-tete ──
+        // -- Header --
         Rectangle {
             Layout.fillWidth: true
             Layout.preferredHeight: Theme.toolbarHeight
@@ -94,7 +94,7 @@ Popup {
             }
         }
 
-        // ── Onglets ──
+        // -- Tabs --
         AppTabBar {
             id: tabBar
             Layout.fillWidth: true
@@ -105,14 +105,14 @@ Popup {
             AppTabButton { text: qsTr("History"); glyph: Mdi.history }
         }
 
-        // ── Contenu ──
+        // -- Content --
         StackLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.margins: Theme.spacingMd
             currentIndex: tabBar.currentIndex
 
-            // ── Tab 0: Favorites ──
+            // -- Tab 0: Favorites --
             ColumnLayout {
                 spacing: Theme.spacingSm
 
@@ -136,7 +136,7 @@ Popup {
                 }
             }
 
-            // ── Tab 1: All Channels ──
+            // -- Tab 1: All Channels --
             ColumnLayout {
                 spacing: Theme.spacingSm
 
@@ -159,7 +159,7 @@ Popup {
                 }
             }
 
-            // ── Tab 2: Groups ──
+            // -- Tab 2: Groups --
             ColumnLayout {
                 spacing: Theme.spacingSm
 
@@ -216,7 +216,7 @@ Popup {
                 }
             }
 
-            // ── Tab 3: History ──
+            // -- Tab 3: History --
             ColumnLayout {
                 spacing: Theme.spacingSm
 

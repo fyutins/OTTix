@@ -13,8 +13,8 @@ class M3UParser : public QObject
 public:
     explicit M3UParser(QObject *parent = nullptr);
 
-    // Parsing pur, sans signaux ni etat : appelable depuis n'importe quel
-    // thread (utilise par PlaylistLoader via QtConcurrent).
+    // Pure parsing, no signals and no state: callable from any thread
+    // (used by PlaylistLoader through QtConcurrent).
     static QList<ChannelInfo> parseBuffer(const QByteArray &data, QString *error = nullptr);
 
     QList<ChannelInfo> parse(const QString &filePath);

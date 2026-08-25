@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 
-// Etat vide d'une liste : icone estompee + message (+ detail optionnel).
+// Empty state of a list: dimmed icon + message (+ optional detail).
 ColumnLayout {
     id: control
 

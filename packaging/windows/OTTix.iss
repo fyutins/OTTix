@@ -1,12 +1,12 @@
-; Installateur Windows (Inno Setup 6).
+; Windows installer (Inno Setup 6).
 ;
-; Compilation :
-;   iscc /DAppVersion=0.1.0 /DSourceDir=<dossier issu de "cmake --install"> ^
-;        /DOutputDir=<dossier de sortie> packaging\windows\OTTix.iss
+; Compilation:
+;   iscc /DAppVersion=0.1.0 /DSourceDir=<folder produced by "cmake --install"> ^
+;        /DOutputDir=<output folder> packaging\windows\OTTix.iss
 ;
-; SourceDir doit contenir appOTTix.exe, les DLL Qt deployees par
-; windeployqt, libmpv-2.dll et le dossier qml/ (c'est exactement ce que
-; produit "cmake --install <build> --prefix dist").
+; SourceDir must contain appOTTix.exe, the Qt DLLs deployed by windeployqt,
+; libmpv-2.dll and the qml/ folder (which is exactly what
+; "cmake --install <build> --prefix dist" produces).
 
 #ifndef AppVersion
   #define AppVersion "0.0.0"
@@ -24,8 +24,8 @@
 #define AppUrl "https://github.com/fyutins/OTTix"
 
 [Setup]
-; Ne jamais changer cet AppId : il identifie l'application pour les mises a
-; jour et la desinstallation.
+; Never change this AppId: it identifies the application for updates and
+; uninstallation.
 AppId={{7BBA9DA9-70DE-4A00-BE43-ABDC91B14B63}
 AppName={#AppName}
 AppVersion={#AppVersion}
@@ -36,8 +36,8 @@ AppPublisherURL={#AppUrl}
 AppSupportURL={#AppUrl}/issues
 AppUpdatesURL={#AppUrl}/releases
 
-; Installation par utilisateur par defaut (aucune elevation) ; l'utilisateur
-; peut demander une installation pour toute la machine dans l'assistant.
+; Per-user installation by default (no elevation); the user can request a
+; machine-wide installation from the wizard.
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 DefaultDirName={autopf}\{#AppName}
@@ -61,8 +61,8 @@ CloseApplications=yes
 RestartApplications=no
 
 [Languages]
-Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
+Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
@@ -78,5 +78,5 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: deskto
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
 
-; La base de donnees et les reglages vivent dans %LOCALAPPDATA%\OTTix :
-; la desinstallation les conserve volontairement (playlists, favoris).
+; The database and the settings live in %LOCALAPPDATA%\OTTix: uninstallation
+; deliberately keeps them (playlists, favorites).

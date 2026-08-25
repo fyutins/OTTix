@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 
-// Barre de la page Groupes : recherche a la racine, fil d'Ariane en drill-down.
+// Groups page bar: search at the root, breadcrumb when drilled down.
 Item {
     id: root
 

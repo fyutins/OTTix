@@ -1,24 +1,24 @@
 import QtQuick
 import QtQuick.Controls
 
-// Bouton icone unique. Trois apparences :
-//   - par defaut       : fond transparent, survol clair (barres et pages)
-//   - `tinted`         : pastille translucide claire (par-dessus la video)
-//   - `tinted` + `dark`: pastille sombre (controles centraux du player)
+// Single icon button. Three looks:
+//   - default          : transparent background, light hover (bars and pages)
+//   - `tinted`         : translucent light pill (over the video)
+//   - `tinted` + `dark`: dark pill (the player's central controls)
 AbstractButton {
     id: control
 
     property string glyph: ""
     property int glyphSize: Theme.iconMd
-    // Sur la video, le texte reste clair quel que soit le theme.
+    // Over the video, text stays light whatever the theme.
     property color glyphColor: control.tinted ? Theme.scrimText : Theme.text
     property color checkedColor: Theme.accent
     property bool round: false
     property bool tinted: false
     property bool dark: false
     property bool danger: false
-    // `framed` : meme boitier qu'un champ (fond + bordure), pour former un
-    // groupe avec le controle voisin ; `attachedLeft` carre les coins gauches.
+    // `framed`: same box as a field (background + border), to form a group with
+    // the neighboring control; `attachedLeft` squares off the left corners.
     property bool framed: false
     property bool attachedLeft: false
     property string tooltip: ""

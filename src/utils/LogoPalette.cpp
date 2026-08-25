@@ -18,31 +18,30 @@
 
 namespace {
 
-// Analyse : les pixels quasi transparents (bords adoucis, fond detoure) ne
-// disent rien de la couleur du logo.
+// Analysis: near-transparent pixels (soft edges, cut-out background) say
+// nothing about the logo color.
 constexpr int kAlphaFloor = 96;
-// Histogramme grossier : 12 secteurs de teinte x 4 niveaux de clarte, plus
-// une classe achromatique par niveau (index kHueBins * kLumBins + niveau).
+// Coarse histogram: 12 hue sectors x 4 lightness levels, plus one achromatic
+// class per level (index kHueBins * kLumBins + level).
 constexpr int kHueBins = 12;
 constexpr int kLumBins = 4;
-// Au-dela, la teinte compte : en deca le pixel est un gris.
+// Above this the hue counts; below it the pixel is a gray.
 constexpr float kGrayLimit = 0.15f;
-// Bascule fond sombre / fond clair : luminance ou les deux candidats (clarte
-// HSL 0.11 et 0.91) offrent le meme rapport de contraste WCAG.
+// Dark / light backdrop switch: the luminance at which both candidates (HSL
+// lightness 0.11 and 0.91) give the same WCAG contrast ratio.
 constexpr double kLuminancePivot = 0.18;
-// Une image opaque a ce point remplit sa vignette : le fond ne se voit qu'en
-// lisere, il vaut mieux l'accorder au logo que le faire contraster.
+// An image this opaque fills its thumbnail: the backdrop only shows as a thin
+// border, so matching it to the logo beats contrasting with it.
 constexpr double kOpaqueCoverage = 0.92;
-// Taille d'analyse : au-dela on n'apprend plus rien sur la couleur dominante.
+// Analysis size: beyond this, nothing more is learned about the dominant color.
 constexpr int kSampleSize = 96;
-// Requetes simultanees : le defilement d'une grille peut demander des
-// centaines de logos d'un coup.
+// Concurrent requests: scrolling a grid can ask for hundreds of logos at once.
 constexpr int kMaxInFlight = 4;
 
-// Prefixe des entrees de cache. A incrementer des que la derivation change,
-// sinon les fonds calcules par l'ancienne formule restent servis.
+// Cache entry prefix. Bump it whenever the derivation changes, otherwise
+// backdrops computed by the old formula keep being served.
 const QLatin1String kCachePrefix("logo_bg1:");
-// Fond par defaut du theme : memorise pour ne pas re-analyser a chaque session.
+// Theme default backdrop: memoized so it is not re-analyzed every session.
 const QLatin1String kThemeBackdrop("-");
 
 QString cacheKey(const QString &source)
@@ -50,8 +49,8 @@ QString cacheKey(const QString &source)
     return kCachePrefix + source;
 }
 
-// Luminance relative WCAG : c'est elle, et non la clarte HSL, qui dit si une
-// couleur ressortira sur un fond sombre ou sur un fond clair.
+// WCAG relative luminance: this, and not HSL lightness, tells whether a color
+// will stand out on a dark or on a light backdrop.
 double relativeLuminance(const QColor &color)
 {
     const auto linear = [](float channel) {
@@ -63,7 +62,7 @@ double relativeLuminance(const QColor &color)
          + 0.0722 * linear(color.blueF());
 }
 
-// Fond derive de la couleur dominante du logo et de sa part de pixels opaques.
+// Backdrop derived from the logo's dominant color and its share of opaque pixels.
 QColor backdropFromDominant(const QColor &dominant, double coverage)
 {
     float h = 0.0f, s = 0.0f, l = 0.0f, a = 0.0f;
@@ -73,20 +72,20 @@ QColor backdropFromDominant(const QColor &dominant, double coverage)
         h = 0.0f;
 
     if (coverage > kOpaqueCoverage) {
-        // Logo plein : le fond ne depasse qu'en lisere, un ton assorti et plus
-        // sombre habille mieux la tuile qu'un contraste franc.
+        // Full-bleed logo: the backdrop only shows as a thin border, so a
+        // matching, darker tone suits the tile better than a hard contrast.
         if (achromatic)
             return {};
         return QColor::fromHslF(h, std::min(s, 0.55f),
                                 std::clamp(l * 0.5f, 0.12f, 0.42f));
     }
 
-    // Logo detoure : ses pixels se posent directement sur le fond, il faut
-    // donc contraster avec eux. Le seuil est le point ou les deux fonds
-    // candidats donnent le meme rapport de contraste WCAG.
+    // Cut-out logo: its pixels sit straight on the backdrop, so the backdrop
+    // must contrast with them. The threshold is the point where both candidate
+    // backdrops give the same WCAG contrast ratio.
     const bool lightLogo = relativeLuminance(dominant) > kLuminancePivot;
-    // Glyphes clairs sans teinte (le cas le plus courant) : le fond sombre du
-    // theme fait deja le travail.
+    // Light, hueless glyphs (the most common case): the theme's dark backdrop
+    // already does the job.
     if (achromatic && lightLogo)
         return {};
 
@@ -94,8 +93,8 @@ QColor backdropFromDominant(const QColor &dominant, double coverage)
                             lightLogo ? 0.11f : 0.91f);
 }
 
-// Decodage reduit : QImageReader sait demander une image mise a l'echelle au
-// decodeur, ce qui evite de developper un PNG 1024x1024 pour 96 pixels utiles.
+// Reduced decoding: QImageReader can ask the decoder for a scaled image, which
+// avoids expanding a 1024x1024 PNG for 96 useful pixels.
 QImage readSample(QImageReader &reader)
 {
     reader.setAutoTransform(true);
@@ -174,8 +173,8 @@ QColor LogoPalette::backdropOf(const QImage &source)
                 ? kHueBins * kLumBins + lumBin
                 : std::clamp(int(h * kHueBins), 0, kHueBins - 1) * kLumBins + lumBin;
 
-            // Les pixels satures pesent plus lourd : c'est la couleur qu'on
-            // retient d'un logo, meme minoritaire face a du blanc.
+            // Saturated pixels weigh more: that is the color one remembers
+            // from a logo, even when outnumbered by white.
             const double weight = 1.0 + 3.0 * s;
             Bin &bin = bins[size_t(index)];
             bin.weight += weight;
@@ -218,8 +217,8 @@ void LogoPalette::fetch(const QString &source)
         const QString path = url.isLocalFile() ? url.toLocalFile()
                            : (scheme == QLatin1String("qrc") ? QLatin1String(":") + url.path()
                                                              : source);
-        // Differe : `fetch()` peut etre appele pendant l'evaluation d'un
-        // binding QML, qui ne doit pas voir la propriete changer sous lui.
+        // Deferred: `fetch()` can be called while a QML binding is being
+        // evaluated, and that binding must not see the property change underneath.
         QMetaObject::invokeMethod(this, [this, source, path]() {
             QImageReader reader(path);
             resolve(source, backdropOf(readSample(reader)), true);
@@ -263,7 +262,7 @@ void LogoPalette::resolve(const QString &source, const QColor &color, bool persi
             cacheKey(source),
             color.isValid() ? color.name(QColor::HexRgb) : QString(kThemeBackdrop));
     } else {
-        // Echec reseau : rien n'est memorise, le logo sera retente plus tard.
+        // Network failure: nothing is memoized, the logo is retried later.
         m_requested.remove(source);
     }
     emit backdropResolved(source, color);

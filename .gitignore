@@ -43,8 +43,8 @@ CMakeLists.txt.user*
 .qtc_clangd/
 compile_commands.json
 
-# projets Qt Creator parasites : le projet est CMakeLists.txt, rien d'autre
-# (un .pro ou un projet generique casse le build avec "No rule to make target 'all'")
+# Stray Qt Creator projects: the project is CMakeLists.txt and nothing else
+# (a .pro or a generic project breaks the build with "No rule to make target 'all'")
 *.creator
 *.creator.user*
 *.files

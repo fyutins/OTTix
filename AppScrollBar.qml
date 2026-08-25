@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 
-// Barre de defilement discrete, qui s'epaissit au survol.
+// Discreet scroll bar that thickens on hover.
 ScrollBar {
     id: control
 

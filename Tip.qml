@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 
-// Infobulle du design system, posee au-dessus de l'element survole.
+// Design system tooltip, laid over the hovered element.
 ToolTip {
     id: tip
 

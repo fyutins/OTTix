@@ -9,9 +9,9 @@
 ChannelListModel::ChannelListModel(QObject *parent)
     : QAbstractListModel(parent)
 {
-    // La liste complete des suffixes est editable par l'utilisateur. Au premier
-    // demarrage on la seme avec les suffixes par defaut, en y reprenant les
-    // suffixes personnalises de l'ancien reglage `custom_suffixes`.
+    // The full suffix list is user-editable. On first start it is seeded with
+    // the default suffixes, plus the custom ones from the legacy
+    // `custom_suffixes` setting.
     const QString stored = DatabaseManager::instance().getSetting("quality_suffixes");
     if (!stored.isEmpty()) {
         m_qualitySuffixes = ChannelGrouper::normalizeSuffixes(
@@ -117,7 +117,7 @@ void ChannelListModel::refresh()
     applyFilter();
 }
 
-// ── Worker function (runs in background thread) ──
+// -- Worker function (runs in background thread) --
 
 static ChannelListModel::GroupingResult buildGroupingResult(
     const QList<ChannelInfo> &channels,
@@ -137,7 +137,7 @@ static ChannelListModel::GroupingResult buildGroupingResult(
             groupSet.insert(ch.group);
 
         auto info = ChannelGrouper::analyzeWithPattern(ch.name, pattern);
-        // Clef repliee : "TF1 HD" et "tf1 FHD" appartiennent au meme groupe.
+        // Folded key: "TF1 HD" and "tf1 FHD" belong to the same group.
         const QString key = info.baseName.toCaseFolded();
         result.channelBaseName[i] = key;
         result.channelVariantLabel[i] = info.label;
@@ -297,7 +297,7 @@ void ChannelListModel::applyFilter()
     emit countChanged();
 }
 
-// ── Variant grouping ──
+// -- Variant grouping --
 
 void ChannelListModel::rebuildGroups()
 {

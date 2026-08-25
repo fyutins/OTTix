@@ -3,12 +3,10 @@
   <id>io.github.fyutins.OTTix</id>
 
   <name>OTTix</name>
-  <summary>Lecteur de flux IPTV M3U et Xtream Codes</summary>
+  <summary>Player for M3U and Xtream Codes IPTV streams</summary>
 
   <metadata_license>CC0-1.0</metadata_license>
-  <!-- TODO: aucun fichier LICENSE dans le depot. Remplacer par la licence
-       choisie (MIT, GPL-3.0-only, ...) avant toute publication sur Flathub. -->
-  <project_license>LicenseRef-proprietary</project_license>
+  <project_license>MIT</project_license>
 
   <developer id="io.github.fyutins">
     <name>Fyutins</name>
@@ -16,17 +14,16 @@
 
   <description>
     <p>
-      OTTix lit les listes de chaines M3U et les comptes Xtream Codes.
-      La lecture s'appuie sur libmpv, avec decodage materiel quand il est
-      disponible.
+      OTTix plays M3U channel lists and Xtream Codes accounts. Playback is
+      backed by libmpv, with hardware decoding when it is available.
     </p>
-    <p>Fonctionnalites :</p>
+    <p>Features:</p>
     <ul>
-      <li>Import de playlists M3U (fichier ou URL) et de comptes Xtream Codes</li>
-      <li>Multiplex : jusqu'a quatre flux simultanes, dispositions au choix</li>
-      <li>Regroupement automatique des chaines par qualite (SD, HD, FHD, 4K)</li>
-      <li>Favoris, historique et recherche instantanee</li>
-      <li>Inhibition de la mise en veille pendant la lecture</li>
+      <li>Import M3U playlists (file or URL) and Xtream Codes accounts</li>
+      <li>Multiplex: up to four simultaneous streams, selectable layouts</li>
+      <li>Automatic grouping of channels by quality (SD, HD, FHD, 4K)</li>
+      <li>Favorites, history and instant search</li>
+      <li>Sleep inhibition during playback</li>
     </ul>
   </description>
 
@@ -53,12 +50,12 @@
 
   <content_rating type="oars-1.1"/>
 
-  <!-- TODO Flathub : au moins une capture d'ecran est obligatoire pour la
-       soumission en boutique (URL publique, PNG 16:9 recommande).
+  <!-- TODO Flathub: at least one screenshot is mandatory for store
+       submission (public URL, 16:9 PNG recommended).
   <screenshots>
     <screenshot type="default">
       <image>https://raw.githubusercontent.com/Fyutins/OTTix/main/docs/screenshot-player.png</image>
-      <caption>Lecture d'une chaine en multiplex</caption>
+      <caption>Playing a channel in multiplex</caption>
     </screenshot>
   </screenshots>
   -->
@@ -66,7 +63,7 @@
   <releases>
     <release version="0.1.0" date="2026-08-24">
       <description>
-        <p>Premiere version packagee.</p>
+        <p>First packaged release.</p>
       </description>
     </release>
   </releases>
